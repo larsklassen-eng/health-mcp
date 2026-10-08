@@ -33,7 +33,7 @@ The editable source is [`docs/architecture.svg`](docs/architecture.svg).
 
 ### Key decisions
 
-- **Monorepo:** Turborepo + pnpm workspaces.
+- **Monorepo:** Turborepo + Yarn 4 workspaces (`nodeLinker: node-modules`).
 - **Frontend / backend:** Next.js + NestJS.
 - **MCP server:** a separate app, connected over MCP Streamable HTTP.
 - **Database:** SQLite for v1 (local file at `data/health.db`).
@@ -62,12 +62,12 @@ The three packages exist as foundations: they build and type-check, but have no 
 
 ## Getting started
 
-Requirements: Node.js 24+ and pnpm 12 (`npm i -g pnpm`).
+Requirements: Node.js 24+ and any `yarn` command on your PATH (`npm i -g yarn`). The repo pins Yarn 4.18.1 in `.yarn/releases`, so whichever `yarn` you have will run that version.
 
 ```sh
-pnpm install
-pnpm build       # build all packages
-pnpm typecheck   # type-check all packages
+yarn install
+yarn build       # build all packages
+yarn typecheck   # type-check all packages
 ```
 
 Each package compiles to `dist/`. Apps import packages as `@health-mcp/<name>`.

@@ -1,6 +1,13 @@
 # dependencies
 node_modules/
 
+# yarn 4: keep the pinned release, ignore caches and install state
+.yarn/*
+!.yarn/releases
+!.yarn/patches
+!.yarn/plugins
+.pnp.*
+
 # build output
 dist/
 .turbo/
