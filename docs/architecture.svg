@@ -1,0 +1,191 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="960" viewBox="0 0 1280 960" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
+    </marker>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#2563eb"/>
+    </marker>
+    <style>
+      .title { font-size: 22px; font-weight: 700; fill: #0f172a; }
+      .h { font-size: 15px; font-weight: 700; fill: #0f172a; }
+      .t { font-size: 12.5px; fill: #334155; }
+      .s { font-size: 11px; fill: #475569; }
+      .lbl { font-size: 11.5px; fill: #0f172a; font-weight: 600; }
+      .lbl-blue { font-size: 11.5px; fill: #2563eb; font-weight: 600; }
+      .edge { stroke: #334155; stroke-width: 1.6; fill: none; marker-end: url(#arrow); }
+      .stream { stroke: #2563eb; stroke-width: 1.6; fill: none; stroke-dasharray: 6 4; marker-end: url(#arrow-blue); }
+    </style>
+  </defs>
+
+  <rect width="1280" height="960" fill="#ffffff"/>
+  <text x="40" y="44" class="title">Health Recovery Agent: System Architecture (v1)</text>
+
+  <!-- User -->
+  <rect x="40" y="95" width="180" height="80" rx="10" fill="#f1f5f9" stroke="#64748b" stroke-width="1.5"/>
+  <text x="130" y="130" text-anchor="middle" class="h">User</text>
+  <text x="130" y="150" text-anchor="middle" class="t">(clinician, browser)</text>
+
+  <!-- Monorepo boundary -->
+  <rect x="260" y="70" width="730" height="870" rx="14" fill="#fafafa" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="8 6"/>
+  <text x="280" y="94" class="lbl">health-mcp monorepo: Turborepo + pnpm workspaces</text>
+
+  <!-- apps/web -->
+  <rect x="290" y="110" width="420" height="160" rx="10" fill="#e0f2fe" stroke="#0284c7" stroke-width="1.5"/>
+  <text x="306" y="136" class="h">apps/web: Next.js</text>
+
+  <rect x="305" y="150" width="128" height="78" rx="7" fill="#ffffff" stroke="#0284c7"/>
+  <text x="369" y="172" text-anchor="middle" class="lbl">Patients</text>
+  <text x="369" y="192" text-anchor="middle" class="s">list · create</text>
+  <text x="369" y="208" text-anchor="middle" class="s">import fake data</text>
+
+  <rect x="441" y="150" width="128" height="78" rx="7" fill="#ffffff" stroke="#0284c7"/>
+  <text x="505" y="172" text-anchor="middle" class="lbl">Patient chat</text>
+  <text x="505" y="192" text-anchor="middle" class="s">/patients/:id/chat</text>
+  <text x="505" y="208" text-anchor="middle" class="s">tokens + tool cards</text>
+
+  <rect x="577" y="150" width="120" height="78" rx="7" fill="#ffffff" stroke="#0284c7"/>
+  <text x="637" y="172" text-anchor="middle" class="lbl">Dashboards</text>
+  <text x="637" y="192" text-anchor="middle" class="s">overview (all)</text>
+  <text x="637" y="208" text-anchor="middle" class="s">per patient</text>
+
+  <text x="306" y="254" class="s">talks only to apps/api</text>
+
+  <!-- packages column -->
+  <rect x="740" y="110" width="230" height="75" rx="10" fill="#f5f3ff" stroke="#7c3aed" stroke-width="1.5"/>
+  <text x="756" y="134" class="h">packages/shared</text>
+  <text x="756" y="154" class="t">Zod schemas + inferred types</text>
+  <text x="756" y="173" class="s">imported by web · api · mcp-server · evals</text>
+
+  <rect x="740" y="195" width="230" height="75" rx="10" fill="#f5f3ff" stroke="#7c3aed" stroke-width="1.5"/>
+  <text x="756" y="219" class="h">packages/db</text>
+  <text x="756" y="239" class="t">SQLite schema + client</text>
+  <text x="756" y="258" class="s">imported by api · mcp-server</text>
+
+  <rect x="740" y="280" width="230" height="75" rx="10" fill="#f5f3ff" stroke="#7c3aed" stroke-width="1.5"/>
+  <text x="756" y="304" class="h">packages/evals</text>
+  <text x="756" y="324" class="t">Vitest + Zod-validated outputs</text>
+  <text x="756" y="343" class="s">fixtures use synthetic data only</text>
+
+  <!-- apps/api -->
+  <rect x="290" y="385" width="680" height="280" rx="10" fill="#ecfdf5" stroke="#059669" stroke-width="1.5"/>
+  <text x="306" y="411" class="h">apps/api: NestJS</text>
+
+  <!-- row 1: chat flow -->
+  <rect x="310" y="430" width="200" height="60" rx="8" fill="#ffffff" stroke="#059669"/>
+  <text x="410" y="454" text-anchor="middle" class="lbl">ChatController</text>
+  <text x="410" y="474" text-anchor="middle" class="s">POST /patients/:id/chat → SSE</text>
+
+  <rect x="540" y="430" width="200" height="60" rx="8" fill="#ffffff" stroke="#059669"/>
+  <text x="640" y="454" text-anchor="middle" class="lbl">AgentService</text>
+  <text x="640" y="474" text-anchor="middle" class="s">patient-scoped prompt + tool loop</text>
+
+  <rect x="760" y="430" width="190" height="60" rx="8" fill="#ffffff" stroke="#059669"/>
+  <text x="855" y="454" text-anchor="middle" class="lbl">LlmProvider</text>
+  <text x="855" y="474" text-anchor="middle" class="s">OpenRouter Node SDK</text>
+
+  <!-- row 2 -->
+  <rect x="310" y="510" width="200" height="60" rx="8" fill="#ffffff" stroke="#059669"/>
+  <text x="410" y="534" text-anchor="middle" class="lbl">PatientsController</text>
+  <text x="410" y="554" text-anchor="middle" class="s">CRUD + import (Zod-validated)</text>
+
+  <rect x="540" y="510" width="200" height="60" rx="8" fill="#ffffff" stroke="#059669"/>
+  <text x="640" y="534" text-anchor="middle" class="lbl">McpClient</text>
+  <text x="640" y="554" text-anchor="middle" class="s">injects patient_id on every call</text>
+
+  <rect x="760" y="510" width="190" height="60" rx="8" fill="#ffffff" stroke="#059669" stroke-dasharray="4 3"/>
+  <text x="855" y="534" text-anchor="middle" class="lbl">ConfigModule</text>
+  <text x="855" y="554" text-anchor="middle" class="s">.env: OPENROUTER_API_KEY</text>
+
+  <!-- row 3 -->
+  <rect x="310" y="590" width="200" height="60" rx="8" fill="#ffffff" stroke="#059669"/>
+  <text x="410" y="614" text-anchor="middle" class="lbl">DashboardController</text>
+  <text x="410" y="634" text-anchor="middle" class="s">overview + per-patient metrics</text>
+
+  <!-- apps/mcp-server -->
+  <rect x="440" y="715" width="300" height="200" rx="10" fill="#fff7ed" stroke="#ea580c" stroke-width="1.5"/>
+  <text x="456" y="741" class="h">apps/mcp-server: MCP SDK</text>
+  <text x="456" y="765" class="t">Tools (Zod input, require patient_id):</text>
+  <text x="466" y="785" class="t">• get_patient_profile</text>
+  <text x="466" y="803" class="t">• get_lab_results</text>
+  <text x="466" y="821" class="t">• get_vitals_trend</text>
+  <text x="466" y="839" class="t">• get_medications</text>
+  <text x="466" y="857" class="t">• log_symptom</text>
+  <text x="466" y="875" class="t">• get_recovery_milestones</text>
+
+  <!-- SQLite (cylinder) -->
+  <path d="M790,745 a80,16 0 0,0 160,0 v130 a80,16 0 0,1 -160,0 z" fill="#fefce8" stroke="#ca8a04" stroke-width="1.5"/>
+  <ellipse cx="870" cy="745" rx="80" ry="16" fill="#fef9c3" stroke="#ca8a04" stroke-width="1.5"/>
+  <text x="870" y="785" text-anchor="middle" class="h">SQLite</text>
+  <text x="870" y="805" text-anchor="middle" class="s">data/health.db (git-ignored)</text>
+  <text x="870" y="825" text-anchor="middle" class="s">patients · labs · vitals</text>
+  <text x="870" y="841" text-anchor="middle" class="s">meds · symptoms</text>
+  <text x="870" y="857" text-anchor="middle" class="s">chat messages (per patient)</text>
+
+  <!-- External -->
+  <text x="1030" y="94" class="lbl">External services</text>
+  <rect x="1030" y="430" width="210" height="60" rx="10" fill="#f1f5f9" stroke="#64748b" stroke-width="1.5"/>
+  <text x="1135" y="455" text-anchor="middle" class="h">OpenRouter API</text>
+  <text x="1135" y="474" text-anchor="middle" class="s">model routing</text>
+  <rect x="1030" y="530" width="210" height="60" rx="10" fill="#fdf2f8" stroke="#db2777" stroke-width="1.5"/>
+  <text x="1135" y="555" text-anchor="middle" class="h">Anthropic Claude</text>
+  <text x="1135" y="574" text-anchor="middle" class="s">LLM with tool use</text>
+
+  <!-- Edges -->
+  <!-- 1 user -> web -->
+  <path d="M220,135 L288,135" class="edge"/>
+  <text x="226" y="126" class="lbl">1</text>
+  <!-- 2 web -> ChatController, 7 SSE back -->
+  <path d="M460,270 L460,428" class="edge"/>
+  <text x="302" y="340" class="lbl">2 POST /patients/:id/chat</text>
+  <path d="M495,430 L495,272" class="stream"/>
+  <text x="503" y="330" class="lbl-blue">7 SSE: tokens +</text>
+  <text x="503" y="345" class="lbl-blue">tool events</text>
+  <!-- R web -> Patients / Dashboard (REST), routed down the left side -->
+  <path d="M290,240 H274 V620 H308" class="edge"/>
+  <path d="M274,540 H308" class="edge"/>
+  <text x="270" y="470" class="lbl" transform="rotate(-90 270 470)">R  REST</text>
+  <!-- Chat -> Agent -> Llm -->
+  <path d="M510,460 L538,460" class="edge"/>
+  <path d="M740,460 L758,460" class="edge"/>
+  <!-- 3 Llm -> OpenRouter -->
+  <path d="M950,460 L1028,460" class="edge"/>
+  <text x="958" y="450" class="lbl">3</text>
+  <!-- OpenRouter -> Claude -->
+  <path d="M1135,490 L1135,528" class="edge"/>
+  <!-- 4 Agent -> McpClient -->
+  <path d="M640,490 L640,508" class="edge"/>
+  <text x="648" y="504" class="lbl">4</text>
+  <!-- 5 McpClient -> mcp-server -->
+  <path d="M640,570 L640,713" class="edge"/>
+  <text x="648" y="694" class="lbl">5 MCP (Streamable HTTP)</text>
+  <!-- 6 mcp-server -> SQLite -->
+  <path d="M740,810 L788,810" class="edge"/>
+  <text x="746" y="801" class="lbl">6</text>
+  <!-- api -> SQLite (patients, dashboards, chat history) -->
+  <path d="M870,665 L870,727" class="edge"/>
+  <text x="878" y="690" class="s">read/write</text>
+  <text x="878" y="704" class="s">via packages/db</text>
+  <!-- evals -> LlmProvider -->
+  <path d="M855,355 L855,428" class="edge"/>
+  <text x="863" y="405" class="s">eval runs</text>
+
+  <!-- Flow legend -->
+  <rect x="1010" y="640" width="255" height="300" rx="10" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="1024" y="664" class="lbl">Chat flow (per patient)</text>
+  <text x="1024" y="686" class="s">1  User opens a patient, sends a message</text>
+  <text x="1024" y="706" class="s">2  web → api POST /patients/:id/chat</text>
+  <text x="1024" y="726" class="s">3  api → OpenRouter: patient history</text>
+  <text x="1038" y="740" class="s">+ context + tool definitions</text>
+  <text x="1024" y="760" class="s">4  LLM returns tool_use</text>
+  <text x="1024" y="780" class="s">5  McpClient calls tool (patient_id</text>
+  <text x="1038" y="794" class="s">set by api, not by the LLM)</text>
+  <text x="1024" y="814" class="s">6  Tool queries SQLite; result goes</text>
+  <text x="1038" y="828" class="s">back to the LLM (loop 3–6)</text>
+  <text x="1024" y="848" class="s">7  Stream to UI; messages saved</text>
+  <text x="1024" y="872" class="lbl">R  REST: patients, import, dashboards</text>
+  <path d="M1024,910 L1064,910" class="edge"/>
+  <text x="1072" y="914" class="s">request</text>
+  <path d="M1140,910 L1180,910" class="stream"/>
+  <text x="1188" y="914" class="s">stream</text>
+</svg>
