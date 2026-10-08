@@ -18,7 +18,7 @@ The editable source is [`docs/architecture.svg`](docs/architecture.svg).
 | `apps/api` | NestJS | REST endpoints for patients and dashboards. `POST /patients/:id/chat` streams the agent's reply over SSE. Runs the agent loop, calls the LLM through OpenRouter, and calls MCP tools. |
 | `apps/mcp-server` | MCP TypeScript SDK | Standalone MCP server exposing patient-scoped health tools (labs, vitals, medications, symptoms, recovery milestones). |
 | `packages/shared` | Zod | Schemas and inferred types shared by every app (API contracts, tool inputs). |
-| `packages/db` | SQLite | Database schema and client used by `apps/api` and `apps/mcp-server`. Stores patients, health records and chat history per patient. |
+| `packages/db` | SQLite + Drizzle ORM | Database schema, migrations and client used by `apps/api` and `apps/mcp-server`. Stores patients, health records and chat history per patient. |
 | `packages/evals` | Zod + TypeScript | Eval cases and results for the agent. Fixtures use synthetic patients only. |
 
 ### Chat flow (per patient)
@@ -36,7 +36,7 @@ The editable source is [`docs/architecture.svg`](docs/architecture.svg).
 - **Monorepo:** Turborepo + Yarn 4 workspaces (`nodeLinker: node-modules`).
 - **Frontend / backend:** Next.js + NestJS.
 - **MCP server:** a separate app, connected over MCP Streamable HTTP.
-- **Database:** SQLite for v1 (local file at `data/health.db`).
+- **Database:** SQLite for v1 (local file at `data/health.db`), accessed with Drizzle ORM + better-sqlite3. WAL mode so the api and MCP server can share the file.
 - **LLM access:** OpenRouter Node.js SDK.
 - **Validation and evals:** Zod + TypeScript. No Python in the repo.
 
@@ -49,7 +49,7 @@ apps/                 (not created yet)
   mcp-server/         MCP server
 packages/
   shared/             Zod schemas + types (API, chat, MCP tools, import)
-  db/                 SQLite config (schema + client to come)
+  db/                 SQLite schema, client and migrations (drizzle/)
   evals/              Eval case / result schemas
 docs/
   architecture.png    Architecture diagram
@@ -58,7 +58,7 @@ docs/
 
 ## Status
 
-`packages/shared` holds the Zod schemas for patients, health records, the JSON import format, chat and its SSE stream events, dashboards, MCP tool inputs and API routes. `packages/db` and `packages/evals` are still foundations. Nothing has tests, a database or data yet. The apps are not scaffolded yet. Work is tracked in Linear (LKLA-1).
+`packages/shared` holds the Zod schemas for patients, health records, the JSON import format, chat and its SSE stream events, dashboards, MCP tool inputs and API routes. `packages/db` has the SQLite schema (7 tables: patients, lab results, vital signs, medications, symptoms, recovery milestones, chat messages), the first migration and a client. `packages/evals` is still a foundation. There are no tests or data yet. The apps are not scaffolded yet. Work is tracked in Linear (LKLA-1).
 
 ## Getting started
 
@@ -68,7 +68,21 @@ Requirements: Node.js 24+ and any `yarn` command on your PATH (`npm i -g yarn`).
 yarn install
 yarn build       # build all packages
 yarn typecheck   # type-check all packages
+yarn db:migrate  # create data/health.db (if needed) and apply migrations
 ```
+
+### Database
+
+The schema lives in `packages/db/src/schema.ts`; its enum values come from the Zod schemas in `packages/shared`. Migrations are SQL files in `packages/db/drizzle/` and are committed.
+
+After changing the schema:
+
+```sh
+yarn db:generate --name <short_description>   # write a new SQL migration
+yarn db:migrate                               # apply it to data/health.db
+```
+
+Store timestamps as UTC ISO strings ending in `Z` (convert offsets before writing), so sorting by text matches sorting by time.
 
 Each package compiles to `dist/`. Apps import packages as `@health-mcp/<name>`.
 
