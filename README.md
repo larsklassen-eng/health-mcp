@@ -48,7 +48,7 @@ apps/                 (not created yet)
   api/                NestJS backend
   mcp-server/         MCP server
 packages/
-  shared/             Zod schemas + types
+  shared/             Zod schemas + types (API, chat, MCP tools, import)
   db/                 SQLite config (schema + client to come)
   evals/              Eval case / result schemas
 docs/
@@ -58,7 +58,7 @@ docs/
 
 ## Status
 
-The three packages exist as foundations: they build and type-check, but have no tests, database or data yet. The apps are not scaffolded yet. Work is tracked in Linear (LKLA-1).
+`packages/shared` holds the Zod schemas for patients, health records, the JSON import format, chat and its SSE stream events, dashboards, MCP tool inputs and API routes. `packages/db` and `packages/evals` are still foundations. Nothing has tests, a database or data yet. The apps are not scaffolded yet. Work is tracked in Linear (LKLA-1).
 
 ## Getting started
 
