@@ -58,7 +58,7 @@ docs/
 
 ## Status
 
-`packages/shared` holds the Zod schemas for patients, health records, the JSON import format, chat and its SSE stream events, dashboards, MCP tool inputs and API routes. `packages/db` has the SQLite schema (7 tables: patients, lab results, vital signs, medications, symptoms, recovery milestones, chat messages), the first migration and a client. `packages/evals` is still a foundation. `apps/api` has its NestJS foundation: validated config, the database connection, `GET /health`, Zod request validation and a consistent error format. Patients, dashboards and chat endpoints come next. `apps/web` and `apps/mcp-server` are not scaffolded yet. Every workspace has tests, and CI runs on each push to `main`. There is no data yet. Work is tracked in Linear (LKLA-1).
+`packages/shared` holds the Zod schemas for patients, health records, the JSON import format, chat and its SSE stream events, dashboards, MCP tool inputs and API routes. `packages/db` has the SQLite schema (7 tables: patients, lab results, vital signs, medications, symptoms, recovery milestones, chat messages), the first migration and a client. `packages/evals` is still a foundation. `apps/api` has its NestJS foundation: validated config, the database connection, `GET /health`, Zod request validation and a consistent error format. It also has the patient endpoints (create, list, get, update, delete, import). Dashboards and chat endpoints come next. `apps/web` and `apps/mcp-server` are not scaffolded yet. Every workspace has tests, and CI runs on each push to `main`. There is no data yet. Work is tracked in Linear (LKLA-1).
 
 ## Getting started
 
@@ -111,6 +111,22 @@ Tests use [Vitest](https://vitest.dev) and live in each workspace's `test/` fold
 | `PORT` | `apps/api` | `3001` |
 | `WEB_ORIGIN` | `apps/api` (CORS) | `http://localhost:3000` |
 | `OPENROUTER_API_KEY` | `apps/api` (chat, planned) | none; keep it in `.env`, never commit it |
+
+### API endpoints (`apps/api`)
+
+| Method | Path | Body | Response |
+|---|---|---|---|
+| `GET` | `/health` | | `HealthCheckResponse` |
+| `GET` | `/patients` | | `PatientListResponse` (summaries, sorted by last name) |
+| `POST` | `/patients` | `CreatePatientInput` | `201` `Patient` |
+| `POST` | `/patients/import` | `PatientImportFile` (up to 5 MB) | `201` `PatientImportResult` |
+| `GET` | `/patients/:id` | | `Patient` |
+| `PATCH` | `/patients/:id` | `UpdatePatientInput` (only the fields to change) | `Patient` |
+| `DELETE` | `/patients/:id` | | `204`; also deletes the patient's records and chat history |
+
+Types are the Zod schemas in `@health-mcp/shared`. Errors: `400` invalid input, `404` unknown patient, `409` duplicate MRN.
+
+**Import file format** (`PatientImportFile`): `{ "version": 1, "patients": [ { "patient": {...}, "labResults": [], "vitals": [], "medications": [], "symptoms": [], "milestones": [] } ] }`. Record lists are optional. Timestamps may carry any UTC offset and are stored in UTC. The import is all-or-nothing: if any patient fails (invalid data, duplicate MRN), nothing is saved.
 
 ### API conventions (`apps/api`)
 
