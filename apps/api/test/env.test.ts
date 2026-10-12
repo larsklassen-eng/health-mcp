@@ -4,7 +4,21 @@ import { loadEnv } from "../src/config/env.js";
 
 describe("loadEnv", () => {
   it("applies defaults", () => {
-    expect(loadEnv({})).toEqual({ NODE_ENV: "development", PORT: 3001, WEB_ORIGIN: "http://localhost:3000" });
+    expect(loadEnv({})).toEqual({
+      NODE_ENV: "development",
+      PORT: 3001,
+      WEB_ORIGIN: "http://localhost:3000",
+      OPENROUTER_MODEL: "anthropic/claude-opus-5.5",
+      LLM_MAX_TOKENS: 16_000,
+    });
+  });
+
+  it.each(["", "   "])("treats OPENROUTER_API_KEY=%j (as in .env.example) as not set", (value) => {
+    expect(loadEnv({ OPENROUTER_API_KEY: value }).OPENROUTER_API_KEY).toBeUndefined();
+  });
+
+  it("keeps a real OPENROUTER_API_KEY", () => {
+    expect(loadEnv({ OPENROUTER_API_KEY: "sk-or-test" }).OPENROUTER_API_KEY).toBe("sk-or-test");
   });
 
   it("coerces PORT to a number", () => {
@@ -16,7 +30,9 @@ describe("loadEnv", () => {
     ["an out-of-range PORT", { PORT: "70000" }, "PORT"],
     ["an invalid WEB_ORIGIN", { WEB_ORIGIN: "not a url" }, "WEB_ORIGIN"],
     ["an unknown NODE_ENV", { NODE_ENV: "staging" }, "NODE_ENV"],
-    ["an empty OPENROUTER_API_KEY", { OPENROUTER_API_KEY: "" }, "OPENROUTER_API_KEY"],
+    ["an empty OPENROUTER_MODEL", { OPENROUTER_MODEL: "" }, "OPENROUTER_MODEL"],
+    ["an LLM_MAX_TOKENS below 256", { LLM_MAX_TOKENS: "100" }, "LLM_MAX_TOKENS"],
+    ["an LLM_MAX_TOKENS above 128000", { LLM_MAX_TOKENS: "200000" }, "LLM_MAX_TOKENS"],
   ])("fails fast on %s and names the variable", (_label, env, variable) => {
     expect(() => loadEnv(env)).toThrow(variable);
   });

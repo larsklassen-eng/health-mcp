@@ -8,8 +8,15 @@ export const EnvSchema = z.object({
   WEB_ORIGIN: z.url().default("http://localhost:3000"),
   /** SQLite file; relative paths resolve from the repo root (see @health-mcp/db). */
   DATABASE_PATH: z.string().min(1).optional(),
-  /** Required once the chat module is added. */
-  OPENROUTER_API_KEY: z.string().min(1).optional(),
+  /** Needed for chat. The app starts without it; LLM requests then fail with a clear error. */
+  OPENROUTER_API_KEY: z
+    .string()
+    .optional()
+    .transform((value) => value?.trim() || undefined), // `OPENROUTER_API_KEY=` in .env means "not set"
+  /** OpenRouter model slug used for chat. */
+  OPENROUTER_MODEL: z.string().min(1).default("anthropic/claude-opus-5.5"),
+  /** Output token cap per model turn. OpenRouter reserves credit for this many tokens on every request. */
+  LLM_MAX_TOKENS: z.coerce.number().int().min(256).max(128_000).default(16_000),
 });
 
 export type Env = z.infer<typeof EnvSchema>;
