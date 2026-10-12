@@ -17,6 +17,7 @@ import { OpenRouterLlmClient } from "./openrouter-llm-client.js";
           apiKey: env.OPENROUTER_API_KEY,
           model: env.OPENROUTER_MODEL,
           maxTokens: env.LLM_MAX_TOKENS,
+          zeroDataRetention: env.OPENROUTER_ZDR,
         }),
     },
   ],

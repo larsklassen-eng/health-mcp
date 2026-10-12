@@ -43,8 +43,15 @@ afterEach(async () => {
   await new Promise((resolve) => server.close(resolve));
 });
 
-const createClient = ({ apiKey }: { apiKey: string | undefined } = { apiKey: "sk-or-test" }) =>
-  new OpenRouterLlmClient({ apiKey, model: "anthropic/claude-opus-5.5", maxTokens: 4000, serverURL: baseUrl, retries: false });
+const createClient = ({ apiKey = "sk-or-test", zeroDataRetention = true }: { apiKey?: string | undefined; zeroDataRetention?: boolean } = {}) =>
+  new OpenRouterLlmClient({
+    apiKey,
+    model: "anthropic/claude-opus-5.5",
+    maxTokens: 4000,
+    zeroDataRetention,
+    serverURL: baseUrl,
+    retries: false,
+  });
 
 function chunk(delta: Record<string, unknown>, finishReason: string | null = null, extra: Record<string, unknown> = {}) {
   return {
@@ -137,6 +144,33 @@ describe("OpenRouterLlmClient", () => {
     });
   });
 
+  it("excludes data-collecting providers and requires zero data retention by default", async () => {
+    await collect(createClient().stream({ messages: [{ role: "user", content: "Hi" }] }));
+    expect(requests[0]?.body.provider).toEqual({ data_collection: "deny", zdr: true });
+  });
+
+  it("still excludes data-collecting providers when zero data retention is turned off", async () => {
+    await collect(createClient({ zeroDataRetention: false }).stream({ messages: [{ role: "user", content: "Hi" }] }));
+    expect(requests[0]?.body.provider).toEqual({ data_collection: "deny" });
+  });
+
+  it.each([
+    [true, true],
+    [false, false],
+  ])("explains the data policy on a 404 only when ZDR is on (zdr=%s)", async (zeroDataRetention, mentionsZdr) => {
+    respond = (res) => {
+      res.writeHead(404, { "Content-Type": "application/json" });
+      res.end('{"error":{"code":404,"message":"No endpoints found matching your data policy"}}');
+    };
+
+    const error = await collect(createClient({ zeroDataRetention }).stream({ messages: [{ role: "user", content: "Hi" }] })).catch(
+      (e: unknown) => e,
+    );
+
+    expect(error).toMatchObject({ status: 404 });
+    expect((error as LlmError).message.includes("OPENROUTER_ZDR")).toBe(mentionsZdr);
+  });
+
   it("omits tools when there are none", async () => {
     await collect(createClient().stream({ messages: [{ role: "user", content: "Hi" }], tools: [] }));
     expect(requests[0]?.body).not.toHaveProperty("tools");
@@ -166,7 +200,8 @@ describe("OpenRouterLlmClient", () => {
   });
 
   it("fails clearly without an API key and makes no request", async () => {
-    await expect(collect(createClient({ apiKey: undefined }).stream({ messages: [] }))).rejects.toThrow("OPENROUTER_API_KEY is not set");
+    const client = new OpenRouterLlmClient({ apiKey: undefined, model: "m", maxTokens: 4000, zeroDataRetention: true, serverURL: baseUrl });
+    await expect(collect(client.stream({ messages: [] }))).rejects.toThrow("OPENROUTER_API_KEY is not set");
     expect(requests).toHaveLength(0);
   });
 

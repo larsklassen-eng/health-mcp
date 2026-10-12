@@ -9,6 +9,7 @@ describe("loadEnv", () => {
       PORT: 3001,
       WEB_ORIGIN: "http://localhost:3000",
       OPENROUTER_MODEL: "anthropic/claude-opus-5.5",
+      OPENROUTER_ZDR: true,
       LLM_MAX_TOKENS: 16_000,
     });
   });
@@ -21,6 +22,15 @@ describe("loadEnv", () => {
     expect(loadEnv({ OPENROUTER_API_KEY: "sk-or-test" }).OPENROUTER_API_KEY).toBe("sk-or-test");
   });
 
+  it.each([
+    ["false", false],
+    ["0", false],
+    ["true", true],
+    ["1", true],
+  ])("parses OPENROUTER_ZDR=%s as %s", (value, expected) => {
+    expect(loadEnv({ OPENROUTER_ZDR: value }).OPENROUTER_ZDR).toBe(expected);
+  });
+
   it("coerces PORT to a number", () => {
     expect(loadEnv({ PORT: "4000" }).PORT).toBe(4000);
   });
@@ -31,6 +41,7 @@ describe("loadEnv", () => {
     ["an invalid WEB_ORIGIN", { WEB_ORIGIN: "not a url" }, "WEB_ORIGIN"],
     ["an unknown NODE_ENV", { NODE_ENV: "staging" }, "NODE_ENV"],
     ["an empty OPENROUTER_MODEL", { OPENROUTER_MODEL: "" }, "OPENROUTER_MODEL"],
+    ["a non-boolean OPENROUTER_ZDR", { OPENROUTER_ZDR: "maybe" }, "OPENROUTER_ZDR"],
     ["an LLM_MAX_TOKENS below 256", { LLM_MAX_TOKENS: "100" }, "LLM_MAX_TOKENS"],
     ["an LLM_MAX_TOKENS above 128000", { LLM_MAX_TOKENS: "200000" }, "LLM_MAX_TOKENS"],
   ])("fails fast on %s and names the variable", (_label, env, variable) => {

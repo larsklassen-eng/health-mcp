@@ -20,6 +20,11 @@ export interface OpenRouterLlmClientOptions {
   model: string;
   /** Output token cap per turn. OpenRouter checks the account can pay for this many tokens up front. */
   maxTokens: number;
+  /**
+   * Only use providers with zero data retention. Requests fail if the model has
+   * no such provider. Providers that train on data are excluded either way.
+   */
+  zeroDataRetention: boolean;
   /** Override the API base URL (tests point this at a local fake server). */
   serverURL?: string;
   /** Set to `false` to disable the SDK's automatic retries (tests). */
@@ -30,12 +35,14 @@ export interface OpenRouterLlmClientOptions {
 export class OpenRouterLlmClient extends LlmClient {
   readonly model: string;
   private readonly maxTokens: number;
+  private readonly zeroDataRetention: boolean;
   private readonly sdk: OpenRouter | undefined;
 
   constructor(options: OpenRouterLlmClientOptions) {
     super();
     this.model = options.model;
     this.maxTokens = options.maxTokens;
+    this.zeroDataRetention = options.zeroDataRetention;
     this.sdk = options.apiKey
       ? new OpenRouter({
           apiKey: options.apiKey,
@@ -58,6 +65,9 @@ export class OpenRouterLlmClient extends LlmClient {
             maxTokens: this.maxTokens,
             messages: request.messages.map(toOpenRouterMessage),
             ...(request.tools?.length && { tools: request.tools.map(toOpenRouterTool) }),
+            // Health data: never route to providers that store prompts for training,
+            // and (by default) only to providers that keep no data at all.
+            provider: { dataCollection: "deny", ...(this.zeroDataRetention && { zdr: true }) },
             stream: true,
             streamOptions: { includeUsage: true },
           },
@@ -65,7 +75,7 @@ export class OpenRouterLlmClient extends LlmClient {
         signal ? { signal } : undefined,
       );
     } catch (error) {
-      throw toLlmError(error);
+      throw this.withPolicyHint(toLlmError(error));
     }
     if (!(Symbol.asyncIterator in response)) throw new LlmError("OpenRouter returned a non-streaming response");
 
@@ -101,6 +111,16 @@ export class OpenRouterLlmClient extends LlmClient {
       yield { type: "tool_call", call };
     }
     yield { type: "finish", reason: finishReason ?? "stop", ...(usage && { usage }) };
+  }
+
+  /** OpenRouter answers 404 when no provider for the model satisfies the data policy. */
+  private withPolicyHint(error: LlmError): LlmError {
+    if (error.status !== 404 || !this.zeroDataRetention) return error;
+    return new LlmError(
+      `${error.message}. OPENROUTER_ZDR=true only allows zero-data-retention providers; ` +
+        `check that ${this.model} has one (https://openrouter.ai/docs/features/zdr) or set OPENROUTER_ZDR=false.`,
+      { status: error.status, cause: error },
+    );
   }
 }
 

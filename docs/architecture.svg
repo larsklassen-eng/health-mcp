@@ -124,12 +124,13 @@
 
   <!-- External -->
   <text x="1030" y="94" class="lbl">External services</text>
-  <rect x="1030" y="430" width="210" height="60" rx="10" fill="#f1f5f9" stroke="#64748b" stroke-width="1.5"/>
-  <text x="1135" y="455" text-anchor="middle" class="h">OpenRouter API</text>
-  <text x="1135" y="474" text-anchor="middle" class="s">model routing</text>
+  <rect x="1030" y="430" width="210" height="72" rx="10" fill="#f1f5f9" stroke="#64748b" stroke-width="1.5"/>
+  <text x="1135" y="453" text-anchor="middle" class="h">OpenRouter API</text>
+  <text x="1135" y="472" text-anchor="middle" class="s">zero-data-retention providers</text>
+  <text x="1135" y="488" text-anchor="middle" class="s">no data collection / training</text>
   <rect x="1030" y="530" width="210" height="60" rx="10" fill="#fdf2f8" stroke="#db2777" stroke-width="1.5"/>
   <text x="1135" y="555" text-anchor="middle" class="h">Anthropic Claude</text>
-  <text x="1135" y="574" text-anchor="middle" class="s">LLM with tool use</text>
+  <text x="1135" y="574" text-anchor="middle" class="s">default: Opus 5.5, with tool use</text>
 
   <!-- Edges -->
   <!-- 1 user -> web -->
@@ -152,7 +153,7 @@
   <path d="M950,460 L1028,460" class="edge"/>
   <text x="958" y="450" class="lbl">3</text>
   <!-- OpenRouter -> Claude -->
-  <path d="M1135,490 L1135,528" class="edge"/>
+  <path d="M1135,502 L1135,528" class="edge"/>
   <!-- 4 Agent -> McpClient -->
   <path d="M640,490 L640,508" class="edge"/>
   <text x="648" y="504" class="lbl">4</text>

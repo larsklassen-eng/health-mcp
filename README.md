@@ -2,7 +2,7 @@
 
 An AI health-recovery assistant. Clinicians manage patients, review dashboards, and chat with an agent about one patient at a time. The agent answers by calling MCP tools that read that patient's health records.
 
-> **Data policy:** this project is shared for learning purposes. Only synthetic or redacted data may be used. Real health data and API keys must never be committed. `data/`, `*.db` and `.env*` are git-ignored.
+> **Data policy:** this project is shared for learning purposes. Only synthetic or redacted data may be used. Real health data and API keys must never be committed. `data/`, `*.db` and `.env*` are git-ignored. Chat requests to the LLM only go to providers that keep no data (see [LLM data retention](#llm-data-retention)).
 
 ## Architecture
 
@@ -37,7 +37,7 @@ The editable source is [`docs/architecture.svg`](docs/architecture.svg).
 - **Frontend / backend:** Next.js + NestJS.
 - **MCP server:** a separate app, connected over MCP Streamable HTTP.
 - **Database:** SQLite for v1 (local file at `data/health.db`), accessed with Drizzle ORM + better-sqlite3. WAL mode so the api and MCP server can share the file.
-- **LLM access:** OpenRouter Node.js SDK.
+- **LLM access:** OpenRouter Node.js SDK, default model Claude Opus 5.5 (`OPENROUTER_MODEL`). Requests are restricted to zero-data-retention providers that do not collect data.
 - **Validation and evals:** Zod + TypeScript. No Python in the repo.
 
 ## Repository layout
@@ -113,7 +113,17 @@ Tests use [Vitest](https://vitest.dev) and live in each workspace's `test/` fold
 | `WEB_ORIGIN` | `apps/api` (CORS) | `http://localhost:3000` |
 | `OPENROUTER_API_KEY` | `apps/api` (chat) | none; the api starts without it, chat requests fail. Keep it in `.env`, never commit it |
 | `OPENROUTER_MODEL` | `apps/api` (chat) | `anthropic/claude-opus-5.5` |
+| `OPENROUTER_ZDR` | `apps/api` (chat) | `true`; only use zero-data-retention providers. Set `false` for a model that has none (data-collecting providers stay excluded) |
 | `LLM_MAX_TOKENS` | `apps/api` (chat) | `16000`; output cap per model turn. OpenRouter reserves credit for this amount on every request, so lower it if requests fail with 402 |
+
+### LLM data retention
+
+Patient context and chat history are sent to the LLM, so every OpenRouter request carries a provider policy (`apps/api/src/llm/openrouter-llm-client.ts`):
+
+- `data_collection: "deny"` (always): never route to a provider that stores prompts or uses them for training.
+- `zdr: true` (default, `OPENROUTER_ZDR`): only route to [zero-data-retention](https://openrouter.ai/docs/features/zdr) endpoints. For the default Claude models these are Amazon Bedrock and Google Vertex; Anthropic's own endpoint is skipped.
+
+If a model has no ZDR provider, OpenRouter rejects the request with a 404 and the error message points to `OPENROUTER_ZDR`. Check a model's ZDR endpoints with `curl -s https://openrouter.ai/api/v1/endpoints/zdr` before switching `OPENROUTER_MODEL`. This is in addition to, not instead of, the rule that only synthetic data is used.
 
 ### API endpoints (`apps/api`)
 
