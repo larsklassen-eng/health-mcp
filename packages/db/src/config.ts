@@ -14,7 +14,10 @@ export const MIGRATIONS_FOLDER = fileURLToPath(new URL("../drizzle", import.meta
  * Resolves the SQLite file path from `DATABASE_PATH`, falling back to
  * {@link DEFAULT_DATABASE_PATH}. Relative paths resolve against the repo root,
  * so apps/api and apps/mcp-server open the same file whatever their cwd is.
+ * `:memory:` is passed through unchanged.
  */
 export function resolveDatabasePath(env: { DATABASE_PATH?: string | undefined } = process.env): string {
-  return path.resolve(REPO_ROOT, env.DATABASE_PATH ?? DEFAULT_DATABASE_PATH);
+  const configured = env.DATABASE_PATH ?? DEFAULT_DATABASE_PATH;
+  // `:memory:` is SQLite's in-memory database, not a file name.
+  return configured === ":memory:" ? configured : path.resolve(REPO_ROOT, configured);
 }

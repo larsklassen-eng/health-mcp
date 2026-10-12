@@ -73,6 +73,7 @@ export type McpToolArgs<T extends McpToolName> = z.infer<(typeof MCP_TOOLS)[T]["
 export type McpToolInput<T extends McpToolName> = McpToolArgs<T> & z.infer<typeof PatientIdArgSchema>;
 
 /** Schema for the full input of a tool, as validated by apps/mcp-server. */
-export function mcpToolInputSchema<T extends McpToolName>(name: T) {
-  return MCP_TOOLS[name].args.extend(PatientIdArgSchema.shape);
+export function mcpToolInputSchema<T extends McpToolName>(name: T): z.ZodType<McpToolInput<T>> {
+  // TypeScript cannot follow `extend` through the generic index, so the result type is stated explicitly.
+  return MCP_TOOLS[name].args.extend(PatientIdArgSchema.shape) as unknown as z.ZodType<McpToolInput<T>>;
 }

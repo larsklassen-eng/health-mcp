@@ -1,0 +1,43 @@
+name: CI
+
+# Every push to main is checked. There are no pull requests in this repo,
+# so a failing run means main itself is broken and should be fixed next.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Build, type-check and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      TURBO_TELEMETRY_DISABLED: 1
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          # The runner's global yarn hands off to the release pinned in .yarn/releases.
+          cache: yarn
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Build
+        run: yarn build
+
+      - name: Type-check (source and tests)
+        run: yarn typecheck
+
+      - name: Test
+        run: yarn test

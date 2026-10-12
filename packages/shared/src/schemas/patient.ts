@@ -22,15 +22,18 @@ export const PatientSchema = z.object({
   updatedAt: IsoDateTimeSchema,
 });
 
-export const CreatePatientInputSchema = PatientSchema.omit({
+const PatientFieldsSchema = PatientSchema.omit({
   id: true,
   createdAt: true,
   updatedAt: true,
-}).extend({
+});
+
+export const CreatePatientInputSchema = PatientFieldsSchema.extend({
   status: PatientStatusSchema.default("active"),
 });
 
-export const UpdatePatientInputSchema = CreatePatientInputSchema.partial();
+/** Partial update. Built without defaults so omitted fields are left unchanged. */
+export const UpdatePatientInputSchema = PatientFieldsSchema.partial();
 
 /** Compact row for patient lists and pickers. */
 export const PatientSummarySchema = PatientSchema.pick({

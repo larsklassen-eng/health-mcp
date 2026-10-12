@@ -12,6 +12,7 @@
     "build": "turbo run build",
     "dev": "turbo run dev",
     "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
     "clean": "turbo run clean",
     "db:generate": "turbo run build --filter=@health-mcp/shared && yarn workspace @health-mcp/db db:generate",
     "db:migrate": "turbo run build --filter=@health-mcp/db && yarn workspace @health-mcp/db db:migrate"

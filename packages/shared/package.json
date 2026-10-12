@@ -12,13 +12,16 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "tsc -p tsconfig.json --watch --preserveWatchOutput",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "clean": "rm -rf dist"
+    "typecheck": "tsc -p tsconfig.test.json",
+    "clean": "rm -rf dist",
+    "test": "vitest run"
   },
   "dependencies": {
     "zod": "^4.6.5"
   },
   "devDependencies": {
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vite": "^8.3.4",
+    "vitest": "^5.0.0"
   }
 }

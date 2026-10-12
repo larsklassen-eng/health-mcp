@@ -58,16 +58,17 @@ docs/
 
 ## Status
 
-`packages/shared` holds the Zod schemas for patients, health records, the JSON import format, chat and its SSE stream events, dashboards, MCP tool inputs and API routes. `packages/db` has the SQLite schema (7 tables: patients, lab results, vital signs, medications, symptoms, recovery milestones, chat messages), the first migration and a client. `packages/evals` is still a foundation. `apps/api` has its NestJS foundation: validated config, the database connection, `GET /health`, Zod request validation and a consistent error format. Patients, dashboards and chat endpoints come next. `apps/web` and `apps/mcp-server` are not scaffolded yet. There are no tests or data yet. Work is tracked in Linear (LKLA-1).
+`packages/shared` holds the Zod schemas for patients, health records, the JSON import format, chat and its SSE stream events, dashboards, MCP tool inputs and API routes. `packages/db` has the SQLite schema (7 tables: patients, lab results, vital signs, medications, symptoms, recovery milestones, chat messages), the first migration and a client. `packages/evals` is still a foundation. `apps/api` has its NestJS foundation: validated config, the database connection, `GET /health`, Zod request validation and a consistent error format. Patients, dashboards and chat endpoints come next. `apps/web` and `apps/mcp-server` are not scaffolded yet. Every workspace has tests, and CI runs on each push to `main`. There is no data yet. Work is tracked in Linear (LKLA-1).
 
 ## Getting started
 
-Requirements: Node.js 24+ and any `yarn` command on your PATH (`npm i -g yarn`). The repo pins Yarn 4.18.1 in `.yarn/releases`, so whichever `yarn` you have will run that version.
+Requirements: Node.js 24+ (CI uses the version in `.nvmrc`) and any `yarn` command on your PATH (`npm i -g yarn`). The repo pins Yarn 4.18.1 in `.yarn/releases`, so whichever `yarn` you have will run that version.
 
 ```sh
 yarn install
 yarn build       # build all packages
-yarn typecheck   # type-check all packages
+yarn typecheck   # type-check all packages, including tests
+yarn test        # run all tests
 yarn db:migrate  # create data/health.db (if needed) and apply migrations
 yarn dev         # watch-build packages and run apps/api on http://localhost:3001
 ```
@@ -88,6 +89,19 @@ yarn db:migrate                               # apply it to data/health.db
 Store timestamps as UTC ISO strings ending in `Z` (convert offsets before writing), so sorting by text matches sorting by time.
 
 Each package compiles to `dist/`. Apps import packages as `@health-mcp/<name>`.
+
+### Testing
+
+Tests use [Vitest](https://vitest.dev) and live in each workspace's `test/` folder. `yarn test` runs them all through Turborepo; to run one workspace, use e.g. `yarn workspace @health-mcp/db test`.
+
+- **Database tests** use a fresh in-memory SQLite database with all migrations applied (`createTestDb()` in `packages/db/test/helpers.ts`).
+- **API tests** boot the real Nest app on a random port with the same setup as `main.ts` (`startTestApp()` in `apps/api/test/helpers.ts`) and call it with `fetch`. They always use an in-memory database, never `data/health.db`.
+- API tests are compiled with SWC (`apps/api/vitest.config.ts`) because Vite's default transformer cannot compile NestJS parameter decorators such as `@Body()`.
+- Test files are type-checked by `yarn typecheck` (via each workspace's `tsconfig.test.json`); Vitest itself does not check types.
+
+### Continuous integration
+
+`.github/workflows/ci.yml` runs on every push to `main` (and manually from the Actions tab): install with a locked `yarn.lock`, build, type-check, test. There are no pull requests in this repo, so a red run means `main` is broken.
 
 ### Environment variables
 

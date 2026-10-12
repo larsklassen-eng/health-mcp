@@ -12,17 +12,20 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "tsc -p tsconfig.json --watch --preserveWatchOutput",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.test.json",
     "clean": "rm -rf dist",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node dist/migrate.js",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "test": "vitest run"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^24.0.0",
     "drizzle-kit": "^0.31.11",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vite": "^8.3.4",
+    "vitest": "^5.0.0"
   },
   "dependencies": {
     "@health-mcp/shared": "workspace:*",
