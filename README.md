@@ -43,10 +43,10 @@ The editable source is [`docs/architecture.svg`](docs/architecture.svg).
 ## Repository layout
 
 ```
-apps/                 (not created yet)
-  web/                Next.js frontend
+apps/
+  web/                Next.js frontend (not created yet)
   api/                NestJS backend
-  mcp-server/         MCP server
+  mcp-server/         MCP server (not created yet)
 packages/
   shared/             Zod schemas + types (API, chat, MCP tools, import)
   db/                 SQLite schema, client and migrations (drizzle/)
@@ -58,7 +58,7 @@ docs/
 
 ## Status
 
-`packages/shared` holds the Zod schemas for patients, health records, the JSON import format, chat and its SSE stream events, dashboards, MCP tool inputs and API routes. `packages/db` has the SQLite schema (7 tables: patients, lab results, vital signs, medications, symptoms, recovery milestones, chat messages), the first migration and a client. `packages/evals` is still a foundation. There are no tests or data yet. The apps are not scaffolded yet. Work is tracked in Linear (LKLA-1).
+`packages/shared` holds the Zod schemas for patients, health records, the JSON import format, chat and its SSE stream events, dashboards, MCP tool inputs and API routes. `packages/db` has the SQLite schema (7 tables: patients, lab results, vital signs, medications, symptoms, recovery milestones, chat messages), the first migration and a client. `packages/evals` is still a foundation. `apps/api` has its NestJS foundation: validated config, the database connection, `GET /health`, Zod request validation and a consistent error format. Patients, dashboards and chat endpoints come next. `apps/web` and `apps/mcp-server` are not scaffolded yet. There are no tests or data yet. Work is tracked in Linear (LKLA-1).
 
 ## Getting started
 
@@ -69,7 +69,10 @@ yarn install
 yarn build       # build all packages
 yarn typecheck   # type-check all packages
 yarn db:migrate  # create data/health.db (if needed) and apply migrations
+yarn dev         # watch-build packages and run apps/api on http://localhost:3001
 ```
+
+Copy `.env.example` to `.env` to change settings; the defaults work without it.
 
 ### Database
 
@@ -90,5 +93,14 @@ Each package compiles to `dist/`. Apps import packages as `@health-mcp/<name>`.
 
 | Variable | Used by | Default |
 |---|---|---|
-| `DATABASE_PATH` | `packages/db` | `data/health.db` |
-| `OPENROUTER_API_KEY` | `apps/api` (planned) | none; keep it in `.env`, never commit it |
+| `DATABASE_PATH` | `packages/db`, `apps/api` | `data/health.db` |
+| `PORT` | `apps/api` | `3001` |
+| `WEB_ORIGIN` | `apps/api` (CORS) | `http://localhost:3000` |
+| `OPENROUTER_API_KEY` | `apps/api` (chat, planned) | none; keep it in `.env`, never commit it |
+
+### API conventions (`apps/api`)
+
+- Validate request input by passing a Zod schema from `@health-mcp/shared` to the parameter decorator, e.g. `@Body({ schema: CreatePatientInputSchema })`. Invalid input returns 400 with the issues in `details`.
+- Every error response has the shared `ApiError` shape: `{ statusCode, error, message, details? }`. Unexpected errors return a generic 500 and are logged.
+- Use paths from `API_ROUTES` in `@health-mcp/shared` so the web app and api agree on URLs.
+- Inject `DatabaseService` and use `.db` for Drizzle queries; inject config with `@Inject(ENV)`.

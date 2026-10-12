@@ -15,6 +15,6 @@ export const MIGRATIONS_FOLDER = fileURLToPath(new URL("../drizzle", import.meta
  * {@link DEFAULT_DATABASE_PATH}. Relative paths resolve against the repo root,
  * so apps/api and apps/mcp-server open the same file whatever their cwd is.
  */
-export function resolveDatabasePath(env: NodeJS.ProcessEnv = process.env): string {
+export function resolveDatabasePath(env: { DATABASE_PATH?: string | undefined } = process.env): string {
   return path.resolve(REPO_ROOT, env.DATABASE_PATH ?? DEFAULT_DATABASE_PATH);
 }

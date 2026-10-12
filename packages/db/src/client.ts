@@ -8,7 +8,8 @@ import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import { MIGRATIONS_FOLDER, resolveDatabasePath } from "./config.js";
 import * as schema from "./schema.js";
 
-export type HealthDb = BetterSQLite3Database<typeof schema>;
+/** Drizzle database; `$client` is the underlying better-sqlite3 connection. */
+export type HealthDb = BetterSQLite3Database<typeof schema> & { $client: Database.Database };
 
 export interface DbConnection {
   db: HealthDb;
