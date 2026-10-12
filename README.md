@@ -58,7 +58,7 @@ docs/
 
 ## Status
 
-`packages/shared` holds the Zod schemas for patients, health records, the JSON import format, chat and its SSE stream events, dashboards, MCP tool inputs and API routes. `packages/db` has the SQLite schema (7 tables: patients, lab results, vital signs, medications, symptoms, recovery milestones, chat messages), the first migration and a client. `packages/evals` is still a foundation. `apps/api` has its NestJS foundation: validated config, the database connection, `GET /health`, Zod request validation and a consistent error format. It also has the patient endpoints (create, list, get, update, delete, import). Dashboards and chat endpoints come next. `apps/web` and `apps/mcp-server` are not scaffolded yet. Every workspace has tests, and CI runs on each push to `main`. There is no data yet. Work is tracked in Linear (LKLA-1).
+`packages/shared` holds the Zod schemas for patients, health records, the JSON import format, chat and its SSE stream events, dashboards, MCP tool inputs and API routes. `packages/db` has the SQLite schema (7 tables: patients, lab results, vital signs, medications, symptoms, recovery milestones, chat messages), the first migration and a client. `packages/evals` is still a foundation. `apps/api` has its NestJS foundation: validated config, the database connection, `GET /health`, Zod request validation and a consistent error format. It also has the patient endpoints (create, list, get, update, delete, import) and each patient's chat history (read-only for now). Sending chat messages and the dashboards come next. `apps/web` and `apps/mcp-server` are not scaffolded yet. Every workspace has tests, and CI runs on each push to `main`. There is no data yet. Work is tracked in Linear (LKLA-1).
 
 ## Getting started
 
@@ -123,6 +123,7 @@ Tests use [Vitest](https://vitest.dev) and live in each workspace's `test/` fold
 | `GET` | `/patients/:id` | | `Patient` |
 | `PATCH` | `/patients/:id` | `UpdatePatientInput` (only the fields to change) | `Patient` |
 | `DELETE` | `/patients/:id` | | `204`; also deletes the patient's records and chat history |
+| `GET` | `/patients/:id/chat` | | `ChatHistoryResponse` (the patient's messages, oldest first) |
 
 Types are the Zod schemas in `@health-mcp/shared`. Errors: `400` invalid input, `404` unknown patient, `409` duplicate MRN.
 
