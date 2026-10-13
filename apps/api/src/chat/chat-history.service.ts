@@ -7,6 +7,8 @@ import { DatabaseService } from "../database/database.service.js";
 import { PatientsService } from "../patients/patients.service.js";
 
 export interface NewChatMessage {
+  /** Optional preset id, e.g. when the id was already announced in a stream. */
+  id?: string;
   role: ChatRole;
   content: string;
   toolCalls?: ToolCall[];
@@ -47,7 +49,13 @@ export class ChatHistoryService {
     this.patients.get(patientId);
     const [row] = this.database.db
       .insert(chatMessages)
-      .values({ patientId, role: message.role, content: message.content, toolCalls: message.toolCalls ?? [] })
+      .values({
+        ...(message.id !== undefined && { id: message.id }),
+        patientId,
+        role: message.role,
+        content: message.content,
+        toolCalls: message.toolCalls ?? [],
+      })
       .returning()
       .all();
     return toChatMessage(row!);

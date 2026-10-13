@@ -30,6 +30,18 @@ export class FakeLlmClient extends LlmClient {
     return this;
   }
 
+  /**
+   * Queues a turn that streams `text`, then waits until the request is aborted
+   * (like a model still generating when the client disconnects).
+   */
+  replyThenHang(text: string): this {
+    this.turns.push([{ type: "text_delta", delta: text }, { type: "__hang__" } as unknown as LlmStreamEvent]);
+    return this;
+  }
+
+  /** Abort signal of the most recent request. */
+  lastSignal: AbortSignal | undefined;
+
   enqueue(events: LlmStreamEvent[]): this {
     this.turns.push(events);
     return this;
@@ -41,12 +53,21 @@ export class FakeLlmClient extends LlmClient {
 
   async *stream(request: LlmRequest, signal?: AbortSignal): AsyncIterable<LlmStreamEvent> {
     this.requests.push(structuredClone(request));
+    this.lastSignal = signal;
     const turn = this.turns.shift();
     if (!turn) throw new Error("FakeLlmClient: the test did not script a turn for this request");
 
     for (const event of turn) {
       if (signal?.aborted) throw new LlmError("LLM request was aborted", { aborted: true });
       if ((event as { type: string }).type === "__throw__") throw (event as unknown as { error: LlmError }).error;
+      if ((event as { type: string }).type === "__hang__") {
+        await new Promise<void>((resolve) => {
+          if (!signal) return; // never resolves: the test forgot to pass a signal
+          if (signal.aborted) resolve();
+          else signal.addEventListener("abort", () => resolve(), { once: true });
+        });
+        throw new LlmError("LLM request was aborted", { aborted: true });
+      }
       await Promise.resolve(); // yield to the event loop like a real stream
       yield event;
     }

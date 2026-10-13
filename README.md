@@ -58,7 +58,7 @@ docs/
 
 ## Status
 
-`packages/shared` holds the Zod schemas for patients, health records, the JSON import format, chat and its SSE stream events, dashboards, MCP tool inputs and API routes. `packages/db` has the SQLite schema (7 tables: patients, lab results, vital signs, medications, symptoms, recovery milestones, chat messages), the first migration and a client. `packages/evals` is still a foundation. `apps/api` has its NestJS foundation: validated config, the database connection, `GET /health`, Zod request validation and a consistent error format. It also has the patient endpoints (create, list, get, update, delete, import) and each patient's chat history (read-only for now). The LLM client (`apps/api/src/llm/`, OpenRouter, streamed, with tool calls) is in place but not used by any endpoint yet. Sending chat messages and the dashboards come next. `apps/web` and `apps/mcp-server` are not scaffolded yet. Every workspace has tests, and CI runs on each push to `main`. There is no data yet. Work is tracked in Linear (LKLA-1).
+`packages/shared` holds the Zod schemas for patients, health records, the JSON import format, chat and its SSE stream events, dashboards, MCP tool inputs and API routes. `packages/db` has the SQLite schema (7 tables: patients, lab results, vital signs, medications, symptoms, recovery milestones, chat messages), the first migration and a client. `packages/evals` is still a foundation. `apps/api` has its NestJS foundation: validated config, the database connection, `GET /health`, Zod request validation and a consistent error format. It also has the patient endpoints (create, list, get, update, delete, import) and each patient's chat history (read-only for now). Chat works end to end without tools: `POST /patients/:id/chat` streams the model's answer (OpenRouter) and saves the conversation. The model only sees the patient's profile until the MCP server and tools are added; those and the dashboards come next. `apps/web` and `apps/mcp-server` are not scaffolded yet. Every workspace has tests, and CI runs on each push to `main`. There is no data yet. Work is tracked in Linear (LKLA-1).
 
 ## Getting started
 
@@ -137,10 +137,35 @@ If a model has no ZDR provider, OpenRouter rejects the request with a 404 and th
 | `PATCH` | `/patients/:id` | `UpdatePatientInput` (only the fields to change) | `Patient` |
 | `DELETE` | `/patients/:id` | | `204`; also deletes the patient's records and chat history |
 | `GET` | `/patients/:id/chat` | | `ChatHistoryResponse` (the patient's messages, oldest first) |
+| `POST` | `/patients/:id/chat` | `SendChatMessageRequest` | `200` SSE stream of `ChatStreamEvent` (see below) |
 
 Types are the Zod schemas in `@health-mcp/shared`. Errors: `400` invalid input, `404` unknown patient, `409` duplicate MRN.
 
 **Import file format** (`PatientImportFile`): `{ "version": 1, "patients": [ { "patient": {...}, "labResults": [], "vitals": [], "medications": [], "symptoms": [], "milestones": [] } ] }`. Record lists are optional. Timestamps may carry any UTC offset and are stored in UTC. The import is all-or-nothing: if any patient fails (invalid data, duplicate MRN), nothing is saved.
+
+### Chat streaming
+
+`POST /patients/:id/chat` with `{ "message": "..." }` answers with server-sent events, one JSON `ChatStreamEvent` per `data:` line:
+
+```
+data: {"type":"message_start","messageId":"…"}
+data: {"type":"text_delta","delta":"Surgery was on "}
+data: {"type":"text_delta","delta":"2026-09-01."}
+data: {"type":"message_end","messageId":"…","stopReason":"stop"}
+```
+
+- Invalid input (`400`) and unknown patients (`404`) are normal JSON errors, returned before the stream starts.
+- The question is saved first; the answer is saved under `messageId` only when it completes.
+- If the model fails, the stream ends with `{"type":"error","message":"…"}` (details are logged on the server, not sent) and no partial answer is saved.
+- If the client disconnects, the model request is cancelled and nothing more is saved.
+- The model gets a system prompt with the patient's profile (`apps/api/src/chat/system-prompt.ts`), then the patient's full chat history.
+
+To try it with a real key (uses OpenRouter credits), set `OPENROUTER_API_KEY` in `.env`, run `yarn dev`, create a patient, then:
+
+```sh
+curl -N -X POST http://localhost:3001/patients/<id>/chat \
+  -H 'Content-Type: application/json' -d '{"message":"Summarize this patient."}'
+```
 
 ### API conventions (`apps/api`)
 
