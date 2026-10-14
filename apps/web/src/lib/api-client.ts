@@ -2,6 +2,8 @@ import {
   API_ROUTES,
   type ApiError,
   ApiErrorSchema,
+  ChatHistoryResponseSchema,
+  type ChatMessage,
   type CreatePatientInput,
   type Patient,
   type PatientImportResult,
@@ -65,6 +67,16 @@ export const api = {
   async getPatient(id: string): Promise<Patient | null> {
     try {
       return await request(API_ROUTES.patient(id), PatientSchema);
+    } catch (error) {
+      if (error instanceof ApiRequestError && (error.status === 404 || error.status === 400)) return null;
+      throw error;
+    }
+  },
+
+  /** A patient's chat, oldest message first. Returns `null` when the patient does not exist. */
+  async getChatHistory(patientId: string): Promise<ChatMessage[] | null> {
+    try {
+      return (await request(API_ROUTES.patientChat(patientId), ChatHistoryResponseSchema)).messages;
     } catch (error) {
       if (error instanceof ApiRequestError && (error.status === 404 || error.status === 400)) return null;
       throw error;

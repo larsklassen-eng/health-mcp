@@ -62,6 +62,22 @@ describe("api client", () => {
     expect(fetchMock.mock.calls[0]![0]).toBe("http://api.test/patients/a%2Fb");
   });
 
+  it("reads a patient's chat history from GET /patients/:id/chat", async () => {
+    respond(200, {
+      messages: [{ id: "m1", patientId: "p1", role: "user", content: "Hi", createdAt: "2026-10-01T10:00:00.000Z" }],
+    });
+
+    const messages = await api.getChatHistory("p1");
+
+    expect(fetchMock.mock.calls[0]![0]).toBe("http://api.test/patients/p1/chat");
+    expect(messages).toEqual([expect.objectContaining({ id: "m1", content: "Hi", toolCalls: [] })]);
+  });
+
+  it.each([404, 400])("returns null from getChatHistory on %i", async (status) => {
+    respond(status, { statusCode: status, error: "x", message: "x" });
+    await expect(api.getChatHistory("missing")).resolves.toBeNull();
+  });
+
   it("throws ApiRequestError with the api's error body", async () => {
     respond(409, { statusCode: 409, error: "Conflict", message: "A patient with MRN FAKE-001 already exists" });
 

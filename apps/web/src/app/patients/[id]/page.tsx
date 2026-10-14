@@ -39,6 +39,9 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
         <h1>
           {patient.firstName} {patient.lastName}
         </h1>
+        <Link className="button" href={`/patients/${encodeURIComponent(patient.id)}/chat`}>
+          Chat
+        </Link>
       </div>
       <dl className="profile card">
         {rows.map(([label, value]) => (
