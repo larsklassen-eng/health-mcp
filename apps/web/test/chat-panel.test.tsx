@@ -1,0 +1,159 @@
+import type { ChatStreamEvent } from "@health-mcp/shared";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { ChatPanel } from "@/app/patients/[id]/chat/chat-panel";
+
+const fetchMock = vi.fn<typeof fetch>();
+vi.stubGlobal("fetch", fetchMock);
+afterEach(() => fetchMock.mockReset());
+
+const sse = (event: ChatStreamEvent) => new TextEncoder().encode(`data: ${JSON.stringify(event)}\n\n`);
+
+/** A streamed response the test controls: push events, then close. It errors like fetch does when aborted. */
+function controlledStream() {
+  let controller!: ReadableStreamDefaultController<Uint8Array>;
+  const body = new ReadableStream<Uint8Array>({ start: (c) => void (controller = c) });
+  fetchMock.mockImplementationOnce(async (_url, init) => {
+    init?.signal?.addEventListener("abort", () => controller.error(new DOMException("Aborted", "AbortError")));
+    return new Response(body, { headers: { "Content-Type": "text/event-stream" } });
+  });
+  return { push: (event: ChatStreamEvent) => controller.enqueue(sse(event)), close: () => controller.close() };
+}
+
+const respondWith = (...events: ChatStreamEvent[]) => {
+  const stream = controlledStream();
+  events.forEach(stream.push);
+  stream.close();
+};
+
+const history = [
+  { id: "m1", patientId: "p1", role: "user" as const, content: "Earlier question", toolCalls: [], createdAt: "2026-10-01T10:00:00.000Z" },
+];
+
+const setup = () => {
+  render(<ChatPanel patientId="p1" initialMessages={history} />);
+  return { user: userEvent.setup(), box: screen.getByRole("textbox", { name: "Message" }) };
+};
+const contents = () => screen.getAllByRole("listitem").map((item) => item.querySelector(".chat-content")?.textContent);
+
+describe("ChatPanel", () => {
+  it("sends a message and shows the streamed answer", async () => {
+    respondWith(
+      { type: "message_start", messageId: "a1" },
+      { type: "text_delta", delta: "Hemoglobin " },
+      { type: "text_delta", delta: "is low." },
+      { type: "message_end", messageId: "a1" },
+    );
+    const { user, box } = setup();
+
+    await user.type(box, "Any abnormal labs?");
+    await user.click(screen.getByRole("button", { name: "Send" }));
+
+    await waitFor(() => expect(contents()).toEqual(["Earlier question", "Any abnormal labs?", "Hemoglobin is low."]));
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(url).toBe("/patients/p1/chat/stream");
+    expect(JSON.parse(init?.body as string)).toEqual({ message: "Any abnormal labs?" });
+    expect(box).toHaveValue("");
+    expect(box).toBeEnabled();
+  });
+
+  it("shows the answer while it streams and locks the message box", async () => {
+    const stream = controlledStream();
+    const { user, box } = setup();
+
+    await user.type(box, "Hi{Enter}");
+    stream.push({ type: "message_start", messageId: "a1" });
+    stream.push({ type: "text_delta", delta: "Partial" });
+
+    await waitFor(() => expect(contents().at(-1)).toBe("Partial"));
+    expect(box).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Stop" })).toBeInTheDocument();
+
+    stream.push({ type: "message_end", messageId: "a1" });
+    stream.close();
+    await waitFor(() => expect(box).toBeEnabled());
+    expect(contents().at(-1)).toBe("Partial");
+  });
+
+  it("adds a new line with Shift+Enter instead of sending", async () => {
+    const { user, box } = setup();
+
+    await user.type(box, "Line one{Shift>}{Enter}{/Shift}Line two");
+
+    expect(box).toHaveValue("Line one\nLine two");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("does not send an empty message", async () => {
+    const { user, box } = setup();
+
+    await user.type(box, "   ");
+
+    expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
+    await user.type(box, "{Enter}");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("stops the answer, drops the partial text and keeps the question", async () => {
+    const stream = controlledStream();
+    const { user, box } = setup();
+
+    await user.type(box, "Hi{Enter}");
+    stream.push({ type: "text_delta", delta: "Partial" });
+    await waitFor(() => expect(contents().at(-1)).toBe("Partial"));
+    await user.click(screen.getByRole("button", { name: "Stop" }));
+
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("Answer stopped"));
+    expect(fetchMock.mock.calls[0]![1]?.signal?.aborted).toBe(true);
+    expect(contents()).toEqual(["Earlier question", "Hi"]);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("shows the api's error event and keeps the question", async () => {
+    respondWith({ type: "message_start", messageId: "a1" }, { type: "error", message: "The assistant could not answer. Please try again." });
+    const { user, box } = setup();
+
+    await user.type(box, "Hi{Enter}");
+
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("The assistant could not answer"));
+    expect(contents()).toEqual(["Earlier question", "Hi"]);
+  });
+
+  it("reports a stream that ends without an answer", async () => {
+    respondWith({ type: "message_start", messageId: "a1" }, { type: "text_delta", delta: "Cut" });
+    const { user, box } = setup();
+
+    await user.type(box, "Hi{Enter}");
+
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("could not be sent"));
+    expect(contents()).toEqual(["Earlier question", "Hi"]);
+  });
+
+  it.each([
+    [404, "This patient no longer exists."],
+    [503, "The api is not reachable"],
+    [500, "The message could not be sent"],
+  ])("explains a %i from the proxy", async (status, text) => {
+    fetchMock.mockResolvedValueOnce(Response.json({ statusCode: status, error: "x", message: "x" }, { status }));
+    const { user, box } = setup();
+
+    await user.type(box, "Hi{Enter}");
+
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent(text));
+  });
+
+  it("clears the previous error when sending again", async () => {
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 500 }));
+    respondWith({ type: "message_start", messageId: "a1" }, { type: "text_delta", delta: "Ok" }, { type: "message_end", messageId: "a1" });
+    const { user, box } = setup();
+
+    await user.type(box, "Hi{Enter}");
+    await screen.findByRole("alert");
+    await user.type(box, "Again{Enter}");
+
+    await waitFor(() => expect(contents().at(-1)).toBe("Ok"));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+});

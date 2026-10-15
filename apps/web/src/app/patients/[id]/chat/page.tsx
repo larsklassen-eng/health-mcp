@@ -5,7 +5,7 @@ import { api, ApiUnavailableError } from "@/lib/api-client";
 
 import { ApiUnavailable } from "../../api-unavailable";
 
-import { ChatTranscript } from "./chat-transcript";
+import { ChatPanel } from "./chat-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -32,8 +32,7 @@ export default async function PatientChatPage({ params }: { params: Promise<{ id
           Chat about {patient.firstName} {patient.lastName}
         </h1>
       </div>
-      <ChatTranscript messages={messages} />
-      <p className="muted">Sending messages is not available yet.</p>
+      <ChatPanel patientId={patient.id} initialMessages={messages} />
     </>
   );
 }

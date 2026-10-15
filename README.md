@@ -58,7 +58,7 @@ docs/
 
 ## Status
 
-`packages/shared` holds the Zod schemas for patients, health records, the JSON import format, chat and its SSE stream events, dashboards, MCP tool inputs and API routes. `packages/db` has the SQLite schema (7 tables: patients, lab results, vital signs, medications, symptoms, recovery milestones, chat messages), the first migration and a client. `packages/evals` is still a foundation. `apps/api` has its NestJS foundation: validated config, the database connection, `GET /health`, Zod request validation and a consistent error format. It also has the patient endpoints (create, list, get, update, delete, import) and each patient's chat history (read-only for now). Chat works end to end without tools: `POST /patients/:id/chat` streams the model's answer (OpenRouter) and saves the conversation. The model only sees the patient's profile until the MCP server and tools are added; those and the dashboards come next. `apps/web` has the Patients pages: list, create, import a JSON file of fake data, a read-only profile, and each patient's chat history (read-only for now). Sending chat messages, editing and dashboards in the web app come later. `apps/mcp-server` is not scaffolded yet. Every workspace has tests, and CI runs on each push to `main`. There is no data yet. Work is tracked in Linear (LKLA-1).
+`packages/shared` holds the Zod schemas for patients, health records, the JSON import format, chat and its SSE stream events, dashboards, MCP tool inputs and API routes. `packages/db` has the SQLite schema (7 tables: patients, lab results, vital signs, medications, symptoms, recovery milestones, chat messages), the first migration and a client. `packages/evals` is still a foundation. `apps/api` has its NestJS foundation: validated config, the database connection, `GET /health`, Zod request validation and a consistent error format. It also has the patient endpoints (create, list, get, update, delete, import) and each patient's chat history (read-only for now). Chat works end to end without tools: `POST /patients/:id/chat` streams the model's answer (OpenRouter) and saves the conversation. The model only sees the patient's profile until the MCP server and tools are added; those and the dashboards come next. `apps/web` has the Patients pages: list, create, import a JSON file of fake data, a read-only profile, and a chat per patient that streams the answer as it is written. Tool-call cards, editing and dashboards in the web app come later. `apps/mcp-server` is not scaffolded yet. Every workspace has tests, and CI runs on each push to `main`. There is no data yet. Work is tracked in Linear (LKLA-1).
 
 ## Getting started
 
@@ -135,9 +135,11 @@ If a model has no ZDR provider, OpenRouter rejects the request with a 404 and th
 | `/patients/new` | Create form; validated with the shared Zod schema, a duplicate MRN shows on the MRN field |
 | `/patients/import` | Upload a JSON file of synthetic patients (format shown on the page); problems are listed with their path, e.g. `patients.0.labResults.2.flag` |
 | `/patients/:id` | Read-only profile |
-| `/patients/:id/chat` | The patient's chat history, oldest first (sending comes next) |
+| `/patients/:id/chat` | The patient's chat: history, a message box (Enter sends, Shift+Enter adds a line) and the answer streamed as it is written, with a Stop button |
 
 The web app only calls the api from the server (server components and server actions in `src/app/patients/actions.ts`, through `src/lib/api-client.ts`), so `API_URL` never reaches the browser. If the api is not running, the pages say so instead of failing.
+
+Chat answers stream through a proxy route, `POST /patients/:id/chat/stream` (`src/app/patients/[id]/chat/stream/route.ts`). It validates the message, forwards it to the api and passes the server-sent events back unchanged. Closing the page or pressing Stop aborts the api request, which stops the model. A stopped or failed answer is not saved, but the question is.
 
 ### API endpoints (`apps/api`)
 
