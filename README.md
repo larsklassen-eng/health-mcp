@@ -46,7 +46,7 @@ The editable source is [`docs/architecture.svg`](docs/architecture.svg).
 apps/
   web/                Next.js frontend (patients pages)
   api/                NestJS backend
-  mcp-server/         MCP server (not created yet)
+  mcp-server/         MCP server (patient-scoped tools over Streamable HTTP)
 packages/
   shared/             Zod schemas + types (API, chat, MCP tools, import)
   db/                 SQLite schema, client and migrations (drizzle/)
@@ -58,7 +58,7 @@ docs/
 
 ## Status
 
-`packages/shared` holds the Zod schemas for patients, health records, the JSON import format, chat and its SSE stream events, dashboards, MCP tool inputs and API routes. `packages/db` has the SQLite schema (7 tables: patients, lab results, vital signs, medications, symptoms, recovery milestones, chat messages), the first migration and a client. `packages/evals` is still a foundation. `apps/api` has its NestJS foundation: validated config, the database connection, `GET /health`, Zod request validation and a consistent error format. It also has the patient endpoints (create, list, get, update, delete, import) and each patient's chat history (read-only for now). Chat works end to end without tools: `POST /patients/:id/chat` streams the model's answer (OpenRouter) and saves the conversation. The model only sees the patient's profile until the MCP server and tools are added; those and the dashboards come next. `apps/web` has the Patients pages: list, create, import a JSON file of fake data, a read-only profile, and a chat per patient that streams the answer as it is written. Tool-call cards, editing and dashboards in the web app come later. `apps/mcp-server` is not scaffolded yet. Every workspace has tests, and CI runs on each push to `main`. There is no data yet. Work is tracked in Linear (LKLA-1).
+`packages/shared` holds the Zod schemas for patients, health records, the JSON import format, chat and its SSE stream events, dashboards, MCP tool inputs and API routes. `packages/db` has the SQLite schema (7 tables: patients, lab results, vital signs, medications, symptoms, recovery milestones, chat messages), the first migration and a client. `packages/evals` is still a foundation. `apps/api` has its NestJS foundation: validated config, the database connection, `GET /health`, Zod request validation and a consistent error format. It also has the patient endpoints (create, list, get, update, delete, import) and each patient's chat history (read-only for now). Chat works end to end without tools: `POST /patients/:id/chat` streams the model's answer (OpenRouter) and saves the conversation. The model only sees the patient's profile until the api calls the MCP server's tools; that tool loop and the dashboards come next. `apps/web` has the Patients pages: list, create, import a JSON file of fake data, a read-only profile, and a chat per patient that streams the answer as it is written. Tool-call cards, editing and dashboards in the web app come later. `apps/mcp-server` serves the first tool, `get_patient_profile`, over MCP Streamable HTTP, on localhost only and behind a shared token; the api does not call it yet. Every workspace has tests, and CI runs on each push to `main`. There is no data yet. Work is tracked in Linear (LKLA-1).
 
 ## Getting started
 
@@ -70,10 +70,10 @@ yarn build       # build all packages
 yarn typecheck   # type-check all packages, including tests
 yarn test        # run all tests
 yarn db:migrate  # create data/health.db (if needed) and apply migrations
-yarn dev         # watch-build packages, run apps/api on :3001 and apps/web on http://localhost:3000
+yarn dev         # watch-build packages, run apps/api on :3001, apps/mcp-server on :3002 and apps/web on http://localhost:3000
 ```
 
-Copy `.env.example` to `.env` to change settings; the defaults work without it.
+Copy `.env.example` to `.env` to change settings; the defaults work without it. To use the MCP server, set `MCP_AUTH_TOKEN` in `.env` (`openssl rand -hex 32`); without it the server starts but rejects every request.
 
 ### Database
 
@@ -97,6 +97,7 @@ Tests use [Vitest](https://vitest.dev) and live in each workspace's `test/` fold
 - **Database tests** use a fresh in-memory SQLite database with all migrations applied (`createTestDb()` in `packages/db/test/helpers.ts`).
 - **API tests** boot the real Nest app on a random port with the same setup as `main.ts` (`startTestApp()` in `apps/api/test/helpers.ts`) and call it with `fetch`. They always use an in-memory database, never `data/health.db`.
 - **LLM tests** never call OpenRouter: `OpenRouterLlmClient` is tested against a local fake server speaking OpenRouter's streaming format, and the rest of the api uses `FakeLlmClient` (`apps/api/test/fakes/`), which replays scripted model turns. The test config also blanks `OPENROUTER_API_KEY`.
+- **MCP server tests** (`apps/mcp-server/test/`) run the real server on a random loopback port with an in-memory database and call it with the MCP SDK's client, the same way the api will (`startTestServer()` in `apps/mcp-server/test/helpers.ts`).
 - **Web tests** (`apps/web/test/`) run in happy-dom with Testing Library. Server actions and pages are tested with the api client and Next's `redirect`/`notFound` mocked; forms receive their action as a prop so tests can pass a fake one.
 - API tests are compiled with SWC (`apps/api/vitest.config.ts`) because Vite's default transformer cannot compile NestJS parameter decorators such as `@Body()`.
 - Test files are type-checked by `yarn typecheck` (via each workspace's `tsconfig.test.json`); Vitest itself does not check types.
@@ -109,13 +110,16 @@ Tests use [Vitest](https://vitest.dev) and live in each workspace's `test/` fold
 
 | Variable | Used by | Default |
 |---|---|---|
-| `DATABASE_PATH` | `packages/db`, `apps/api` | `data/health.db` |
+| `DATABASE_PATH` | `packages/db`, `apps/api`, `apps/mcp-server` | `data/health.db` |
 | `PORT` | `apps/api` | `3001` |
 | `API_URL` | `apps/web` (server side only) | `http://localhost:3001` |
 | `WEB_ORIGIN` | `apps/api` (CORS) | `http://localhost:3000` |
 | `OPENROUTER_API_KEY` | `apps/api` (chat) | none; the api starts without it, chat requests fail. Keep it in `.env`, never commit it |
 | `OPENROUTER_MODEL` | `apps/api` (chat) | `anthropic/claude-opus-5.5` |
 | `OPENROUTER_ZDR` | `apps/api` (chat) | `true`; only use zero-data-retention providers. Set `false` for a model that has none (data-collecting providers stay excluded) |
+| `MCP_AUTH_TOKEN` | `apps/mcp-server` | none; the server starts but rejects every request. Generate with `openssl rand -hex 32`, keep it in `.env`, never commit it |
+| `MCP_HOST` | `apps/mcp-server` | `127.0.0.1`; only loopback addresses (`127.0.0.1`, `localhost`, `::1`) are allowed |
+| `MCP_PORT` | `apps/mcp-server` | `3002` |
 | `LLM_MAX_TOKENS` | `apps/api` (chat) | `16000`; output cap per model turn. OpenRouter reserves credit for this amount on every request, so lower it if requests fail with 402 |
 
 ### LLM data retention
@@ -126,6 +130,23 @@ Patient context and chat history are sent to the LLM, so every OpenRouter reques
 - `zdr: true` (default, `OPENROUTER_ZDR`): only route to [zero-data-retention](https://openrouter.ai/docs/features/zdr) endpoints. For the default Claude models these are Amazon Bedrock and Google Vertex; Anthropic's own endpoint is skipped.
 
 If a model has no ZDR provider, OpenRouter rejects the request with a 404 and the error message points to `OPENROUTER_ZDR`. Check a model's ZDR endpoints with `curl -s https://openrouter.ai/api/v1/endpoints/zdr` before switching `OPENROUTER_MODEL`. This is in addition to, not instead of, the rule that only synthetic data is used.
+
+### MCP server (`apps/mcp-server`)
+
+Serves the patient-scoped health tools over [MCP](https://modelcontextprotocol.io) Streamable HTTP at `POST http://127.0.0.1:3002/mcp`. It is stateless: each request gets a fresh server, no sessions are kept, and `GET`/`DELETE /mcp` return 405. `GET /health` needs no token.
+
+| Tool | Status |
+|---|---|
+| `get_patient_profile` | Done: demographics, diagnosis and surgery date |
+| `get_lab_results`, `get_vitals_trend`, `get_medications`, `log_symptom`, `get_recovery_milestones` | Not yet |
+
+Tool descriptions and input schemas come from `MCP_TOOLS` in `packages/shared`; each tool's input is the model's arguments plus `patient_id`, validated before the tool runs. Results are JSON text. An unknown patient or invalid input is returned as a tool error (`isError`) that the model can read; unexpected failures return a generic message and are logged.
+
+The tools trust the `patient_id` they receive, so the server must only be reachable by apps/api:
+
+- **Localhost only:** it listens on `127.0.0.1` and refuses non-loopback `MCP_HOST` values.
+- **Shared token:** every `/mcp` request needs `Authorization: Bearer $MCP_AUTH_TOKEN`, checked before the body is read. Without a configured token the server rejects everything (fail closed).
+- **DNS rebinding protection:** requests whose `Host` header is not `localhost`, `127.0.0.1` or `[::1]` get 403, so a web page cannot reach the server through the browser.
 
 ### Web app (`apps/web`)
 

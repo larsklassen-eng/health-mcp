@@ -1,11 +1,10 @@
-import { patients } from "@health-mcp/db";
+import { patients, toPatient, toPatientSummary } from "@health-mcp/db";
 import type { CreatePatientInput, Patient, PatientSummary, UpdatePatientInput } from "@health-mcp/shared";
 import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import { asc, eq } from "drizzle-orm";
 
 import { isUniqueViolation } from "../common/sqlite-errors.js";
 import { DatabaseService } from "../database/database.service.js";
-import { toPatient, toPatientSummary } from "./patient.mapper.js";
 
 @Injectable()
 export class PatientsService {
