@@ -11,7 +11,12 @@ describe("loadEnv", () => {
       OPENROUTER_MODEL: "anthropic/claude-opus-5.5",
       OPENROUTER_ZDR: true,
       LLM_MAX_TOKENS: 16_000,
+      MCP_URL: "http://127.0.0.1:3002/mcp",
     });
+  });
+
+  it.each(["", "   "])("treats MCP_AUTH_TOKEN=%j as not set", (value) => {
+    expect(loadEnv({ MCP_AUTH_TOKEN: value }).MCP_AUTH_TOKEN).toBeUndefined();
   });
 
   it.each(["", "   "])("treats OPENROUTER_API_KEY=%j (as in .env.example) as not set", (value) => {

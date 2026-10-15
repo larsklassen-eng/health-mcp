@@ -8,8 +8,8 @@ export default defineConfig({
   plugins: [swc.vite({ module: { type: "es6" } })],
   oxc: false,
   test: {
-    // Tests never touch data/health.db and never call the real OpenRouter API,
-    // even if these variables are set in the developer's shell.
-    env: { DATABASE_PATH: ":memory:", OPENROUTER_API_KEY: "" },
+    // Tests never touch data/health.db and never call the real OpenRouter API or
+    // MCP server, even if these variables are set in the developer's shell.
+    env: { DATABASE_PATH: ":memory:", OPENROUTER_API_KEY: "", MCP_AUTH_TOKEN: "", MCP_URL: "http://127.0.0.1:9/mcp" },
   },
 });

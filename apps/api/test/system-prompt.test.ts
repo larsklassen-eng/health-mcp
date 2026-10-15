@@ -34,6 +34,13 @@ describe("buildSystemPrompt", () => {
     expect(withOptional).toContain("Clinician notes: Walks with a cane");
   });
 
+  it("tells the model that tools always act on this patient", () => {
+    const prompt = buildSystemPrompt(patient, "2026-10-13");
+
+    expect(prompt).toContain("they always act on this patient, so you never choose which patient");
+    expect(prompt).not.toContain("cannot yet look up");
+  });
+
   it("is identical for the same patient and day, so providers can cache it", () => {
     expect(buildSystemPrompt(patient, "2026-10-13")).toBe(buildSystemPrompt({ ...patient }, "2026-10-13"));
   });

@@ -604,6 +604,7 @@ __metadata:
   dependencies:
     "@health-mcp/db": "workspace:*"
     "@health-mcp/shared": "workspace:*"
+    "@modelcontextprotocol/sdk": "npm:1.32.1"
     "@nestjs/common": "npm:~12.1.2"
     "@nestjs/core": "npm:~12.1.2"
     "@nestjs/platform-express": "npm:~12.1.2"
