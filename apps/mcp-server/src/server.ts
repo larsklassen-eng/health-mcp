@@ -1,6 +1,7 @@
 import type { HealthDb } from "@health-mcp/db";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
+import { getLabResults } from "./tools/get-lab-results.js";
 import { getPatientProfile } from "./tools/get-patient-profile.js";
 import { registerTool } from "./tools/tool.js";
 
@@ -10,5 +11,6 @@ export const SERVER_INFO = { name: "health-mcp", version: "0.0.0" };
 export function createMcpServer(db: HealthDb): McpServer {
   const server = new McpServer(SERVER_INFO);
   registerTool(server, "get_patient_profile", getPatientProfile(db));
+  registerTool(server, "get_lab_results", getLabResults(db));
   return server;
 }

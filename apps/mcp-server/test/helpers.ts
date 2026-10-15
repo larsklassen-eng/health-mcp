@@ -1,7 +1,7 @@
 import type { AddressInfo } from "node:net";
 
-import { createDb, type HealthDb, migrateDb, patients } from "@health-mcp/db";
-import type { CreatePatientInput } from "@health-mcp/shared";
+import { createDb, type HealthDb, labResults, migrateDb, patients } from "@health-mcp/db";
+import type { CreatePatientInput, LabResultInput } from "@health-mcp/shared";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
@@ -61,6 +61,14 @@ export function insertPatient(db: HealthDb, overrides: Partial<CreatePatientInpu
       diagnosis: "Synthetic meningioma",
       ...overrides,
     })
+    .returning()
+    .get();
+}
+
+export function insertLab(db: HealthDb, patientId: string, lab: Partial<LabResultInput> & Pick<LabResultInput, "collectedAt">) {
+  return db
+    .insert(labResults)
+    .values({ testName: "Hemoglobin", value: 13.5, unit: "g/dL", ...lab, patientId })
     .returning()
     .get();
 }

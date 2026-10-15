@@ -20,10 +20,11 @@ const call = async (args: Record<string, unknown>) =>
 const text = (result: CallToolResult) => (result.content[0]?.type === "text" ? result.content[0].text : undefined);
 
 describe("tools/list", () => {
-  it("lists get_patient_profile with the shared description and a required patient_id", async () => {
+  it("lists the tools with the shared descriptions and a required patient_id", async () => {
     const { tools } = await client.listTools();
 
-    expect(tools.map((tool) => tool.name)).toEqual(["get_patient_profile"]);
+    expect(tools.map((tool) => tool.name)).toEqual(["get_patient_profile", "get_lab_results"]);
+    expect(tools.every((tool) => tool.inputSchema.required?.includes("patient_id"))).toBe(true);
     expect(tools[0]).toMatchObject({
       description: MCP_TOOLS.get_patient_profile.description,
       inputSchema: { type: "object", required: ["patient_id"] },
