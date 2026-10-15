@@ -51,6 +51,8 @@ packages/
   shared/             Zod schemas + types (API, chat, MCP tools, import)
   db/                 SQLite schema, client and migrations (drizzle/)
   evals/              Eval case / result schemas
+fixtures/
+  synthetic-patients.json  8 invented patients in the import format
 docs/
   architecture.png    Architecture diagram
   architecture.svg    Diagram source
@@ -58,7 +60,7 @@ docs/
 
 ## Status
 
-`packages/shared` holds the Zod schemas for patients, health records, the JSON import format, chat and its SSE stream events, dashboards, MCP tool inputs and API routes. `packages/db` has the SQLite schema (7 tables: patients, lab results, vital signs, medications, symptoms, recovery milestones, chat messages), the first migration and a client. `packages/evals` is still a foundation. `apps/api` has its NestJS foundation: validated config, the database connection, `GET /health`, Zod request validation and a consistent error format. It also has the patient endpoints (create, list, get, update, delete, import) and each patient's chat history (read-only for now). Chat works end to end with tools: `POST /patients/:id/chat` runs the agent loop (OpenRouter model, tools on the MCP server), streams the answer and tool events, and saves the conversation with its tool calls. The dashboards come next. `apps/web` has the Patients pages: list, create, import a JSON file of fake data, a read-only profile, and a chat per patient that streams the answer as it is written. Tool-call cards, editing and dashboards in the web app come later. `apps/mcp-server` serves the first tool, `get_patient_profile`, over MCP Streamable HTTP, on localhost only and behind a shared token; the other five tools come next. Every workspace has tests, and CI runs on each push to `main`. There is no data yet. Work is tracked in Linear (LKLA-1).
+`packages/shared` holds the Zod schemas for patients, health records, the JSON import format, chat and its SSE stream events, dashboards, MCP tool inputs and API routes. `packages/db` has the SQLite schema (7 tables: patients, lab results, vital signs, medications, symptoms, recovery milestones, chat messages), the first migration and a client. `packages/evals` is still a foundation. `apps/api` has its NestJS foundation: validated config, the database connection, `GET /health`, Zod request validation and a consistent error format. It also has the patient endpoints (create, list, get, update, delete, import) and each patient's chat history (read-only for now). Chat works end to end with tools: `POST /patients/:id/chat` runs the agent loop (OpenRouter model, tools on the MCP server), streams the answer and tool events, and saves the conversation with its tool calls. The dashboards come next. `apps/web` has the Patients pages: list, create, import a JSON file of fake data, a read-only profile, and a chat per patient that streams the answer as it is written. Tool-call cards, editing and dashboards in the web app come later. `apps/mcp-server` serves the first tool, `get_patient_profile`, over MCP Streamable HTTP, on localhost only and behind a shared token; the other five tools come next. Every workspace has tests, and CI runs on each push to `main`. `fixtures/synthetic-patients.json` has 8 invented patients to import (see [fixtures/README.md](fixtures/README.md)). Work is tracked in Linear (LKLA-1).
 
 ## Getting started
 

@@ -673,6 +673,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@health-mcp/shared@workspace:packages/shared"
   dependencies:
+    "@types/node": "npm:^24.0.0"
     typescript: "npm:^7.0.2"
     vite: "npm:^8.3.4"
     vitest: "npm:^5.0.0"
