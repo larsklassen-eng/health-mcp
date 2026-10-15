@@ -23,7 +23,7 @@ describe("tools/list", () => {
   it("lists the tools with the shared descriptions and a required patient_id", async () => {
     const { tools } = await client.listTools();
 
-    expect(tools.map((tool) => tool.name)).toEqual(["get_patient_profile", "get_lab_results"]);
+    expect(tools.map((tool) => tool.name)).toEqual(["get_patient_profile", "get_lab_results", "get_vitals_trend"]);
     expect(tools.every((tool) => tool.inputSchema.required?.includes("patient_id"))).toBe(true);
     expect(tools[0]).toMatchObject({
       description: MCP_TOOLS.get_patient_profile.description,

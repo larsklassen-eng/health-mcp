@@ -6,11 +6,11 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import express, { type Express, type RequestHandler, type Response } from "express";
 
-import { createMcpServer } from "./server.js";
+import { createMcpServer, type McpServerOptions } from "./server.js";
 
 export const MCP_PATH = "/mcp";
 
-export interface AppOptions {
+export interface AppOptions extends McpServerOptions {
   db: HealthDb;
   /** Shared secret apps/api sends as a bearer token. */
   authToken: string;
@@ -38,7 +38,7 @@ function requireBearerToken(token: string): RequestHandler {
  * request gets its own server and transport, so no sessions are kept.
  * Checks run before the body is read: Host header (DNS rebinding), then the token.
  */
-export function createApp({ db, authToken }: AppOptions): Express {
+export function createApp({ db, authToken, ...serverOptions }: AppOptions): Express {
   const app = express();
   app.disable("x-powered-by");
   app.use(localhostHostValidation());
@@ -50,7 +50,7 @@ export function createApp({ db, authToken }: AppOptions): Express {
   app.use(MCP_PATH, requireBearerToken(authToken), express.json({ limit: "1mb" }));
 
   app.post(MCP_PATH, async (req, res) => {
-    const server = createMcpServer(db);
+    const server = createMcpServer(db, serverOptions);
     // No `sessionIdGenerator` means stateless mode.
     const transport = new StreamableHTTPServerTransport({ enableJsonResponse: true });
     res.on("close", () => {

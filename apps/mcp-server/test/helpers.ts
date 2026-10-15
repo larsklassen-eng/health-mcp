@@ -1,12 +1,13 @@
 import type { AddressInfo } from "node:net";
 
-import { createDb, type HealthDb, labResults, migrateDb, patients } from "@health-mcp/db";
-import type { CreatePatientInput, LabResultInput } from "@health-mcp/shared";
+import { createDb, type HealthDb, labResults, migrateDb, patients, vitalSigns } from "@health-mcp/db";
+import type { CreatePatientInput, LabResultInput, VitalSignInput } from "@health-mcp/shared";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 
 import { createApp, MCP_PATH } from "../src/app.js";
+import type { McpServerOptions } from "../src/server.js";
 
 export const TEST_TOKEN = "test-token-0123456789abcdef0123456789abcdef";
 
@@ -20,10 +21,10 @@ export interface TestServer {
 }
 
 /** Runs the app on a random loopback port with a fresh, migrated in-memory database. */
-export async function startTestServer(): Promise<TestServer> {
+export async function startTestServer(options: McpServerOptions = {}): Promise<TestServer> {
   const connection = createDb({ path: ":memory:" });
   migrateDb(connection.db);
-  const server = createApp({ db: connection.db, authToken: TEST_TOKEN }).listen(0, "127.0.0.1");
+  const server = createApp({ db: connection.db, authToken: TEST_TOKEN, ...options }).listen(0, "127.0.0.1");
   await new Promise((resolve) => server.once("listening", resolve));
   const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
   const clients: Client[] = [];
@@ -69,6 +70,14 @@ export function insertLab(db: HealthDb, patientId: string, lab: Partial<LabResul
   return db
     .insert(labResults)
     .values({ testName: "Hemoglobin", value: 13.5, unit: "g/dL", ...lab, patientId })
+    .returning()
+    .get();
+}
+
+export function insertVital(db: HealthDb, patientId: string, vital: Partial<VitalSignInput> & Pick<VitalSignInput, "recordedAt" | "value">) {
+  return db
+    .insert(vitalSigns)
+    .values({ type: "heart_rate", unit: "bpm", ...vital, patientId })
     .returning()
     .get();
 }
