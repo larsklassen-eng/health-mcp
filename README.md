@@ -162,7 +162,7 @@ The tools trust the `patient_id` they receive, so the server must only be reacha
 | `/patients/new` | Create form; validated with the shared Zod schema, a duplicate MRN shows on the MRN field |
 | `/patients/import` | Upload a JSON file of synthetic patients (format shown on the page); problems are listed with their path, e.g. `patients.0.labResults.2.flag` |
 | `/patients/:id` | Read-only profile |
-| `/patients/:id/chat` | The patient's chat: history, a message box (Enter sends, Shift+Enter adds a line) and the answer streamed as it is written, with a Stop button |
+| `/patients/:id/chat` | The patient's chat: history, a message box (Enter sends, Shift+Enter adds a line) and the answer streamed as it is written, with a Stop button. Answers are rendered as Markdown (bold, italics, lists, tables, code) with `react-markdown`; raw HTML is not rendered, images are never loaded (a model-written image URL could leak data), and links open in a new tab |
 
 The web app only calls the api from the server (server components and server actions in `src/app/patients/actions.ts`, through `src/lib/api-client.ts`), so `API_URL` never reaches the browser. If the api is not running, the pages say so instead of failing.
 

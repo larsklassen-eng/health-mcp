@@ -30,8 +30,20 @@ describe("ChatTranscript", () => {
     expect(time).toHaveAttribute("dateTime", "2026-10-01T22:30:00.000Z");
   });
 
-  it("keeps the line breaks of the message text", () => {
-    render(<ChatTranscript messages={[message]} />);
-    expect(screen.getByText(/Line one/).textContent).toBe("Line one\nLine two");
+  it("shows the user's messages as plain text, keeping line breaks and Markdown characters", () => {
+    render(<ChatTranscript messages={[{ ...message, role: "user", content: "Line one\n**not bold**" }]} />);
+
+    const content = screen.getByText(/Line one/);
+    expect(content).toHaveClass("chat-content");
+    expect(content.textContent).toBe("Line one\n**not bold**");
+    expect(content.querySelector("strong")).toBeNull();
+  });
+
+  it("renders the assistant's messages as Markdown", () => {
+    render(<ChatTranscript messages={[{ ...message, content: "**Stable** at the last MRI.\n\n- one\n- two" }]} />);
+
+    expect(screen.getByText("Stable").tagName).toBe("STRONG");
+    const item = screen.getByText("Stable").closest(".chat-message")!;
+    expect(item.querySelectorAll(".markdown ul > li")).toHaveLength(2);
   });
 });

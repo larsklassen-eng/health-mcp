@@ -1,5 +1,7 @@
 import type { ChatMessage } from "@health-mcp/shared";
 
+import { ChatMarkdown } from "./chat-markdown";
+
 const ROLE_LABELS: Record<ChatMessage["role"], string> = { user: "You", assistant: "Assistant" };
 
 /** Formatted in UTC so server and browser render the same text. */
@@ -22,7 +24,11 @@ export function ChatTranscript({ messages }: { messages: ChatMessage[] }) {
             <strong>{ROLE_LABELS[message.role]}</strong>{" "}
             <time dateTime={message.createdAt}>{timeFormat.format(new Date(message.createdAt))} UTC</time>
           </div>
-          <p className="chat-content">{message.content}</p>
+          {message.role === "assistant" ? (
+            <ChatMarkdown text={message.content} />
+          ) : (
+            <p className="chat-content">{message.content}</p>
+          )}
         </li>
       ))}
     </ol>
