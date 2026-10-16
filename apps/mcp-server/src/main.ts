@@ -1,3 +1,5 @@
+import "./load-env.js";
+
 import { randomBytes } from "node:crypto";
 
 import { createDb, resolveDatabasePath } from "@health-mcp/db";

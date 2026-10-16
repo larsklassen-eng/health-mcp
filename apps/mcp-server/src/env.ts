@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-/** Environment variables read by apps/mcp-server. Loaded from the repo-root `.env` by the start scripts. */
+/** Environment variables read by apps/mcp-server. The repo-root `.env` is loaded at startup (`src/load-env.ts`). */
 export const EnvSchema = z.object({
   /**
    * Only loopback addresses are allowed: the server trusts the `patient_id` it

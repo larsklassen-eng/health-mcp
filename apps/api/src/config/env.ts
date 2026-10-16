@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-/** Environment variables read by apps/api. Loaded from the repo-root `.env` by the start scripts. */
+/** Environment variables read by apps/api. The repo-root `.env` is loaded at startup (`src/load-env.ts`). */
 export const EnvSchema = z.object({
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
   PORT: z.coerce.number().int().min(1).max(65535).default(3001),
