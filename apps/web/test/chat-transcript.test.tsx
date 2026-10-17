@@ -46,4 +46,22 @@ describe("ChatTranscript", () => {
     const item = screen.getByText("Stable").closest(".chat-message")!;
     expect(item.querySelectorAll(".markdown ul > li")).toHaveLength(2);
   });
+
+  it("shows the assistant's tool calls above the answer, but none for the user", () => {
+    const toolCalls = [{ id: "t1", name: "get_patient_profile", input: {}, output: { id: "p1" }, isError: false }];
+    render(
+      <ChatTranscript
+        messages={[
+          { ...message, id: "m0", role: "user", content: "Hi" },
+          { ...message, content: "Answer", toolCalls },
+        ]}
+      />,
+    );
+
+    const lists = screen.getAllByRole("list", { name: "Data the assistant used" });
+    expect(lists).toHaveLength(1);
+    const item = lists[0]!.closest(".chat-message")!;
+    expect(item).toHaveClass("assistant");
+    expect(lists[0]!.compareDocumentPosition(item.querySelector(".markdown")!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
 });

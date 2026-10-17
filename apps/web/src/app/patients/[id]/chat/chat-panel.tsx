@@ -1,6 +1,6 @@
 "use client";
 
-import type { ChatMessage } from "@health-mcp/shared";
+import type { ChatMessage, ToolCall } from "@health-mcp/shared";
 import { type FormEvent, type KeyboardEvent, useRef, useState } from "react";
 
 import { ChatSendError, GENERIC_SEND_ERROR, sendChatMessage } from "@/lib/chat-client";
@@ -18,6 +18,8 @@ interface Props {
 export function ChatPanel({ patientId, initialMessages }: Props) {
   const [messages, setMessages] = useState(initialMessages);
   const [draft, setDraft] = useState<string | null>(null); // the answer while it streams
+  const [draftCalls, setDraftCalls] = useState<ToolCall[]>([]);
+  const [running, setRunning] = useState<ReadonlySet<string>>(new Set());
   const [input, setInput] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -35,8 +37,11 @@ export function ChatPanel({ patientId, initialMessages }: Props) {
     // The api saves the question before answering, so it stays even if the answer fails.
     setMessages((m) => [...m, { id: `local-${crypto.randomUUID()}`, patientId, role: "user", content: text, toolCalls: [], createdAt: now() }]);
     setDraft("");
+    setDraftCalls([]);
+    setRunning(new Set());
 
     let answer = "";
+    let calls: ToolCall[] = [];
     let finished = false;
     try {
       const events = await sendChatMessage(patientId, text, abort.signal);
@@ -44,14 +49,27 @@ export function ChatPanel({ patientId, initialMessages }: Props) {
         if (event.type === "text_delta") {
           answer += event.delta;
           setDraft(answer);
+        } else if (event.type === "tool_call_start") {
+          calls = [...calls, { id: event.toolCallId, name: event.name, input: event.input, isError: false }];
+          setDraftCalls(calls);
+          setRunning((ids) => new Set(ids).add(event.toolCallId));
+        } else if (event.type === "tool_call_result") {
+          const { toolCallId, output, isError } = event;
+          calls = calls.map((call) => (call.id === toolCallId ? { ...call, output, isError } : call));
+          setDraftCalls(calls);
+          setRunning((ids) => {
+            const next = new Set(ids);
+            next.delete(toolCallId);
+            return next;
+          });
         } else if (event.type === "message_end") {
           finished = true;
-          setMessages((m) => [...m, { id: event.messageId, patientId, role: "assistant", content: answer, toolCalls: [], createdAt: now() }]);
+          const toolCalls = calls;
+          setMessages((m) => [...m, { id: event.messageId, patientId, role: "assistant", content: answer, toolCalls, createdAt: now() }]);
         } else if (event.type === "error") {
           finished = true;
           setError(event.message);
         }
-        // Tool-call events are shown once the agent has tools.
       }
       if (!finished) setError(GENERIC_SEND_ERROR); // the stream ended without an answer
     } catch (caught) {
@@ -61,6 +79,8 @@ export function ChatPanel({ patientId, initialMessages }: Props) {
     } finally {
       abortRef.current = null;
       setDraft(null);
+      setDraftCalls([]);
+      setRunning(new Set());
     }
   }
 
@@ -81,12 +101,12 @@ export function ChatPanel({ patientId, initialMessages }: Props) {
   const shown: ChatMessage[] =
     draft === null
       ? messages
-      : [...messages, { id: "draft", patientId, role: "assistant", content: draft || "…", toolCalls: [], createdAt: now() }];
+      : [...messages, { id: "draft", patientId, role: "assistant", content: draft || "…", toolCalls: draftCalls, createdAt: now() }];
 
   return (
     <>
       <div aria-busy={streaming}>
-        <ChatTranscript messages={shown} />
+        <ChatTranscript messages={shown} runningToolCalls={running} />
       </div>
 
       {error && (

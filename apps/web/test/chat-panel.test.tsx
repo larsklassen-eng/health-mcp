@@ -36,7 +36,7 @@ const setup = () => {
   render(<ChatPanel patientId="p1" initialMessages={history} />);
   return { user: userEvent.setup(), box: screen.getByRole("textbox", { name: "Message" }) };
 };
-const contents = () => screen.getAllByRole("listitem").map((item) => item.querySelector(".chat-content")?.textContent);
+const contents = () => screen.getAllByRole("listitem").filter((item) => item.matches(".chat-message")).map((item) => item.querySelector(".chat-content")?.textContent);
 
 describe("ChatPanel", () => {
   it("sends a message and shows the streamed answer", async () => {
@@ -109,6 +109,29 @@ describe("ChatPanel", () => {
     expect(fetchMock.mock.calls[0]![1]?.signal?.aborted).toBe(true);
     expect(contents()).toEqual(["Earlier question", "Hi"]);
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("shows tool calls while they run and keeps them with the answer", async () => {
+    const stream = controlledStream();
+    const { user, box } = setup();
+
+    await user.type(box, "Hemoglobin?{Enter}");
+    stream.push({ type: "message_start", messageId: "a1" });
+    stream.push({ type: "tool_call_start", toolCallId: "t1", name: "get_lab_results", input: { test_name: "Hemoglobin" } });
+
+    const card = await screen.findByText("Lab results");
+    expect(card.closest(".tool-call")).toHaveTextContent("Running…");
+
+    stream.push({ type: "tool_call_result", toolCallId: "t1", output: { results: [] }, isError: false });
+    await waitFor(() => expect(screen.getByText("Lab results").closest(".tool-call")).toHaveTextContent("Done"));
+
+    stream.push({ type: "text_delta", delta: "No results." });
+    stream.push({ type: "message_end", messageId: "a1" });
+    stream.close();
+    await waitFor(() => expect(box).toBeEnabled());
+    const answer = screen.getAllByRole("listitem").filter((item) => item.matches(".chat-message")).at(-1)!;
+    expect(answer).toHaveTextContent("No results.");
+    expect(answer.querySelector(".tool-call.done")).toHaveTextContent("test name: Hemoglobin");
   });
 
   it("shows the api's error event and keeps the question", async () => {

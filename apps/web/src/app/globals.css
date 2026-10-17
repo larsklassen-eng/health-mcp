@@ -93,3 +93,15 @@ tr:last-child td { border-bottom: none; }
 .markdown-table table { width: auto; border-radius: 0; }
 .markdown-table th, .markdown-table td { padding: 6px 10px; font-size: 0.9rem; }
 .markdown-table th { text-transform: none; letter-spacing: 0; color: var(--text); background: #f8fafc; }
+
+/* Tool calls shown above an assistant message. */
+.tool-calls { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 4px; }
+.tool-call details { border: 1px solid var(--border); border-radius: var(--radius); background: #f8fafc; font-size: 0.85rem; }
+.tool-call summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding: 4px 10px; cursor: pointer; }
+.tool-call-name { font-weight: 600; }
+.tool-call-input { color: var(--muted); overflow-wrap: anywhere; }
+.tool-call-status { margin-left: auto; color: var(--muted); }
+.tool-call.failed .tool-call-status { color: var(--danger); }
+.tool-call.failed details { border-color: #fecaca; background: var(--danger-bg); }
+.tool-call-output { margin: 0; padding: 8px 10px; border-top: 1px solid var(--border); max-height: 240px; overflow: auto; font-size: 0.8rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+pre.tool-call-output { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
