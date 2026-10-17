@@ -1,21 +1,29 @@
 import { randomUUID } from "node:crypto";
 
 import type { ChatMessage, ChatStreamEvent, ToolCall } from "@health-mcp/shared";
-import { Injectable, Logger } from "@nestjs/common";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 
+import { ENV } from "../config/config.module.js";
+import type { Env } from "../config/env.js";
 import { LlmClient, type LlmMessage } from "../llm/llm-client.js";
 import { PatientsService } from "../patients/patients.service.js";
 import { AgentService } from "./agent.service.js";
 import { ChatHistoryService } from "./chat-history.service.js";
+import { recentHistory } from "./history-window.js";
 import { buildSystemPrompt } from "./system-prompt.js";
 
 const toLlmMessage = ({ role, content }: ChatMessage): LlmMessage => ({ role, content });
 
-/** Runs one chat turn for a patient: saves the question, streams the agent's answer, saves the answer. */
+/** Added to the system prompt when older messages were left out. */
+export const OMITTED_HISTORY_NOTE =
+  "Older messages of this chat were left out to keep the request small. " +
+  "If the user refers to something you cannot see, say so and ask them to repeat it.";
+
 /**
- * Only the text of earlier messages is sent back to the model; their tool
- * results are not replayed, which keeps requests small. The model calls the
- * tools again when it needs the data.
+ * Runs one chat turn for a patient: saves the question, streams the agent's
+ * answer, saves the answer. Only the text of recent messages is sent back to
+ * the model (see `CHAT_HISTORY_MAX_CHARS`); tool results are not replayed,
+ * which keeps requests small. The model calls the tools again when it needs the data.
  */
 @Injectable()
 export class ChatService {
@@ -26,6 +34,7 @@ export class ChatService {
     private readonly history: ChatHistoryService,
     private readonly agent: AgentService,
     private readonly llm: LlmClient,
+    @Inject(ENV) private readonly env: Env,
   ) {}
 
   /**
@@ -39,15 +48,18 @@ export class ChatService {
     signal: AbortSignal,
   ): AsyncIterable<ChatStreamEvent> {
     const patient = this.patients.get(patientId);
-    const previous = this.history.list(patientId);
+    const previous = recentHistory(this.history.list(patientId), this.env.CHAT_HISTORY_MAX_CHARS);
     this.history.append(patientId, { role: "user", content: message });
 
+    let system = buildSystemPrompt(patient, new Date().toISOString().slice(0, 10));
+    if (previous.omitted > 0) {
+      system += `\n\n${OMITTED_HISTORY_NOTE}`;
+      this.logger.log(`Left out ${previous.omitted} older messages for patient ${patientId}`);
+    }
+
     const messages: LlmMessage[] = [
-      {
-        role: "system",
-        content: buildSystemPrompt(patient, new Date().toISOString().slice(0, 10)),
-      },
-      ...previous.map(toLlmMessage),
+      { role: "system", content: system },
+      ...previous.messages.map(toLlmMessage),
       { role: "user", content: message },
     ];
     return this.streamAnswer(patientId, messages, signal);

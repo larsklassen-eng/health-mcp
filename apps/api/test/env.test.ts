@@ -11,6 +11,7 @@ describe("loadEnv", () => {
       OPENROUTER_MODEL: "anthropic/claude-opus-5.5",
       OPENROUTER_ZDR: true,
       LLM_MAX_TOKENS: 16_000,
+      CHAT_HISTORY_MAX_CHARS: 40_000,
       MCP_URL: "http://127.0.0.1:3002/mcp",
     });
   });
@@ -49,6 +50,11 @@ describe("loadEnv", () => {
     ["a non-boolean OPENROUTER_ZDR", { OPENROUTER_ZDR: "maybe" }, "OPENROUTER_ZDR"],
     ["an LLM_MAX_TOKENS below 256", { LLM_MAX_TOKENS: "100" }, "LLM_MAX_TOKENS"],
     ["an LLM_MAX_TOKENS above 128000", { LLM_MAX_TOKENS: "200000" }, "LLM_MAX_TOKENS"],
+    [
+      "a CHAT_HISTORY_MAX_CHARS below 1000",
+      { CHAT_HISTORY_MAX_CHARS: "999" },
+      "CHAT_HISTORY_MAX_CHARS",
+    ],
   ])("fails fast on %s and names the variable", (_label, env, variable) => {
     expect(() => loadEnv(env)).toThrow(variable);
   });

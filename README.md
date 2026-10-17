@@ -25,7 +25,7 @@ The editable source is [`docs/architecture.svg`](docs/architecture.svg).
 
 1. The user opens a patient and sends a message in `apps/web`.
 2. The web app calls `POST /patients/:id/chat` on `apps/api`.
-3. The agent sends the patient's chat history, patient context and tool definitions to the LLM via OpenRouter (Anthropic Claude).
+3. The agent sends the patient's recent chat history, patient context and tool definitions to the LLM via OpenRouter (Anthropic Claude).
 4. The LLM responds with a tool call.
 5. The api's MCP client calls the tool on `apps/mcp-server`. **The api sets `patient_id` on every call, not the LLM,** so a chat can only ever read its own patient's data.
 6. The tool queries SQLite and the result goes back to the LLM. Steps 3–6 repeat until the LLM has a final answer.
@@ -130,6 +130,7 @@ Tests use [Vitest](https://vitest.dev) and live in each workspace's `test/` fold
 | `MCP_PORT` | `apps/mcp-server` | `3002` |
 | `MCP_URL` | `apps/api` | `http://127.0.0.1:3002/mcp` |
 | `LLM_MAX_TOKENS` | `apps/api` (chat) | `16000`; output cap per model turn. OpenRouter reserves credit for this amount on every request, so lower it if requests fail with 402 |
+| `CHAT_HISTORY_MAX_CHARS` | `apps/api` (chat) | `40000` (about 10k tokens); characters of earlier messages sent with each question. The newest whole messages that fit are kept, starting with a question; when older ones are left out, the system prompt tells the model |
 
 ### LLM data retention
 
@@ -214,7 +215,7 @@ data: {"type":"message_end","messageId":"…","stopReason":"stop"}
 - The question is saved first; the answer is saved under `messageId` only when it completes.
 - If the model fails, the stream ends with `{"type":"error","message":"…"}` (details are logged on the server, not sent) and no partial answer is saved.
 - If the client disconnects, the model request is cancelled and nothing more is saved.
-- The model gets a system prompt with the patient's profile (`apps/api/src/chat/system-prompt.ts`), then the text of the patient's full chat history. Tool results from earlier answers are not resent; the model calls the tools again when it needs the data.
+- The model gets a system prompt with the patient's profile (`apps/api/src/chat/system-prompt.ts`), then the text of the patient's recent chat history: the newest whole messages within `CHAT_HISTORY_MAX_CHARS` (40,000 characters by default), starting with a question. When older messages are left out, the system prompt says so. The saved history keeps every message. Tool results from earlier answers are not resent; the model calls the tools again when it needs the data.
 
 #### Agent loop (`apps/api/src/chat/agent.service.ts`)
 

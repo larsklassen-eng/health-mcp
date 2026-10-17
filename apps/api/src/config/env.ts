@@ -32,6 +32,11 @@ export const EnvSchema = z.object({
     .transform((value) => value?.trim() || undefined),
   /** Output token cap per model turn. OpenRouter reserves credit for this many tokens on every request. */
   LLM_MAX_TOKENS: z.coerce.number().int().min(256).max(128_000).default(16_000),
+  /**
+   * Characters of earlier chat messages sent with each question (about 4 per token).
+   * Older messages beyond this are left out, and the model is told so.
+   */
+  CHAT_HISTORY_MAX_CHARS: z.coerce.number().int().min(1_000).max(1_000_000).default(40_000),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

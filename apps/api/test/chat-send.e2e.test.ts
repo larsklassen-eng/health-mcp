@@ -10,6 +10,9 @@ import {
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { AppModule } from "../src/app.module.js";
+import { OMITTED_HISTORY_NOTE } from "../src/chat/chat.service.js";
+import { ENV } from "../src/config/config.module.js";
+import { loadEnv } from "../src/config/env.js";
 import { LlmClient, LlmError } from "../src/llm/llm-client.js";
 import { FakeLlmClient } from "./fakes/fake-llm-client.js";
 import { newPatient } from "./fixtures.js";
@@ -119,6 +122,31 @@ describe(`POST ${API_ROUTES.patientChat(":id")}`, () => {
     expect(system).toContain("Ana Test");
     expect(system).toContain("Synthetic meningioma");
     expect(system).toContain("Surgery date: 2026-09-01");
+    expect(system).not.toContain(OMITTED_HISTORY_NOTE);
+  });
+
+  it("leaves out older messages beyond CHAT_HISTORY_MAX_CHARS and tells the model", async () => {
+    await testApp.close();
+    testApp = await startTestApp(AppModule, [
+      { provide: LlmClient, useValue: llm },
+      { provide: ENV, useValue: { ...loadEnv(), CHAT_HISTORY_MAX_CHARS: 1_000 } },
+    ]);
+    const { body } = await testApp.request("POST", API_ROUTES.patients, newPatient());
+    const id = PatientSchema.parse(body).id;
+    const long = (label: string) => `${label} ${"x".repeat(400)}`;
+    llm.replyWithText(long("A1")).replyWithText(long("A2")).replyWithText("A3");
+
+    await sendChat(id, { message: long("Q1") });
+    await sendChat(id, { message: long("Q2") });
+    await sendChat(id, { message: "Q3" });
+
+    const request = llm.requests[2]!;
+    // Q1 and A1 no longer fit in 1000 characters next to Q2 and A2.
+    expect(request.messages.slice(1).map((m) => m.content.slice(0, 2))).toEqual(["Q2", "A2", "Q3"]);
+    expect(request.messages[0]!.content).toContain(OMITTED_HISTORY_NOTE);
+    // The saved history is not affected.
+    const { body: saved } = await testApp.request("GET", API_ROUTES.patientChat(id));
+    expect(ChatHistoryResponseSchema.parse(saved).messages).toHaveLength(6);
   });
 
   it("keeps each patient's conversation separate", async () => {
