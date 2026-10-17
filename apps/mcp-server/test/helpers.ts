@@ -4,11 +4,19 @@ import {
   createDb,
   type HealthDb,
   labResults,
+  medications,
   migrateDb,
   patients,
+  recoveryMilestones,
   vitalSigns,
 } from "@health-mcp/db";
-import type { CreatePatientInput, LabResultInput, VitalSignInput } from "@health-mcp/shared";
+import type {
+  CreatePatientInput,
+  LabResultInput,
+  MedicationInput,
+  RecoveryMilestoneInput,
+  VitalSignInput,
+} from "@health-mcp/shared";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
@@ -96,6 +104,37 @@ export function insertVital(
   return db
     .insert(vitalSigns)
     .values({ type: "heart_rate", unit: "bpm", ...vital, patientId })
+    .returning()
+    .get();
+}
+
+export function insertMedication(
+  db: HealthDb,
+  patientId: string,
+  medication: Partial<MedicationInput> & Pick<MedicationInput, "name">,
+) {
+  return db
+    .insert(medications)
+    .values({
+      dosage: "4 mg",
+      frequency: "twice daily",
+      status: "active",
+      startDate: "2026-08-17",
+      ...medication,
+      patientId,
+    })
+    .returning()
+    .get();
+}
+
+export function insertMilestone(
+  db: HealthDb,
+  patientId: string,
+  milestone: Partial<RecoveryMilestoneInput> & Pick<RecoveryMilestoneInput, "title">,
+) {
+  return db
+    .insert(recoveryMilestones)
+    .values({ status: "pending", ...milestone, patientId })
     .returning()
     .get();
 }
