@@ -644,6 +644,9 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@health-mcp/evals@workspace:packages/evals"
   dependencies:
+    "@health-mcp/db": "workspace:*"
+    "@health-mcp/shared": "workspace:*"
+    "@types/node": "npm:^24.0.0"
     typescript: "npm:^7.0.2"
     vite: "npm:^8.3.4"
     vitest: "npm:^5.0.0"

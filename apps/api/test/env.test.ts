@@ -16,6 +16,13 @@ describe("loadEnv", () => {
     });
   });
 
+  it("accepts an OpenRouter base URL override", () => {
+    expect(loadEnv({ OPENROUTER_BASE_URL: "http://127.0.0.1:9/api/v1" }).OPENROUTER_BASE_URL).toBe(
+      "http://127.0.0.1:9/api/v1",
+    );
+    expect(() => loadEnv({ OPENROUTER_BASE_URL: "not a url" })).toThrow("OPENROUTER_BASE_URL");
+  });
+
   it.each(["", "   "])("treats MCP_AUTH_TOKEN=%j as not set", (value) => {
     expect(loadEnv({ MCP_AUTH_TOKEN: value }).MCP_AUTH_TOKEN).toBeUndefined();
   });

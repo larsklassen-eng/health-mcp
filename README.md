@@ -19,7 +19,7 @@ The editable source is [`docs/architecture.svg`](docs/architecture.svg).
 | `apps/mcp-server` | MCP TypeScript SDK | Standalone MCP server exposing patient-scoped health tools (labs, vitals, medications, symptoms, recovery milestones). |
 | `packages/shared` | Zod | Schemas and inferred types shared by every app (API contracts, tool inputs). |
 | `packages/db` | SQLite + Drizzle ORM | Database schema, migrations and client used by `apps/api` and `apps/mcp-server`. Stores patients, health records and chat history per patient. |
-| `packages/evals` | Zod + TypeScript | Eval cases and results for the agent. Fixtures use synthetic patients only. |
+| `packages/evals` | Zod + TypeScript | Agent eval cases on the synthetic patients, a deterministic grader, and `yarn eval` to run them against the real stack. |
 
 ### Chat flow (per patient)
 
@@ -50,7 +50,7 @@ apps/
 packages/
   shared/             Zod schemas + types (API, chat, MCP tools, import)
   db/                 SQLite schema, client and migrations (drizzle/)
-  evals/              Eval case / result schemas
+  evals/              Agent eval cases, grader and runner (`yarn eval`)
 fixtures/
   synthetic-patients.json  8 invented patients in the import format
 docs/
@@ -60,7 +60,7 @@ docs/
 
 ## Status
 
-`packages/shared` holds the Zod schemas for patients, health records, the JSON import format, chat and its SSE stream events, dashboards, MCP tool inputs and API routes. `packages/db` has the SQLite schema (7 tables: patients, lab results, vital signs, medications, symptoms, recovery milestones, chat messages), the first migration and a client. `packages/evals` is still a foundation. `apps/api` has its NestJS foundation: validated config, the database connection, `GET /health`, Zod request validation and a consistent error format. It also has the patient endpoints (create, list, get, update, delete, import) and each patient's chat history (read-only for now). Chat works end to end with tools: `POST /patients/:id/chat` runs the agent loop (OpenRouter model, tools on the MCP server), streams the answer and tool events, and saves the conversation with its tool calls. `GET /dashboards/overview` and `GET /dashboards/patients/:id` serve the dashboards (how each number is calculated is documented on the schemas in `packages/shared/src/schemas/dashboard.ts`). `apps/web` has the Patients pages: list, create, import a JSON file of fake data, a profile with an edit page (including delete, after a confirmation), and a chat per patient that streams the answer as it is written, with a card for each tool call (what was asked, and the result when expanded). It also has the dashboards: an overview of all patients (`/dashboard`) and one per patient (`/patients/:id/dashboard`). `apps/mcp-server` serves the five read-only tools (`get_patient_profile`, `get_lab_results`, `get_vitals_trend`, `get_medications`, `get_recovery_milestones`) over MCP Streamable HTTP, on localhost only and behind a shared token; `log_symptom`, the only tool that writes, comes next. Every workspace has tests, and CI runs on each push to `main`. `fixtures/synthetic-patients.json` has 8 invented patients to import (see [fixtures/README.md](fixtures/README.md)). Work is tracked in Linear (LKLA-1).
+`packages/shared` holds the Zod schemas for patients, health records, the JSON import format, chat and its SSE stream events, dashboards, MCP tool inputs and API routes. `packages/db` has the SQLite schema (7 tables: patients, lab results, vital signs, medications, symptoms, recovery milestones, chat messages), the first migration and a client. `packages/evals` has 12 agent eval cases and a runner (see [Evals](#evals)). `apps/api` has its NestJS foundation: validated config, the database connection, `GET /health`, Zod request validation and a consistent error format. It also has the patient endpoints (create, list, get, update, delete, import) and each patient's chat history (read-only for now). Chat works end to end with tools: `POST /patients/:id/chat` runs the agent loop (OpenRouter model, tools on the MCP server), streams the answer and tool events, and saves the conversation with its tool calls. `GET /dashboards/overview` and `GET /dashboards/patients/:id` serve the dashboards (how each number is calculated is documented on the schemas in `packages/shared/src/schemas/dashboard.ts`). `apps/web` has the Patients pages: list, create, import a JSON file of fake data, a profile with an edit page (including delete, after a confirmation), and a chat per patient that streams the answer as it is written, with a card for each tool call (what was asked, and the result when expanded). It also has the dashboards: an overview of all patients (`/dashboard`) and one per patient (`/patients/:id/dashboard`). `apps/mcp-server` serves the five read-only tools (`get_patient_profile`, `get_lab_results`, `get_vitals_trend`, `get_medications`, `get_recovery_milestones`) over MCP Streamable HTTP, on localhost only and behind a shared token; `log_symptom`, the only tool that writes, comes next. Every workspace has tests, and CI runs on each push to `main`. `fixtures/synthetic-patients.json` has 8 invented patients to import (see [fixtures/README.md](fixtures/README.md)). Work is tracked in Linear (LKLA-1).
 
 ## Getting started
 
@@ -110,6 +110,24 @@ Tests use [Vitest](https://vitest.dev) and live in each workspace's `test/` fold
 
 [Prettier](https://prettier.io) formats TypeScript, JavaScript, JSON, CSS and YAML with a line width of 100 (`.prettierrc.json`). Generated files, the synthetic fixture and Markdown are skipped (`.prettierignore`). Run `yarn format` before committing; CI fails if a file is not formatted. Prettier does not wrap comments or string literals, so keep those short by hand.
 
+### Evals
+
+`yarn eval` checks the agent's answers against the real stack: it builds everything, starts apps/api and apps/mcp-server on a temporary database (never `data/health.db`), and asks each case's question in the chat of a fresh copy of one patient from `fixtures/synthetic-patients.json`. **Every case calls the model on OpenRouter, so a run costs money**; it needs `OPENROUTER_API_KEY` and uses `OPENROUTER_MODEL`.
+
+```sh
+yarn eval --list                 # list the cases (no model calls)
+yarn eval                        # run all cases
+yarn eval --case abnormal-labs   # run one case (repeat --case for more)
+```
+
+The cases are in `packages/evals/src/cases.ts`. Grading is deterministic, with no model judging the answer. A case checks:
+- which tools were called, with which arguments, without an error;
+- tools that must not be called, and the most tool calls allowed;
+- text the answer must mention (case-insensitive; a list means any one of them), and text it must not mention, such as values the patient does not have;
+- that the model finished normally (not an error or the tool-round limit).
+
+Each run prints ✓/✗ per case with the reasons and writes a JSON report with the answers to `eval-results/` (git-ignored). The exit code is 1 if any case fails. CI does not run evals; `yarn test` checks the grader, the stream parsing, and that every expected value really is in the fixture. To try the runner without model calls, point `OPENROUTER_BASE_URL` at a local fake server.
+
 ### Continuous integration
 
 `.github/workflows/ci.yml` runs on every push to `main` (and manually from the Actions tab): install with a locked `yarn.lock`, check formatting, build, type-check, test. There are no pull requests in this repo, so a red run means `main` is broken.
@@ -125,6 +143,7 @@ Tests use [Vitest](https://vitest.dev) and live in each workspace's `test/` fold
 | `OPENROUTER_API_KEY` | `apps/api` (chat) | none; the api starts without it, chat requests fail. Keep it in `.env`, never commit it |
 | `OPENROUTER_MODEL` | `apps/api` (chat) | `anthropic/claude-opus-5.5` |
 | `OPENROUTER_ZDR` | `apps/api` (chat) | `true`; only use zero-data-retention providers. Set `false` for a model that has none (data-collecting providers stay excluded) |
+| `OPENROUTER_BASE_URL` | `apps/api` (chat) | none (OpenRouter's API); for a local fake server, e.g. a free dry run of `yarn eval` |
 | `MCP_AUTH_TOKEN` | `apps/mcp-server`, `apps/api` | none; the MCP server rejects every request and chat answers without tools. Generate with `openssl rand -hex 32`, keep it in `.env`, never commit it |
 | `MCP_HOST` | `apps/mcp-server` | `127.0.0.1`; only loopback addresses (`127.0.0.1`, `localhost`, `::1`) are allowed |
 | `MCP_PORT` | `apps/mcp-server` | `3002` |

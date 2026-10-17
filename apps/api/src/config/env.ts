@@ -20,6 +20,8 @@ export const EnvSchema = z.object({
    * Providers that collect data for training are always excluded, whatever this is set to.
    */
   OPENROUTER_ZDR: z.stringbool().default(true),
+  /** Override the OpenRouter API base URL, e.g. a local fake server for a dry run of the evals. */
+  OPENROUTER_BASE_URL: z.url().optional(),
   /** apps/mcp-server endpoint. Only loopback URLs make sense: the server listens on localhost only. */
   MCP_URL: z.url().default("http://127.0.0.1:3002/mcp"),
   /**

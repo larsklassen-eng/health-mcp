@@ -6,18 +6,26 @@ describe("EvalCaseSchema", () => {
   const base = {
     id: "labs-1",
     description: "Asks for recent labs",
-    patientId: "FAKE-001",
+    patientMrn: "FAKE-001",
     userMessage: "Any abnormal labs?",
   };
 
-  it("defaults expectedToolCalls to an empty list", () => {
-    expect(EvalCaseSchema.parse(base).expectedToolCalls).toEqual([]);
+  it("applies defaults", () => {
+    expect(EvalCaseSchema.parse(base)).toMatchObject({
+      expectedToolCalls: [],
+      forbiddenToolCalls: [],
+      answerIncludes: [],
+      answerExcludes: [],
+      maxToolCalls: 8,
+    });
   });
 
   it.each([
-    ["an empty id", { id: "" }],
+    ["an id with spaces", { id: "labs 1" }],
     ["an empty user message", { userMessage: "" }],
-    ["a missing patient", { patientId: undefined }],
+    ["a patient that is not synthetic", { patientMrn: "MRN-123" }],
+    ["an unknown tool", { expectedToolCalls: [{ name: "get_everything" }] }],
+    ["an empty list of alternatives", { answerIncludes: [[]] }],
   ])("rejects %s", (_label, override) => {
     expect(EvalCaseSchema.safeParse({ ...base, ...override }).success).toBe(false);
   });
@@ -29,7 +37,7 @@ describe("EvalResultSchema", () => {
       caseId: "labs-1",
       passed: false,
       toolCalls: [],
-      failures: ["get_lab_results was not called"],
+      failures: ["Expected a successful call to get_lab_results."],
     };
     expect(EvalResultSchema.parse(result)).toEqual(result);
   });

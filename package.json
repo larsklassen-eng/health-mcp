@@ -13,6 +13,7 @@
     "dev": "turbo run dev",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
+    "eval": "turbo run build && yarn workspace @health-mcp/evals eval",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "clean": "turbo run clean",

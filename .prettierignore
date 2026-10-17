@@ -10,6 +10,7 @@ packages/db/drizzle/
 # Data: the fixture is generated, local data is never committed
 fixtures/synthetic-patients.json
 data/
+eval-results/
 
 # Prose is wrapped by hand
 *.md
