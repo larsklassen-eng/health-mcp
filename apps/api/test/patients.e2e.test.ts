@@ -136,6 +136,28 @@ describe("PATCH /patients/:id", () => {
     expect(updated.updatedAt > created.updatedAt).toBe(true);
   });
 
+  it("clears optional fields set to null", async () => {
+    const created = await createPatient({ surgeryDate: "2026-08-16", notes: "Old note" });
+
+    const { status, body } = await testApp.request("PATCH", `/patients/${created.id}`, {
+      surgeryDate: null,
+      notes: null,
+    });
+
+    expect(status).toBe(200);
+    expect(body).not.toHaveProperty("surgeryDate");
+    expect(body).not.toHaveProperty("notes");
+    expect(PatientSchema.parse(body).diagnosis).toBe(created.diagnosis);
+  });
+
+  it("returns 400 when a required field is set to null", async () => {
+    const created = await createPatient();
+    const { status } = await testApp.request("PATCH", `/patients/${created.id}`, {
+      diagnosis: null,
+    });
+    expect(status).toBe(400);
+  });
+
   it("returns the patient unchanged for an empty body", async () => {
     const created = await createPatient();
     const { status, body } = await testApp.request("PATCH", `/patients/${created.id}`, {});

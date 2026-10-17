@@ -106,6 +106,23 @@ describe("api client", () => {
     await expect(api.getChatHistory("missing")).resolves.toBeNull();
   });
 
+  it("updates a patient with PATCH", async () => {
+    respond(200, patient);
+
+    await api.updatePatient("p1", { notes: null });
+
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(url).toBe("http://api.test/patients/p1");
+    expect(init).toMatchObject({ method: "PATCH", body: JSON.stringify({ notes: null }) });
+  });
+
+  it("deletes a patient with DELETE, accepting an empty 204", async () => {
+    respond(204);
+
+    await expect(api.deletePatient("p1")).resolves.toBeUndefined();
+    expect(fetchMock.mock.calls[0]![1]).toMatchObject({ method: "DELETE" });
+  });
+
   it("gets the dashboard overview", async () => {
     respond(200, { totalPatients: 0, activePatients: 0, abnormalLabsLast7Days: 0, patients: [] });
 

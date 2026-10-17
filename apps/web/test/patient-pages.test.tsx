@@ -20,6 +20,7 @@ vi.mock("next/navigation", () => ({ notFound }));
 const { default: PatientsPage } = await import("@/app/patients/page");
 const { default: PatientPage } = await import("@/app/patients/[id]/page");
 const { default: PatientChatPage } = await import("@/app/patients/[id]/chat/page");
+const { default: EditPatientPage } = await import("@/app/patients/[id]/edit/page");
 
 beforeEach(() => vi.clearAllMocks());
 
@@ -76,11 +77,12 @@ describe("/patients/[id]", () => {
     expect(screen.getByText("Surgery date").nextElementSibling).toHaveTextContent("—");
   });
 
-  it("links to the patient's chat and dashboard", async () => {
+  it("links to editing, the dashboard and the chat", async () => {
     getPatient.mockResolvedValueOnce(patient);
     render(await PatientPage({ params }));
 
     expect(screen.getByRole("link", { name: "Chat" })).toHaveAttribute("href", "/patients/p1/chat");
+    expect(screen.getByRole("link", { name: "Edit" })).toHaveAttribute("href", "/patients/p1/edit");
     expect(screen.getByRole("link", { name: "Dashboard" })).toHaveAttribute(
       "href",
       "/patients/p1/dashboard",
@@ -141,6 +143,34 @@ describe("/patients/[id]/chat", () => {
     getPatient.mockRejectedValueOnce(new ApiUnavailableError(new Error("ECONNREFUSED")));
     getChatHistory.mockRejectedValueOnce(new ApiUnavailableError(new Error("ECONNREFUSED")));
     render(await PatientChatPage({ params }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent("The api is not reachable");
+  });
+});
+
+describe("/patients/[id]/edit", () => {
+  const params = Promise.resolve({ id: "p1" });
+
+  it("shows the form filled with the patient, and the delete button", async () => {
+    getPatient.mockResolvedValueOnce({ ...patient, surgeryDate: "2026-08-16" });
+    render(await EditPatientPage({ params }));
+
+    expect(screen.getByRole("heading", { name: "Edit Ana Test" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Diagnosis")).toHaveValue("Synthetic meningioma");
+    expect(screen.getByLabelText("Surgery date (optional)")).toHaveValue("2026-08-16");
+    expect(screen.getByLabelText("Notes (optional)")).toHaveValue("");
+    expect(screen.getByRole("button", { name: "Save changes" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete patient" })).toBeInTheDocument();
+  });
+
+  it("renders Next's 404 for an unknown patient", async () => {
+    getPatient.mockResolvedValueOnce(null);
+    await expect(EditPatientPage({ params })).rejects.toThrow("NOT_FOUND");
+  });
+
+  it("explains when the api is not reachable", async () => {
+    getPatient.mockRejectedValueOnce(new ApiUnavailableError(new Error("ECONNREFUSED")));
+    render(await EditPatientPage({ params }));
 
     expect(screen.getByRole("alert")).toHaveTextContent("The api is not reachable");
   });

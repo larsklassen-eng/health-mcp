@@ -3,24 +3,28 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ApiRequestError, ApiUnavailableError } from "@/lib/api-client";
 
-const { createPatient, importPatients, revalidatePath, redirect } = vi.hoisted(() => ({
-  createPatient: vi.fn(),
-  importPatients: vi.fn(),
-  revalidatePath: vi.fn(),
-  // Next's redirect() throws to stop rendering; mimic that.
-  redirect: vi.fn((url: string) => {
-    throw new Error(`REDIRECT:${url}`);
-  }),
-}));
+const { createPatient, updatePatient, deletePatient, importPatients, revalidatePath, redirect } =
+  vi.hoisted(() => ({
+    createPatient: vi.fn(),
+    updatePatient: vi.fn(),
+    deletePatient: vi.fn(),
+    importPatients: vi.fn(),
+    revalidatePath: vi.fn(),
+    // Next's redirect() throws to stop rendering; mimic that.
+    redirect: vi.fn((url: string) => {
+      throw new Error(`REDIRECT:${url}`);
+    }),
+  }));
 
 vi.mock("@/lib/api-client", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api-client")>()),
-  api: { createPatient, importPatients },
+  api: { createPatient, updatePatient, deletePatient, importPatients },
 }));
 vi.mock("next/cache", () => ({ revalidatePath }));
 vi.mock("next/navigation", () => ({ redirect }));
 
-const { createPatientAction, importPatientsAction } = await import("@/app/patients/actions");
+const { createPatientAction, deletePatientAction, importPatientsAction, updatePatientAction } =
+  await import("@/app/patients/actions");
 
 beforeEach(() => vi.clearAllMocks());
 
@@ -91,6 +95,85 @@ describe("createPatientAction", () => {
 
     expect(state.formError).toContain("Could not reach the API");
     expect(state.values?.firstName).toBe("Ana");
+  });
+});
+
+describe("updatePatientAction", () => {
+  const notFound = new ApiRequestError(404, { statusCode: 404, error: "x", message: "x" });
+
+  it("saves the changes, clears emptied optional fields and redirects to the profile", async () => {
+    updatePatient.mockResolvedValueOnce({ id: "p1" });
+
+    await expect(
+      updatePatientAction("p1", {}, form({ ...validFields, diagnosis: " New diagnosis " })),
+    ).rejects.toThrow("REDIRECT:/patients/p1");
+
+    expect(updatePatient).toHaveBeenCalledWith("p1", {
+      mrn: "FAKE-001",
+      firstName: "Ana",
+      lastName: "Test",
+      dateOfBirth: "1980-01-01",
+      sex: "female",
+      status: "active",
+      diagnosis: "New diagnosis",
+      surgeryDate: null,
+      notes: null,
+    });
+    expect(revalidatePath).toHaveBeenCalledWith("/patients/p1");
+  });
+
+  it("returns field errors without saving", async () => {
+    const state = await updatePatientAction("p1", {}, form({ ...validFields, firstName: "" }));
+
+    expect(Object.keys(state.fieldErrors ?? {})).toEqual(["firstName"]);
+    expect(updatePatient).not.toHaveBeenCalled();
+  });
+
+  it("shows a duplicate MRN on the MRN field", async () => {
+    updatePatient.mockRejectedValueOnce(
+      new ApiRequestError(409, { statusCode: 409, error: "Conflict", message: "exists" }),
+    );
+
+    const state = await updatePatientAction("p1", {}, form(validFields));
+
+    expect(state.fieldErrors?.mrn).toBe("A patient with this MRN already exists");
+  });
+
+  it("explains when the patient was deleted meanwhile", async () => {
+    updatePatient.mockRejectedValueOnce(notFound);
+
+    const state = await updatePatientAction("p1", {}, form(validFields));
+
+    expect(state.formError).toBe("This patient no longer exists.");
+    expect(state.values?.firstName).toBe("Ana");
+  });
+});
+
+describe("deletePatientAction", () => {
+  it("deletes the patient and goes back to the list", async () => {
+    deletePatient.mockResolvedValueOnce(undefined);
+
+    await expect(deletePatientAction("p1", {})).rejects.toThrow("REDIRECT:/patients");
+
+    expect(deletePatient).toHaveBeenCalledWith("p1");
+    expect(revalidatePath).toHaveBeenCalledWith("/patients");
+  });
+
+  it("treats an already deleted patient as deleted", async () => {
+    deletePatient.mockRejectedValueOnce(
+      new ApiRequestError(404, { statusCode: 404, error: "x", message: "x" }),
+    );
+
+    await expect(deletePatientAction("p1", {})).rejects.toThrow("REDIRECT:/patients");
+  });
+
+  it("explains when the api is not reachable", async () => {
+    deletePatient.mockRejectedValueOnce(new ApiUnavailableError(new Error("ECONNREFUSED")));
+
+    const state = await deletePatientAction("p1", {});
+
+    expect(state.formError).toContain("Could not reach the API");
+    expect(redirect).not.toHaveBeenCalled();
   });
 });
 

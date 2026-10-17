@@ -32,8 +32,14 @@ export const CreatePatientInputSchema = PatientFieldsSchema.extend({
   status: PatientStatusSchema.default("active"),
 });
 
-/** Partial update. Built without defaults so omitted fields are left unchanged. */
-export const UpdatePatientInputSchema = PatientFieldsSchema.partial();
+/**
+ * Partial update. Built without defaults so omitted fields are left unchanged.
+ * `null` clears an optional field.
+ */
+export const UpdatePatientInputSchema = PatientFieldsSchema.partial().extend({
+  surgeryDate: PatientFieldsSchema.shape.surgeryDate.unwrap().nullable().optional(),
+  notes: PatientFieldsSchema.shape.notes.unwrap().nullable().optional(),
+});
 
 /** Compact row for patient lists and pickers. */
 export const PatientSummarySchema = PatientSchema.pick({

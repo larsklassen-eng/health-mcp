@@ -1,13 +1,18 @@
 "use server";
 
-import { CreatePatientInputSchema, PatientImportFileSchema } from "@health-mcp/shared";
+import {
+  CreatePatientInputSchema,
+  PatientImportFileSchema,
+  UpdatePatientInputSchema,
+} from "@health-mcp/shared";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { api, ApiRequestError, ApiUnavailableError } from "@/lib/api-client";
 
 import {
-  type CreatePatientState,
+  type DeletePatientState,
+  type PatientFormState,
   type ImportPatientsState,
   MAX_IMPORT_BYTES,
   MAX_IMPORT_ERRORS,
@@ -22,15 +27,27 @@ function unavailableMessage(error: unknown): string | undefined {
   return undefined;
 }
 
-export async function createPatientAction(
-  _previous: CreatePatientState,
-  formData: FormData,
-): Promise<CreatePatientState> {
+/** The patient fields of a submitted form, trimmed. */
+function readPatientForm(formData: FormData): Partial<Record<PatientField, string>> {
   const values: Partial<Record<PatientField, string>> = {};
   for (const field of PATIENT_FIELDS) {
     const value = formData.get(field);
     if (typeof value === "string") values[field] = value.trim();
   }
+  return values;
+}
+
+function fieldErrorsOf(issues: { path: PropertyKey[]; message: string }[]) {
+  const fieldErrors: PatientFormState["fieldErrors"] = {};
+  for (const issue of issues) fieldErrors[issue.path[0] as PatientField] ??= issue.message;
+  return fieldErrors;
+}
+
+export async function createPatientAction(
+  _previous: PatientFormState,
+  formData: FormData,
+): Promise<PatientFormState> {
+  const values = readPatientForm(formData);
   // Empty optional inputs mean "not provided", not an empty string.
   const input = Object.fromEntries(
     Object.entries(values).filter(
@@ -39,14 +56,7 @@ export async function createPatientAction(
   );
 
   const parsed = CreatePatientInputSchema.safeParse(input);
-  if (!parsed.success) {
-    const fieldErrors: CreatePatientState["fieldErrors"] = {};
-    for (const issue of parsed.error.issues) {
-      const field = issue.path[0] as PatientField;
-      fieldErrors[field] ??= issue.message;
-    }
-    return { values, fieldErrors };
-  }
+  if (!parsed.success) return { values, fieldErrors: fieldErrorsOf(parsed.error.issues) };
 
   let id: string;
   try {
@@ -63,6 +73,67 @@ export async function createPatientAction(
 
   revalidatePath("/patients");
   redirect(`/patients/${id}`);
+}
+
+/** Bind the patient's id: `updatePatientAction.bind(null, id)`. */
+export async function updatePatientAction(
+  id: string,
+  _previous: PatientFormState,
+  formData: FormData,
+): Promise<PatientFormState> {
+  const values = readPatientForm(formData);
+  // An emptied optional input clears the field.
+  const input = Object.fromEntries(
+    Object.entries(values).map(([field, value]) => [
+      field,
+      OPTIONAL_FIELDS.has(field as PatientField) && value === "" ? null : value,
+    ]),
+  );
+  // Status always has a value in the form; it cannot be cleared.
+  if (input.status === null) delete input.status;
+
+  const parsed = UpdatePatientInputSchema.safeParse(input);
+  if (!parsed.success) return { values, fieldErrors: fieldErrorsOf(parsed.error.issues) };
+
+  try {
+    await api.updatePatient(id, parsed.data);
+  } catch (error) {
+    if (error instanceof ApiRequestError && error.status === 409) {
+      return { values, fieldErrors: { mrn: "A patient with this MRN already exists" } };
+    }
+    if (error instanceof ApiRequestError && error.status === 404) {
+      return { values, formError: "This patient no longer exists." };
+    }
+    return {
+      values,
+      formError: unavailableMessage(error) ?? "The changes could not be saved. Please try again.",
+    };
+  }
+
+  revalidatePath("/patients");
+  revalidatePath(`/patients/${id}`);
+  redirect(`/patients/${id}`);
+}
+
+/** Bind the patient's id: `deletePatientAction.bind(null, id)`. */
+export async function deletePatientAction(
+  id: string,
+  _previous: DeletePatientState,
+): Promise<DeletePatientState> {
+  try {
+    await api.deletePatient(id);
+  } catch (error) {
+    // Already gone: the outcome the user wanted.
+    if (!(error instanceof ApiRequestError && error.status === 404)) {
+      return {
+        formError:
+          unavailableMessage(error) ?? "The patient could not be deleted. Please try again.",
+      };
+    }
+  }
+
+  revalidatePath("/patients");
+  redirect("/patients");
 }
 
 export async function importPatientsAction(

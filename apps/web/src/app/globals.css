@@ -537,3 +537,22 @@ tr.abnormal td {
   align-items: center;
   gap: 10px;
 }
+
+.button.danger {
+  background: var(--danger);
+  border-color: var(--danger);
+}
+.danger-zone {
+  max-width: 560px;
+  margin-top: 32px;
+  border-color: #fecaca;
+}
+.danger-zone h2 {
+  margin: 0 0 4px;
+  font-size: 1.1rem;
+}
+.danger-zone form {
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+}

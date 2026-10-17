@@ -42,6 +42,12 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
         <div className="actions">
           <Link
             className="button secondary"
+            href={`/patients/${encodeURIComponent(patient.id)}/edit`}
+          >
+            Edit
+          </Link>
+          <Link
+            className="button secondary"
             href={`/patients/${encodeURIComponent(patient.id)}/dashboard`}
           >
             Dashboard

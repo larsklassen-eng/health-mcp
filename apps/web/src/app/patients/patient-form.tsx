@@ -2,14 +2,18 @@
 
 import { useActionState } from "react";
 
-import type { CreatePatientState, PatientField } from "./form-state";
+import type { PatientFormState, PatientField } from "./form-state";
 
 interface Props {
-  action: (state: CreatePatientState, formData: FormData) => Promise<CreatePatientState>;
+  action: (state: PatientFormState, formData: FormData) => Promise<PatientFormState>;
+  /** Starting values, e.g. the patient being edited. */
+  initialValues?: PatientFormState["values"];
+  submitLabel?: string;
 }
 
-export function CreatePatientForm({ action }: Props) {
-  const [state, formAction, pending] = useActionState(action, {});
+/** Create or edit a patient. After a failed submit, the form keeps what the user typed. */
+export function PatientForm({ action, initialValues, submitLabel = "Create patient" }: Props) {
+  const [state, formAction, pending] = useActionState(action, { values: initialValues ?? {} });
 
   const field = (name: PatientField) => {
     const error = state.fieldErrors?.[name];
@@ -104,7 +108,7 @@ export function CreatePatientForm({ action }: Props) {
 
       <div>
         <button type="submit" className="button" disabled={pending}>
-          {pending ? "Saving…" : "Create patient"}
+          {pending ? "Saving…" : submitLabel}
         </button>
       </div>
     </form>

@@ -48,6 +48,14 @@ describe("UpdatePatientInputSchema", () => {
   it("still validates the fields it receives", () => {
     expect(UpdatePatientInputSchema.safeParse({ status: "archived" }).success).toBe(false);
   });
+
+  it("accepts null to clear an optional field, but not a required one", () => {
+    expect(UpdatePatientInputSchema.parse({ surgeryDate: null, notes: null })).toEqual({
+      surgeryDate: null,
+      notes: null,
+    });
+    expect(UpdatePatientInputSchema.safeParse({ diagnosis: null }).success).toBe(false);
+  });
 });
 
 describe("PatientSummarySchema", () => {

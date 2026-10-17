@@ -14,10 +14,14 @@ export const PATIENT_FIELDS = [
 
 export type PatientField = (typeof PATIENT_FIELDS)[number];
 
-export interface CreatePatientState {
+export interface PatientFormState {
   /** What the user typed, so the form keeps it after a failed submit. */
   values?: Partial<Record<PatientField, string>>;
   fieldErrors?: Partial<Record<PatientField, string>>;
+  formError?: string;
+}
+
+export interface DeletePatientState {
   formError?: string;
 }
 

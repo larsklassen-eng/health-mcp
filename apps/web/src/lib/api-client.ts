@@ -15,6 +15,7 @@ import {
   PatientListResponseSchema,
   PatientSchema,
   type PatientSummary,
+  type UpdatePatientInput,
 } from "@health-mcp/shared";
 
 /*
@@ -112,6 +113,18 @@ export const api = {
       method: "POST",
       body: JSON.stringify(input),
     });
+  },
+
+  updatePatient(id: string, input: UpdatePatientInput): Promise<Patient> {
+    return request(API_ROUTES.patient(id), PatientSchema, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    });
+  },
+
+  /** Deletes the patient with all of their records and chat history. */
+  async deletePatient(id: string): Promise<void> {
+    await request(API_ROUTES.patient(id), { parse: () => undefined }, { method: "DELETE" });
   },
 
   /** `file` is sent as-is; the api validates it again and applies defaults. */
