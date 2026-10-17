@@ -18,6 +18,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               health-mcp
             </Link>
             <nav>
+              <Link href="/dashboard">Dashboard</Link>
               <Link href="/patients">Patients</Link>
             </nav>
           </div>

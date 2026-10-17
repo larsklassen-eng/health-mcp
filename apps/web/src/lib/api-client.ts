@@ -5,7 +5,11 @@ import {
   ChatHistoryResponseSchema,
   type ChatMessage,
   type CreatePatientInput,
+  type DashboardOverview,
+  DashboardOverviewSchema,
   type Patient,
+  type PatientDashboard,
+  PatientDashboardSchema,
   type PatientImportResult,
   PatientImportResultSchema,
   PatientListResponseSchema,
@@ -65,31 +69,42 @@ async function request<T>(
   return schema.parse(body);
 }
 
+/** Resolves to `null` when the api says the patient does not exist (404, or 400 for a malformed id). */
+async function orNullIfMissing<T>(promise: Promise<T>): Promise<T | null> {
+  try {
+    return await promise;
+  } catch (error) {
+    if (error instanceof ApiRequestError && (error.status === 404 || error.status === 400))
+      return null;
+    throw error;
+  }
+}
+
 export const api = {
   async listPatients(): Promise<PatientSummary[]> {
     return (await request(API_ROUTES.patients, PatientListResponseSchema)).patients;
   },
 
   /** Returns `null` when the patient does not exist. */
-  async getPatient(id: string): Promise<Patient | null> {
-    try {
-      return await request(API_ROUTES.patient(id), PatientSchema);
-    } catch (error) {
-      if (error instanceof ApiRequestError && (error.status === 404 || error.status === 400))
-        return null;
-      throw error;
-    }
+  getPatient(id: string): Promise<Patient | null> {
+    return orNullIfMissing(request(API_ROUTES.patient(id), PatientSchema));
   },
 
   /** A patient's chat, oldest message first. Returns `null` when the patient does not exist. */
   async getChatHistory(patientId: string): Promise<ChatMessage[] | null> {
-    try {
-      return (await request(API_ROUTES.patientChat(patientId), ChatHistoryResponseSchema)).messages;
-    } catch (error) {
-      if (error instanceof ApiRequestError && (error.status === 404 || error.status === 400))
-        return null;
-      throw error;
-    }
+    const history = await orNullIfMissing(
+      request(API_ROUTES.patientChat(patientId), ChatHistoryResponseSchema),
+    );
+    return history?.messages ?? null;
+  },
+
+  getDashboardOverview(): Promise<DashboardOverview> {
+    return request(API_ROUTES.dashboardOverview, DashboardOverviewSchema);
+  },
+
+  /** Returns `null` when the patient does not exist. */
+  getPatientDashboard(patientId: string): Promise<PatientDashboard | null> {
+    return orNullIfMissing(request(API_ROUTES.patientDashboard(patientId), PatientDashboardSchema));
   },
 
   createPatient(input: CreatePatientInput): Promise<Patient> {

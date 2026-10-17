@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 
 import { ChatModule } from "./chat/chat.module.js";
 import { ConfigModule } from "./config/config.module.js";
+import { DashboardsModule } from "./dashboards/dashboards.module.js";
 import { DatabaseModule } from "./database/database.module.js";
 import { HealthModule } from "./health/health.module.js";
 import { LlmModule } from "./llm/llm.module.js";
@@ -17,6 +18,7 @@ import { PatientsModule } from "./patients/patients.module.js";
     HealthModule,
     PatientsModule,
     ChatModule,
+    DashboardsModule,
   ],
 })
 export class AppModule {}

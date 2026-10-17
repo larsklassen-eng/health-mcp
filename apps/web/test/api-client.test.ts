@@ -106,6 +106,30 @@ describe("api client", () => {
     await expect(api.getChatHistory("missing")).resolves.toBeNull();
   });
 
+  it("gets the dashboard overview", async () => {
+    respond(200, { totalPatients: 0, activePatients: 0, abnormalLabsLast7Days: 0, patients: [] });
+
+    const overview = await api.getDashboardOverview();
+
+    expect(fetchMock.mock.calls[0]![0]).toBe("http://api.test/dashboards/overview");
+    expect(overview.totalPatients).toBe(0);
+  });
+
+  it("gets a patient's dashboard", async () => {
+    const empty = { latestVitals: [], vitalTrends: [], recentLabs: [], activeMedications: [] };
+    respond(200, { patient, ...empty, recentSymptoms: [], milestones: [] });
+
+    const dashboard = await api.getPatientDashboard("p 1");
+
+    expect(fetchMock.mock.calls[0]![0]).toBe("http://api.test/dashboards/patients/p%201");
+    expect(dashboard?.patient.id).toBe("p1");
+  });
+
+  it.each([404, 400])("returns null from getPatientDashboard on %i", async (status) => {
+    respond(status, { statusCode: status, error: "x", message: "x" });
+    await expect(api.getPatientDashboard("missing")).resolves.toBeNull();
+  });
+
   it("throws ApiRequestError with the api's error body", async () => {
     respond(409, {
       statusCode: 409,

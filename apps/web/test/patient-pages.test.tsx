@@ -76,11 +76,15 @@ describe("/patients/[id]", () => {
     expect(screen.getByText("Surgery date").nextElementSibling).toHaveTextContent("—");
   });
 
-  it("links to the patient's chat", async () => {
+  it("links to the patient's chat and dashboard", async () => {
     getPatient.mockResolvedValueOnce(patient);
     render(await PatientPage({ params }));
 
     expect(screen.getByRole("link", { name: "Chat" })).toHaveAttribute("href", "/patients/p1/chat");
+    expect(screen.getByRole("link", { name: "Dashboard" })).toHaveAttribute(
+      "href",
+      "/patients/p1/dashboard",
+    );
   });
 
   it("renders Next's 404 for an unknown patient", async () => {

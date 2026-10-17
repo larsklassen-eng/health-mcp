@@ -394,3 +394,146 @@ tr:last-child td {
 pre.tool-call-output {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
+
+.header nav {
+  display: flex;
+  gap: 16px;
+}
+.small {
+  font-size: 0.8rem;
+}
+.subtitle {
+  margin: 4px 0 0;
+}
+.table-scroll {
+  overflow-x: auto;
+}
+
+/* Dashboards */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin: 0 0 24px;
+}
+.stat {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+.stat dt {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.stat dd {
+  margin: 4px 0 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+}
+.stat.warn dd {
+  color: var(--danger);
+}
+.milestone-progress {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.milestone-progress progress {
+  width: 64px;
+}
+
+.dashboard-section {
+  margin-bottom: 28px;
+}
+.dashboard-section h2 {
+  font-size: 1.1rem;
+  margin: 0 0 12px;
+}
+.dashboard-section > .card.muted {
+  padding: 16px;
+}
+.columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 0 24px;
+}
+.vitals {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+.vital.card {
+  padding: 14px 16px;
+  display: grid;
+  gap: 4px;
+}
+.vital-label {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.vital-value {
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+.vital-value .muted {
+  font-size: 0.9rem;
+  font-weight: 400;
+}
+.sparkline polyline {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+.sparkline circle {
+  fill: var(--accent);
+}
+.record-list.card {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.record-list li {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.record-list li:last-child {
+  border-bottom: none;
+}
+tr.abnormal td {
+  background: var(--danger-bg);
+}
+.badge.flag-normal {
+  background: var(--success-bg);
+  color: #166534;
+}
+.badge.flag-low,
+.badge.flag-high {
+  background: #fef3c7;
+  color: #92400e;
+}
+.badge.flag-critical {
+  background: var(--danger);
+  color: #ffffff;
+}
+.badge.milestone-achieved {
+  background: var(--success-bg);
+  color: #166534;
+}
+.badge.milestone-pending {
+  background: #e0f2fe;
+  color: #075985;
+}
+.badge.milestone-missed {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
