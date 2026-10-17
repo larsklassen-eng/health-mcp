@@ -42,7 +42,9 @@ describe("PatientForm", () => {
 
     await user.click(screen.getByRole("button", { name: "Create patient" }));
 
-    const mrn = await screen.findByLabelText("MRN");
+    // The input is there from the start; wait for the error the action returns.
+    await screen.findByText("A patient with this MRN already exists");
+    const mrn = screen.getByLabelText("MRN");
     expect(mrn).toHaveAttribute("aria-invalid", "true");
     expect(mrn).toHaveAccessibleDescription("A patient with this MRN already exists");
     expect(mrn).toHaveValue("FAKE-001");
