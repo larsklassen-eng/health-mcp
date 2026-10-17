@@ -12,7 +12,8 @@ import { McpClient } from "./mcp-client.js";
     {
       provide: McpClient,
       inject: [ENV],
-      useFactory: (env: Env) => new HttpMcpClient({ url: env.MCP_URL, authToken: env.MCP_AUTH_TOKEN }),
+      useFactory: (env: Env) =>
+        new HttpMcpClient({ url: env.MCP_URL, authToken: env.MCP_AUTH_TOKEN }),
     },
   ],
   exports: [McpClient],

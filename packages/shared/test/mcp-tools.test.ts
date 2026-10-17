@@ -1,7 +1,12 @@
 import { z } from "zod";
 import { describe, expect, it } from "vitest";
 
-import { MCP_TOOLS, type McpToolName, McpToolNameSchema, mcpToolInputSchema } from "../src/index.js";
+import {
+  MCP_TOOLS,
+  type McpToolName,
+  McpToolNameSchema,
+  mcpToolInputSchema,
+} from "../src/index.js";
 
 const toolNames = Object.keys(MCP_TOOLS) as McpToolName[];
 
@@ -28,18 +33,30 @@ describe("MCP tool contracts", () => {
   });
 
   it("applies argument defaults", () => {
-    expect(mcpToolInputSchema("get_lab_results").parse({ patient_id: "p1" })).toEqual({ patient_id: "p1", limit: 20 });
+    expect(mcpToolInputSchema("get_lab_results").parse({ patient_id: "p1" })).toEqual({
+      patient_id: "p1",
+      limit: 20,
+    });
     expect(mcpToolInputSchema("get_medications").parse({ patient_id: "p1" })).toEqual({
       patient_id: "p1",
       status: "active",
     });
-    expect(mcpToolInputSchema("get_vitals_trend").parse({ patient_id: "p1", vital_type: "pain_score" }).days).toBe(30);
+    expect(
+      mcpToolInputSchema("get_vitals_trend").parse({ patient_id: "p1", vital_type: "pain_score" })
+        .days,
+    ).toBe(30);
   });
 
   it("validates argument ranges", () => {
     const logSymptom = mcpToolInputSchema("log_symptom");
-    expect(logSymptom.safeParse({ patient_id: "p1", name: "headache", severity: 11 }).success).toBe(false);
-    expect(logSymptom.safeParse({ patient_id: "p1", name: "headache", severity: 4 }).success).toBe(true);
-    expect(mcpToolInputSchema("get_lab_results").safeParse({ patient_id: "p1", limit: 500 }).success).toBe(false);
+    expect(logSymptom.safeParse({ patient_id: "p1", name: "headache", severity: 11 }).success).toBe(
+      false,
+    );
+    expect(logSymptom.safeParse({ patient_id: "p1", name: "headache", severity: 4 }).success).toBe(
+      true,
+    );
+    expect(
+      mcpToolInputSchema("get_lab_results").safeParse({ patient_id: "p1", limit: 500 }).success,
+    ).toBe(false);
   });
 });

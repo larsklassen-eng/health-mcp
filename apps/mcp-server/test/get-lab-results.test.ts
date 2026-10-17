@@ -18,8 +18,12 @@ afterEach(async () => {
 });
 
 const call = async (args: Record<string, unknown>) =>
-  (await client.callTool({ name: "get_lab_results", arguments: { patient_id: patientId, ...args } })) as CallToolResult;
-const text = (result: CallToolResult) => (result.content[0]?.type === "text" ? result.content[0].text : "");
+  (await client.callTool({
+    name: "get_lab_results",
+    arguments: { patient_id: patientId, ...args },
+  })) as CallToolResult;
+const text = (result: CallToolResult) =>
+  result.content[0]?.type === "text" ? result.content[0].text : "";
 const output = async (args: Record<string, unknown> = {}) => {
   const result = await call(args);
   expect(result.isError).toBeFalsy();
@@ -42,14 +46,28 @@ describe("get_lab_results", () => {
     const { results, hasMore } = await output();
 
     expect(results).toEqual([
-      { testName: "Platelets", value: 139, unit: "10^3/uL", referenceLow: 150, referenceHigh: 400, flag: "low", collectedAt: "2026-10-12T08:00:00.000Z" },
-      { testName: "Hemoglobin", value: 13.9, unit: "g/dL", collectedAt: "2026-09-01T08:00:00.000Z" },
+      {
+        testName: "Platelets",
+        value: 139,
+        unit: "10^3/uL",
+        referenceLow: 150,
+        referenceHigh: 400,
+        flag: "low",
+        collectedAt: "2026-10-12T08:00:00.000Z",
+      },
+      {
+        testName: "Hemoglobin",
+        value: 13.9,
+        unit: "g/dL",
+        collectedAt: "2026-09-01T08:00:00.000Z",
+      },
     ]);
     expect(hasMore).toBe(false);
   });
 
   it("orders results drawn at the same time by test name", async () => {
-    for (const testName of ["Sodium", "ALT", "Hemoglobin"]) insertLab(server.db, patientId, { testName, collectedAt: "2026-10-12T08:00:00.000Z" });
+    for (const testName of ["Sodium", "ALT", "Hemoglobin"])
+      insertLab(server.db, patientId, { testName, collectedAt: "2026-10-12T08:00:00.000Z" });
 
     const { results } = await output();
 
@@ -57,8 +75,14 @@ describe("get_lab_results", () => {
   });
 
   it("filters by test name, ignoring case and surrounding spaces", async () => {
-    insertLab(server.db, patientId, { testName: "Hemoglobin", collectedAt: "2026-10-01T08:00:00.000Z" });
-    insertLab(server.db, patientId, { testName: "Platelets", collectedAt: "2026-10-01T08:00:00.000Z" });
+    insertLab(server.db, patientId, {
+      testName: "Hemoglobin",
+      collectedAt: "2026-10-01T08:00:00.000Z",
+    });
+    insertLab(server.db, patientId, {
+      testName: "Platelets",
+      collectedAt: "2026-10-01T08:00:00.000Z",
+    });
 
     const { results, availableTests } = await output({ test_name: " hemoglobin " });
 
@@ -67,7 +91,10 @@ describe("get_lab_results", () => {
   });
 
   it("lists the available test names when the filter matches nothing", async () => {
-    insertLab(server.db, patientId, { testName: "Platelets", collectedAt: "2026-10-01T08:00:00.000Z" });
+    insertLab(server.db, patientId, {
+      testName: "Platelets",
+      collectedAt: "2026-10-01T08:00:00.000Z",
+    });
     insertLab(server.db, patientId, { testName: "ALT", collectedAt: "2026-10-02T08:00:00.000Z" });
     insertLab(server.db, patientId, { testName: "ALT", collectedAt: "2026-10-03T08:00:00.000Z" });
 
@@ -89,7 +116,11 @@ describe("get_lab_results", () => {
   });
 
   it("applies the default limit of 20 and reports when there are more", async () => {
-    for (let day = 1; day <= 25; day++) insertLab(server.db, patientId, { value: day, collectedAt: `2026-09-${String(day).padStart(2, "0")}T08:00:00.000Z` });
+    for (let day = 1; day <= 25; day++)
+      insertLab(server.db, patientId, {
+        value: day,
+        collectedAt: `2026-09-${String(day).padStart(2, "0")}T08:00:00.000Z`,
+      });
 
     const first = await output();
     const limited = await output({ limit: 5 });
@@ -104,8 +135,14 @@ describe("get_lab_results", () => {
 
   it("only returns the requested patient's results", async () => {
     const other = insertPatient(server.db, { mrn: "FAKE-OTHER" });
-    insertLab(server.db, other.id, { testName: "Glucose", collectedAt: "2026-10-01T08:00:00.000Z" });
-    insertLab(server.db, patientId, { testName: "Hemoglobin", collectedAt: "2026-10-01T08:00:00.000Z" });
+    insertLab(server.db, other.id, {
+      testName: "Glucose",
+      collectedAt: "2026-10-01T08:00:00.000Z",
+    });
+    insertLab(server.db, patientId, {
+      testName: "Hemoglobin",
+      collectedAt: "2026-10-01T08:00:00.000Z",
+    });
 
     const { results } = await output();
 
@@ -114,7 +151,10 @@ describe("get_lab_results", () => {
 
   it("does not offer another patient's test names in availableTests", async () => {
     const other = insertPatient(server.db, { mrn: "FAKE-OTHER" });
-    insertLab(server.db, other.id, { testName: "Secret test", collectedAt: "2026-10-01T08:00:00.000Z" });
+    insertLab(server.db, other.id, {
+      testName: "Secret test",
+      collectedAt: "2026-10-01T08:00:00.000Z",
+    });
 
     const { availableTests } = await output({ test_name: "x" });
 
@@ -126,7 +166,10 @@ describe("get_lab_results", () => {
   });
 
   it("returns a tool error for an unknown patient", async () => {
-    const result = await client.callTool({ name: "get_lab_results", arguments: { patient_id: "does-not-exist" } }) as CallToolResult;
+    const result = (await client.callTool({
+      name: "get_lab_results",
+      arguments: { patient_id: "does-not-exist" },
+    })) as CallToolResult;
 
     expect(result.isError).toBe(true);
     expect(text(result)).toBe("Patient does-not-exist not found.");

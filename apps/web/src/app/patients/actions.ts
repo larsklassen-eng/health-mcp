@@ -22,7 +22,10 @@ function unavailableMessage(error: unknown): string | undefined {
   return undefined;
 }
 
-export async function createPatientAction(_previous: CreatePatientState, formData: FormData): Promise<CreatePatientState> {
+export async function createPatientAction(
+  _previous: CreatePatientState,
+  formData: FormData,
+): Promise<CreatePatientState> {
   const values: Partial<Record<PatientField, string>> = {};
   for (const field of PATIENT_FIELDS) {
     const value = formData.get(field);
@@ -30,7 +33,9 @@ export async function createPatientAction(_previous: CreatePatientState, formDat
   }
   // Empty optional inputs mean "not provided", not an empty string.
   const input = Object.fromEntries(
-    Object.entries(values).filter(([field, value]) => !(OPTIONAL_FIELDS.has(field as PatientField) && value === "")),
+    Object.entries(values).filter(
+      ([field, value]) => !(OPTIONAL_FIELDS.has(field as PatientField) && value === ""),
+    ),
   );
 
   const parsed = CreatePatientInputSchema.safeParse(input);
@@ -50,16 +55,23 @@ export async function createPatientAction(_previous: CreatePatientState, formDat
     if (error instanceof ApiRequestError && error.status === 409) {
       return { values, fieldErrors: { mrn: "A patient with this MRN already exists" } };
     }
-    return { values, formError: unavailableMessage(error) ?? "The patient could not be saved. Please try again." };
+    return {
+      values,
+      formError: unavailableMessage(error) ?? "The patient could not be saved. Please try again.",
+    };
   }
 
   revalidatePath("/patients");
   redirect(`/patients/${id}`);
 }
 
-export async function importPatientsAction(_previous: ImportPatientsState, formData: FormData): Promise<ImportPatientsState> {
+export async function importPatientsAction(
+  _previous: ImportPatientsState,
+  formData: FormData,
+): Promise<ImportPatientsState> {
   const file = formData.get("file");
-  if (!(file instanceof File) || file.size === 0) return { formError: "Choose a JSON file to import." };
+  if (!(file instanceof File) || file.size === 0)
+    return { formError: "Choose a JSON file to import." };
   if (file.size > MAX_IMPORT_BYTES) return { formError: "The file is larger than 5 MB." };
 
   let json: unknown;
@@ -88,6 +100,9 @@ export async function importPatientsAction(_previous: ImportPatientsState, formD
     if (error instanceof ApiRequestError && error.status === 409) {
       return { formError: `Nothing was imported: ${error.message}` };
     }
-    return { formError: unavailableMessage(error) ?? "The import failed. Nothing was saved. Please try again." };
+    return {
+      formError:
+        unavailableMessage(error) ?? "The import failed. Nothing was saved. Please try again.",
+    };
   }
 }

@@ -1,4 +1,9 @@
-import { MCP_TOOLS, mcpToolInputSchema, type McpToolInput, type McpToolName } from "@health-mcp/shared";
+import {
+  MCP_TOOLS,
+  mcpToolInputSchema,
+  type McpToolInput,
+  type McpToolName,
+} from "@health-mcp/shared";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 
@@ -23,7 +28,11 @@ const textResult = (text: string, isError = false): CallToolResult => ({
  * The SDK validates the input before `handler` runs. The handler's return value
  * is sent as JSON text.
  */
-export function registerTool<T extends McpToolName>(server: McpServer, name: T, handler: ToolHandler<T>): void {
+export function registerTool<T extends McpToolName>(
+  server: McpServer,
+  name: T,
+  handler: ToolHandler<T>,
+): void {
   server.registerTool(
     name,
     { description: MCP_TOOLS[name].description, inputSchema: mcpToolInputSchema(name) },

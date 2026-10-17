@@ -1,10 +1,16 @@
 import { describe, expect, it } from "vitest";
 
-import { ChatMessageSchema, ChatStreamEventSchema, SendChatMessageRequestSchema } from "../src/index.js";
+import {
+  ChatMessageSchema,
+  ChatStreamEventSchema,
+  SendChatMessageRequestSchema,
+} from "../src/index.js";
 
 describe("SendChatMessageRequestSchema", () => {
   it("trims the message", () => {
-    expect(SendChatMessageRequestSchema.parse({ message: "  How is she doing?  " }).message).toBe("How is she doing?");
+    expect(SendChatMessageRequestSchema.parse({ message: "  How is she doing?  " }).message).toBe(
+      "How is she doing?",
+    );
   });
 
   it.each([

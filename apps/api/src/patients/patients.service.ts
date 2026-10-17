@@ -1,5 +1,10 @@
 import { patients, toPatient, toPatientSummary } from "@health-mcp/db";
-import type { CreatePatientInput, Patient, PatientSummary, UpdatePatientInput } from "@health-mcp/shared";
+import type {
+  CreatePatientInput,
+  Patient,
+  PatientSummary,
+  UpdatePatientInput,
+} from "@health-mcp/shared";
 import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import { asc, eq } from "drizzle-orm";
 
@@ -39,7 +44,12 @@ export class PatientsService {
 
     let row;
     try {
-      [row] = this.database.db.update(patients).set(input).where(eq(patients.id, id)).returning().all();
+      [row] = this.database.db
+        .update(patients)
+        .set(input)
+        .where(eq(patients.id, id))
+        .returning()
+        .all();
     } catch (error) {
       throw this.mapConflict(error, input.mrn);
     }
@@ -49,11 +59,17 @@ export class PatientsService {
 
   /** Deletes the patient and, through ON DELETE CASCADE, all of their records and chat history. */
   remove(id: string): void {
-    const deleted = this.database.db.delete(patients).where(eq(patients.id, id)).returning({ id: patients.id }).all();
+    const deleted = this.database.db
+      .delete(patients)
+      .where(eq(patients.id, id))
+      .returning({ id: patients.id })
+      .all();
     if (deleted.length === 0) throw new NotFoundException(`Patient ${id} not found`);
   }
 
   private mapConflict(error: unknown, mrn: string | undefined): unknown {
-    return isUniqueViolation(error) ? new ConflictException(`A patient with MRN ${mrn} already exists`) : error;
+    return isUniqueViolation(error)
+      ? new ConflictException(`A patient with MRN ${mrn} already exists`)
+      : error;
   }
 }

@@ -15,7 +15,11 @@ export interface TestApp {
   /** Base URL of the running app, e.g. `http://127.0.0.1:54321`. */
   url: string;
   /** Sends a JSON request and returns the status and parsed body (`undefined` for empty bodies). */
-  request: (method: string, path: string, body?: unknown) => Promise<{ status: number; body: unknown }>;
+  request: (
+    method: string,
+    path: string,
+    body?: unknown,
+  ) => Promise<{ status: number; body: unknown }>;
   close: () => Promise<void>;
 }
 
@@ -30,9 +34,13 @@ export interface ProviderOverride {
  * module includes the database, its fresh in-memory SQLite gets all migrations.
  * `overrides` replace providers, e.g. the LLM client with a `FakeLlmClient`.
  */
-export async function startTestApp(module: Type, overrides: ProviderOverride[] = []): Promise<TestApp> {
+export async function startTestApp(
+  module: Type,
+  overrides: ProviderOverride[] = [],
+): Promise<TestApp> {
   let builder = Test.createTestingModule({ imports: [module] });
-  for (const { provide, useValue } of overrides) builder = builder.overrideProvider(provide).useValue(useValue);
+  for (const { provide, useValue } of overrides)
+    builder = builder.overrideProvider(provide).useValue(useValue);
   const moduleRef = await builder.compile();
   const app = moduleRef.createNestApplication<NestExpressApplication>({ logger: false });
   configureApp(app, app.get<Env>(ENV));

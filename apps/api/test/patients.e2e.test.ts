@@ -1,5 +1,10 @@
 import { labResults } from "@health-mcp/db";
-import { ApiErrorSchema, type Patient, PatientListResponseSchema, PatientSchema } from "@health-mcp/shared";
+import {
+  ApiErrorSchema,
+  type Patient,
+  PatientListResponseSchema,
+  PatientSchema,
+} from "@health-mcp/shared";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { AppModule } from "../src/app.module.js";
@@ -41,13 +46,19 @@ describe("POST /patients", () => {
     const { status, body } = await testApp.request("POST", "/patients", { mrn: "", sex: "robot" });
 
     expect(status).toBe(400);
-    const paths = (ApiErrorSchema.parse(body).details as { path: string }[]).map((issue) => issue.path);
+    const paths = (ApiErrorSchema.parse(body).details as { path: string }[]).map(
+      (issue) => issue.path,
+    );
     expect(paths).toEqual(expect.arrayContaining(["mrn", "sex", "firstName", "dateOfBirth"]));
   });
 
   it("returns 409 for a duplicate MRN", async () => {
     await createPatient();
-    const { status, body } = await testApp.request("POST", "/patients", newPatient({ firstName: "Other" }));
+    const { status, body } = await testApp.request(
+      "POST",
+      "/patients",
+      newPatient({ firstName: "Other" }),
+    );
 
     expect(status).toBe(409);
     expect(ApiErrorSchema.parse(body).message).toContain("FAKE-001");
@@ -70,8 +81,19 @@ describe("GET /patients", () => {
     const { body } = await testApp.request("GET", "/patients");
     const { patients } = PatientListResponseSchema.parse(body);
 
-    expect(patients.map((p) => `${p.lastName}, ${p.firstName}`)).toEqual(["Alpha, Ada", "Alpha, Bruno", "Zeta, Ana"]);
-    expect(Object.keys(patients[0]!).sort()).toEqual(["diagnosis", "firstName", "id", "lastName", "mrn", "status"]);
+    expect(patients.map((p) => `${p.lastName}, ${p.firstName}`)).toEqual([
+      "Alpha, Ada",
+      "Alpha, Bruno",
+      "Zeta, Ana",
+    ]);
+    expect(Object.keys(patients[0]!).sort()).toEqual([
+      "diagnosis",
+      "firstName",
+      "id",
+      "lastName",
+      "mrn",
+      "status",
+    ]);
   });
 });
 
@@ -102,7 +124,9 @@ describe("PATCH /patients/:id", () => {
     const created = await createPatient({ status: "inactive" });
     await new Promise((resolve) => setTimeout(resolve, 5));
 
-    const { status, body } = await testApp.request("PATCH", `/patients/${created.id}`, { notes: "Walking unaided" });
+    const { status, body } = await testApp.request("PATCH", `/patients/${created.id}`, {
+      notes: "Walking unaided",
+    });
     const updated = PatientSchema.parse(body);
 
     expect(status).toBe(200);
@@ -122,7 +146,9 @@ describe("PATCH /patients/:id", () => {
 
   it("returns 400 for invalid fields", async () => {
     const created = await createPatient();
-    const { status } = await testApp.request("PATCH", `/patients/${created.id}`, { status: "archived" });
+    const { status } = await testApp.request("PATCH", `/patients/${created.id}`, {
+      status: "archived",
+    });
     expect(status).toBe(400);
   });
 
@@ -145,7 +171,13 @@ describe("DELETE /patients/:id", () => {
     const patient = await createPatient();
     const db = testApp.app.get(DatabaseService).db;
     db.insert(labResults)
-      .values({ patientId: patient.id, testName: "Hb", value: 12, unit: "g/dL", collectedAt: "2026-09-10T13:00:00.000Z" })
+      .values({
+        patientId: patient.id,
+        testName: "Hb",
+        value: 12,
+        unit: "g/dL",
+        collectedAt: "2026-09-10T13:00:00.000Z",
+      })
       .run();
 
     const { status, body } = await testApp.request("DELETE", `/patients/${patient.id}`);

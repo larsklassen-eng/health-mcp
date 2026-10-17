@@ -10,11 +10,15 @@ describe("resolveDatabasePath", () => {
   });
 
   it("resolves relative paths from the repo root, not the cwd", () => {
-    expect(resolveDatabasePath({ DATABASE_PATH: "tmp/other.db" })).toBe(path.join(REPO_ROOT, "tmp/other.db"));
+    expect(resolveDatabasePath({ DATABASE_PATH: "tmp/other.db" })).toBe(
+      path.join(REPO_ROOT, "tmp/other.db"),
+    );
   });
 
   it("keeps absolute paths", () => {
-    expect(resolveDatabasePath({ DATABASE_PATH: "/var/data/health.db" })).toBe("/var/data/health.db");
+    expect(resolveDatabasePath({ DATABASE_PATH: "/var/data/health.db" })).toBe(
+      "/var/data/health.db",
+    );
   });
 
   it("passes :memory: through instead of creating a file with that name", () => {

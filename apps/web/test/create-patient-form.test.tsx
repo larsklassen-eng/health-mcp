@@ -7,7 +7,9 @@ import type { CreatePatientState } from "@/app/patients/form-state";
 
 describe("CreatePatientForm", () => {
   it("submits every field to the action", async () => {
-    const action = vi.fn<(state: CreatePatientState, data: FormData) => Promise<CreatePatientState>>().mockResolvedValue({});
+    const action = vi
+      .fn<(state: CreatePatientState, data: FormData) => Promise<CreatePatientState>>()
+      .mockResolvedValue({});
     const user = userEvent.setup();
     render(<CreatePatientForm action={action} />);
 
@@ -49,7 +51,9 @@ describe("CreatePatientForm", () => {
   });
 
   it("shows form-level errors as an alert", async () => {
-    const action = vi.fn().mockResolvedValue({ formError: "Could not reach the API at http://api.test. Is it running?" });
+    const action = vi.fn().mockResolvedValue({
+      formError: "Could not reach the API at http://api.test. Is it running?",
+    });
     const user = userEvent.setup();
     render(<CreatePatientForm action={action} />);
 

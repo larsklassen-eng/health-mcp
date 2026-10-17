@@ -4,8 +4,8 @@ import { apiUrl } from "@/lib/api-client";
 export function ApiUnavailable() {
   return (
     <div className="alert error" role="alert">
-      <strong>The api is not reachable at {apiUrl()}.</strong> Start it with <code>yarn dev</code>, or set{" "}
-      <code>API_URL</code> to where it runs, then reload this page.
+      <strong>The api is not reachable at {apiUrl()}.</strong> Start it with <code>yarn dev</code>,
+      or set <code>API_URL</code> to where it runs, then reload this page.
     </div>
   );
 }

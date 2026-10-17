@@ -15,10 +15,12 @@ export const MAX_OUTPUT_CHARS = 4000;
 const dateFormat = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: "UTC" });
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}(T[\d:.]+Z)?$/;
 
-const toolLabel = (name: string) => (Object.hasOwn(TOOL_LABELS, name) ? TOOL_LABELS[name as McpToolName] : name);
+const toolLabel = (name: string) =>
+  Object.hasOwn(TOOL_LABELS, name) ? TOOL_LABELS[name as McpToolName] : name;
 
 function formatValue(value: unknown): string {
-  if (typeof value === "string") return ISO_DATE.test(value) ? dateFormat.format(new Date(value)) : value;
+  if (typeof value === "string")
+    return ISO_DATE.test(value) ? dateFormat.format(new Date(value)) : value;
   if (typeof value === "number" || typeof value === "boolean") return String(value);
   return JSON.stringify(value);
 }
@@ -33,7 +35,9 @@ export function formatToolInput(input: Record<string, unknown>): string {
 
 function formatOutput(output: unknown): string {
   const text = typeof output === "string" ? output : (JSON.stringify(output, null, 2) ?? "");
-  return text.length > MAX_OUTPUT_CHARS ? `${text.slice(0, MAX_OUTPUT_CHARS)}\n… (shortened)` : text;
+  return text.length > MAX_OUTPUT_CHARS
+    ? `${text.slice(0, MAX_OUTPUT_CHARS)}\n… (shortened)`
+    : text;
 }
 
 interface Props {
@@ -57,7 +61,9 @@ export function ChatToolCalls({ calls, running }: Props) {
               <summary>
                 <span className="tool-call-name">{toolLabel(call.name)}</span>
                 {input && <span className="tool-call-input">{input}</span>}
-                <span className="tool-call-status">{status === "running" ? "Running…" : status === "failed" ? "Failed" : "Done"}</span>
+                <span className="tool-call-status">
+                  {status === "running" ? "Running…" : status === "failed" ? "Failed" : "Done"}
+                </span>
               </summary>
               {status === "running" ? (
                 <p className="muted tool-call-output">Waiting for the result…</p>

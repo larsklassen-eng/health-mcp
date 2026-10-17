@@ -1,5 +1,9 @@
 import { labResults, medications, recoveryMilestones, symptoms, vitalSigns } from "@health-mcp/db";
-import { ApiErrorSchema, type PatientImportFile, PatientImportResultSchema } from "@health-mcp/shared";
+import {
+  ApiErrorSchema,
+  type PatientImportFile,
+  PatientImportResultSchema,
+} from "@health-mcp/shared";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { AppModule } from "../src/app.module.js";
@@ -17,19 +21,34 @@ afterEach(async () => {
 
 const importFile = (body: unknown) => testApp.request("POST", "/patients/import", body);
 const db = () => testApp.app.get(DatabaseService).db;
-const patientCount = async () => ((await testApp.request("GET", "/patients")).body as { patients: unknown[] }).patients.length;
+const patientCount = async () =>
+  ((await testApp.request("GET", "/patients")).body as { patients: unknown[] }).patients.length;
 
 const fullBundle = {
   patient: newPatient({ mrn: "FAKE-100" }),
   labResults: [
-    { testName: "Hemoglobin", value: 11.2, unit: "g/dL", flag: "low", collectedAt: "2026-09-10T08:00:00-05:00" },
+    {
+      testName: "Hemoglobin",
+      value: 11.2,
+      unit: "g/dL",
+      flag: "low",
+      collectedAt: "2026-09-10T08:00:00-05:00",
+    },
   ],
   vitals: [{ type: "pain_score", value: 3, unit: "", recordedAt: "2026-09-10T09:00:00Z" }],
   medications: [
-    { name: "Dexamethasone", dosage: "4 mg", frequency: "twice daily", status: "active", startDate: "2026-09-01" },
+    {
+      name: "Dexamethasone",
+      dosage: "4 mg",
+      frequency: "twice daily",
+      status: "active",
+      startDate: "2026-09-01",
+    },
   ],
   symptoms: [{ name: "headache", severity: 4, recordedAt: "2026-09-10T10:30:00+02:00" }],
-  milestones: [{ title: "Walk 100 m unaided", status: "achieved", achievedAt: "2026-09-20T15:00:00-03:00" }],
+  milestones: [
+    { title: "Walk 100 m unaided", status: "achieved", achievedAt: "2026-09-20T15:00:00-03:00" },
+  ],
 } satisfies PatientImportFile["patients"][number];
 
 describe("POST /patients/import", () => {
@@ -50,7 +69,11 @@ describe("POST /patients/import", () => {
     expect(await patientCount()).toBe(2);
 
     const [lab] = db().select().from(labResults).all();
-    expect(lab).toMatchObject({ patientId: imported[0]!.patientId, testName: "Hemoglobin", flag: "low" });
+    expect(lab).toMatchObject({
+      patientId: imported[0]!.patientId,
+      testName: "Hemoglobin",
+      flag: "low",
+    });
     expect(db().select().from(vitalSigns).all()).toHaveLength(1);
     expect(db().select().from(medications).all()).toHaveLength(1);
   });
@@ -60,11 +83,16 @@ describe("POST /patients/import", () => {
 
     expect(db().select().from(labResults).get()?.collectedAt).toBe("2026-09-10T13:00:00.000Z");
     expect(db().select().from(symptoms).get()?.recordedAt).toBe("2026-09-10T08:30:00.000Z");
-    expect(db().select().from(recoveryMilestones).get()?.achievedAt).toBe("2026-09-20T18:00:00.000Z");
+    expect(db().select().from(recoveryMilestones).get()?.achievedAt).toBe(
+      "2026-09-20T18:00:00.000Z",
+    );
   });
 
   it("returns 409 and saves nothing when the file repeats an MRN", async () => {
-    const file = { version: 1, patients: [fullBundle, { patient: newPatient({ mrn: "FAKE-100" }) }] };
+    const file = {
+      version: 1,
+      patients: [fullBundle, { patient: newPatient({ mrn: "FAKE-100" }) }],
+    };
 
     const { status, body } = await importFile(file);
 
@@ -75,7 +103,10 @@ describe("POST /patients/import", () => {
 
   it("returns 409 and rolls back earlier patients when an MRN already exists", async () => {
     await testApp.request("POST", "/patients", newPatient({ mrn: "FAKE-EXISTING" }));
-    const file = { version: 1, patients: [fullBundle, { patient: newPatient({ mrn: "FAKE-EXISTING" }) }] };
+    const file = {
+      version: 1,
+      patients: [fullBundle, { patient: newPatient({ mrn: "FAKE-EXISTING" }) }],
+    };
 
     const { status, body } = await importFile(file);
 
@@ -94,7 +125,9 @@ describe("POST /patients/import", () => {
     const { status, body } = await importFile(file);
 
     expect(status).toBe(400);
-    const paths = (ApiErrorSchema.parse(body).details as { path: string }[]).map((issue) => issue.path);
+    const paths = (ApiErrorSchema.parse(body).details as { path: string }[]).map(
+      (issue) => issue.path,
+    );
     expect(paths).toContain("patients.0.labResults.0.flag");
     expect(await patientCount()).toBe(0);
   });

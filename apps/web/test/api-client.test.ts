@@ -21,7 +21,9 @@ vi.stubGlobal("fetch", fetchMock);
 afterEach(() => fetchMock.mockReset());
 
 const respond = (status: number, body?: unknown) =>
-  fetchMock.mockResolvedValueOnce(new Response(body === undefined ? null : JSON.stringify(body), { status }));
+  fetchMock.mockResolvedValueOnce(
+    new Response(body === undefined ? null : JSON.stringify(body), { status }),
+  );
 
 describe("api client", () => {
   it("uses API_URL", () => {
@@ -29,7 +31,18 @@ describe("api client", () => {
   });
 
   it("lists patients from GET /patients without caching", async () => {
-    respond(200, { patients: [{ id: "p1", mrn: "FAKE-001", firstName: "Ana", lastName: "Test", status: "active", diagnosis: "x" }] });
+    respond(200, {
+      patients: [
+        {
+          id: "p1",
+          mrn: "FAKE-001",
+          firstName: "Ana",
+          lastName: "Test",
+          status: "active",
+          diagnosis: "x",
+        },
+      ],
+    });
 
     const patients = await api.listPatients();
 
@@ -42,7 +55,14 @@ describe("api client", () => {
   it("creates a patient with a JSON POST", async () => {
     respond(201, patient);
 
-    const created = await api.createPatient({ mrn: "FAKE-001", firstName: "Ana", lastName: "Test", dateOfBirth: "1980-01-01", sex: "female", diagnosis: "x" });
+    const created = await api.createPatient({
+      mrn: "FAKE-001",
+      firstName: "Ana",
+      lastName: "Test",
+      dateOfBirth: "1980-01-01",
+      sex: "female",
+      diagnosis: "x",
+    });
 
     expect(created.id).toBe("p1");
     const [, init] = fetchMock.mock.calls[0]!;
@@ -64,7 +84,15 @@ describe("api client", () => {
 
   it("reads a patient's chat history from GET /patients/:id/chat", async () => {
     respond(200, {
-      messages: [{ id: "m1", patientId: "p1", role: "user", content: "Hi", createdAt: "2026-10-01T10:00:00.000Z" }],
+      messages: [
+        {
+          id: "m1",
+          patientId: "p1",
+          role: "user",
+          content: "Hi",
+          createdAt: "2026-10-01T10:00:00.000Z",
+        },
+      ],
     });
 
     const messages = await api.getChatHistory("p1");
@@ -79,12 +107,28 @@ describe("api client", () => {
   });
 
   it("throws ApiRequestError with the api's error body", async () => {
-    respond(409, { statusCode: 409, error: "Conflict", message: "A patient with MRN FAKE-001 already exists" });
+    respond(409, {
+      statusCode: 409,
+      error: "Conflict",
+      message: "A patient with MRN FAKE-001 already exists",
+    });
 
-    const error = await api.createPatient({ mrn: "FAKE-001", firstName: "A", lastName: "B", dateOfBirth: "1980-01-01", sex: "male", diagnosis: "x" }).catch((e: unknown) => e);
+    const error = await api
+      .createPatient({
+        mrn: "FAKE-001",
+        firstName: "A",
+        lastName: "B",
+        dateOfBirth: "1980-01-01",
+        sex: "male",
+        diagnosis: "x",
+      })
+      .catch((e: unknown) => e);
 
     expect(error).toBeInstanceOf(ApiRequestError);
-    expect(error).toMatchObject({ status: 409, message: "A patient with MRN FAKE-001 already exists" });
+    expect(error).toMatchObject({
+      status: 409,
+      message: "A patient with MRN FAKE-001 already exists",
+    });
   });
 
   it("throws ApiUnavailableError when the api cannot be reached", async () => {

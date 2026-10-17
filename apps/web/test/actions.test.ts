@@ -46,7 +46,9 @@ describe("createPatientAction", () => {
   it("creates the patient and redirects to it", async () => {
     createPatient.mockResolvedValueOnce({ id: "p1" });
 
-    await expect(createPatientAction({}, form(validFields))).rejects.toThrow("REDIRECT:/patients/p1");
+    await expect(createPatientAction({}, form(validFields))).rejects.toThrow(
+      "REDIRECT:/patients/p1",
+    );
 
     expect(createPatient).toHaveBeenCalledWith({
       mrn: "FAKE-001",
@@ -61,7 +63,10 @@ describe("createPatientAction", () => {
   });
 
   it("returns one error per invalid field and keeps what was typed", async () => {
-    const state = await createPatientAction({}, form({ ...validFields, mrn: "", sex: "", dateOfBirth: "01/01/1980" }));
+    const state = await createPatientAction(
+      {},
+      form({ ...validFields, mrn: "", sex: "", dateOfBirth: "01/01/1980" }),
+    );
 
     expect(Object.keys(state.fieldErrors ?? {}).sort()).toEqual(["dateOfBirth", "mrn", "sex"]);
     expect(state.values?.dateOfBirth).toBe("01/01/1980");
@@ -69,7 +74,9 @@ describe("createPatientAction", () => {
   });
 
   it("shows a duplicate MRN on the MRN field", async () => {
-    createPatient.mockRejectedValueOnce(new ApiRequestError(409, { statusCode: 409, error: "Conflict", message: "exists" }));
+    createPatient.mockRejectedValueOnce(
+      new ApiRequestError(409, { statusCode: 409, error: "Conflict", message: "exists" }),
+    );
 
     const state = await createPatientAction({}, form(validFields));
 
@@ -88,16 +95,31 @@ describe("createPatientAction", () => {
 });
 
 const jsonFile = (content: unknown, name = "patients.json") =>
-  new File([typeof content === "string" ? content : JSON.stringify(content)], name, { type: "application/json" });
+  new File([typeof content === "string" ? content : JSON.stringify(content)], name, {
+    type: "application/json",
+  });
 
 const validImport = {
   version: 1,
-  patients: [{ patient: { mrn: "FAKE-1", firstName: "A", lastName: "B", dateOfBirth: "1980-01-01", sex: "male", diagnosis: "x" } }],
+  patients: [
+    {
+      patient: {
+        mrn: "FAKE-1",
+        firstName: "A",
+        lastName: "B",
+        dateOfBirth: "1980-01-01",
+        sex: "male",
+        diagnosis: "x",
+      },
+    },
+  ],
 };
 
 describe("importPatientsAction", () => {
   it("imports a valid file and returns the result", async () => {
-    importPatients.mockResolvedValueOnce({ imported: [{ patientId: "p1", mrn: "FAKE-1", records: 0 }] });
+    importPatients.mockResolvedValueOnce({
+      imported: [{ patientId: "p1", mrn: "FAKE-1", records: 0 }],
+    });
 
     const state = await importPatientsAction({}, form({ file: jsonFile(validImport) }));
 
@@ -119,7 +141,10 @@ describe("importPatientsAction", () => {
 
   it("lists schema problems with their path, capped at 20", async () => {
     const patients = Array.from({ length: 30 }, () => ({ patient: { mrn: "" } }));
-    const state = await importPatientsAction({}, form({ file: jsonFile({ version: 1, patients }) }));
+    const state = await importPatientsAction(
+      {},
+      form({ file: jsonFile({ version: 1, patients }) }),
+    );
 
     expect(state.errors?.[0]).toMatch(/^patients\.0\.patient\.mrn: /);
     expect(state.errors).toHaveLength(21);
@@ -129,7 +154,11 @@ describe("importPatientsAction", () => {
 
   it("reports a duplicate MRN from the api", async () => {
     importPatients.mockRejectedValueOnce(
-      new ApiRequestError(409, { statusCode: 409, error: "Conflict", message: "A patient with MRN FAKE-1 already exists" }),
+      new ApiRequestError(409, {
+        statusCode: 409,
+        error: "Conflict",
+        message: "A patient with MRN FAKE-1 already exists",
+      }),
     );
 
     const state = await importPatientsAction({}, form({ file: jsonFile(validImport) }));

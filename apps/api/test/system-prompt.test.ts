@@ -29,7 +29,10 @@ describe("buildSystemPrompt", () => {
   it("only lists optional fields that are present", () => {
     expect(buildSystemPrompt(patient, "2026-10-13")).not.toMatch(/Surgery date|Clinician notes/);
 
-    const withOptional = buildSystemPrompt({ ...patient, surgeryDate: "2026-09-01", notes: "Walks with a cane" }, "2026-10-13");
+    const withOptional = buildSystemPrompt(
+      { ...patient, surgeryDate: "2026-09-01", notes: "Walks with a cane" },
+      "2026-10-13",
+    );
     expect(withOptional).toContain("Surgery date: 2026-09-01");
     expect(withOptional).toContain("Clinician notes: Walks with a cane");
   });
@@ -42,7 +45,9 @@ describe("buildSystemPrompt", () => {
   });
 
   it("is identical for the same patient and day, so providers can cache it", () => {
-    expect(buildSystemPrompt(patient, "2026-10-13")).toBe(buildSystemPrompt({ ...patient }, "2026-10-13"));
+    expect(buildSystemPrompt(patient, "2026-10-13")).toBe(
+      buildSystemPrompt({ ...patient }, "2026-10-13"),
+    );
   });
 
   it("does not include volatile or internal fields", () => {

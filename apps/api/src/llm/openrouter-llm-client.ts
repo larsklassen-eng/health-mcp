@@ -77,7 +77,8 @@ export class OpenRouterLlmClient extends LlmClient {
     } catch (error) {
       throw this.withPolicyHint(toLlmError(error));
     }
-    if (!(Symbol.asyncIterator in response)) throw new LlmError("OpenRouter returned a non-streaming response");
+    if (!(Symbol.asyncIterator in response))
+      throw new LlmError("OpenRouter returned a non-streaming response");
 
     // Tool calls arrive in fragments keyed by `index`: the first carries id and name,
     // later ones append to the JSON arguments string.
@@ -89,7 +90,10 @@ export class OpenRouterLlmClient extends LlmClient {
       for await (const chunk of response as AsyncIterable<ChatStreamChunk>) {
         if (chunk.error) throw new LlmError(chunk.error.message, { status: chunk.error.code });
         if (chunk.usage) {
-          usage = { inputTokens: chunk.usage.promptTokens, outputTokens: chunk.usage.completionTokens };
+          usage = {
+            inputTokens: chunk.usage.promptTokens,
+            outputTokens: chunk.usage.completionTokens,
+          };
         }
         for (const choice of chunk.choices) {
           if (choice.delta.content) yield { type: "text_delta", delta: choice.delta.content };
@@ -153,7 +157,10 @@ const toOpenRouterTool = ({ name, description, parameters }: LlmToolDefinition) 
 
 function toLlmError(error: unknown): LlmError {
   if (error instanceof LlmError) return error;
-  if (error instanceof RequestAbortedError || (error instanceof Error && error.name === "AbortError")) {
+  if (
+    error instanceof RequestAbortedError ||
+    (error instanceof Error && error.name === "AbortError")
+  ) {
     return new LlmError("LLM request was aborted", { aborted: true, cause: error });
   }
   if (error instanceof OpenRouterError) {

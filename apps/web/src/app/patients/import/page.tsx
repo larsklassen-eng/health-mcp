@@ -24,8 +24,9 @@ export default function ImportPatientsPage() {
         <h1>Import patients</h1>
       </div>
       <p className="muted">
-        Upload a JSON file of <strong>synthetic</strong> patients. Each patient can include lab results, vitals,
-        medications, symptoms and milestones. The import is all-or-nothing: if any patient fails, nothing is saved.
+        Upload a JSON file of <strong>synthetic</strong> patients. Each patient can include lab
+        results, vitals, medications, symptoms and milestones. The import is all-or-nothing: if any
+        patient fails, nothing is saved.
       </p>
       <ImportPatientsForm action={importPatientsAction} />
       <details className="card" style={{ marginTop: 24 }}>

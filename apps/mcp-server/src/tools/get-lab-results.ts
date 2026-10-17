@@ -20,9 +20,11 @@ export const getLabResults =
     requirePatient(db, patient_id);
 
     const conditions: SQL[] = [eq(labResults.patientId, patient_id)];
-    if (test_name !== undefined) conditions.push(sql`${labResults.testName} = ${test_name.trim()} collate nocase`);
+    if (test_name !== undefined)
+      conditions.push(sql`${labResults.testName} = ${test_name.trim()} collate nocase`);
     // Stored times are UTC ISO strings, so `since` is converted to the same form before comparing text.
-    if (since !== undefined) conditions.push(gte(labResults.collectedAt, new Date(since).toISOString()));
+    if (since !== undefined)
+      conditions.push(gte(labResults.collectedAt, new Date(since).toISOString()));
 
     const rows = db
       .select()
@@ -32,7 +34,10 @@ export const getLabResults =
       .limit(limit + 1)
       .all();
 
-    const output: LabResultsOutput = { results: rows.slice(0, limit).map(toLabResultInput), hasMore: rows.length > limit };
+    const output: LabResultsOutput = {
+      results: rows.slice(0, limit).map(toLabResultInput),
+      hasMore: rows.length > limit,
+    };
     if (rows.length === 0 && test_name !== undefined) {
       output.availableTests = db
         .selectDistinct({ testName: labResults.testName })

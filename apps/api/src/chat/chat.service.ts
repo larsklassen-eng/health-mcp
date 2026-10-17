@@ -33,13 +33,20 @@ export class ChatService {
    * so callers can still return a normal JSON error. After that, failures are
    * reported as an `error` event and the partial answer is not saved.
    */
-  sendMessage(patientId: string, message: string, signal: AbortSignal): AsyncIterable<ChatStreamEvent> {
+  sendMessage(
+    patientId: string,
+    message: string,
+    signal: AbortSignal,
+  ): AsyncIterable<ChatStreamEvent> {
     const patient = this.patients.get(patientId);
     const previous = this.history.list(patientId);
     this.history.append(patientId, { role: "user", content: message });
 
     const messages: LlmMessage[] = [
-      { role: "system", content: buildSystemPrompt(patient, new Date().toISOString().slice(0, 10)) },
+      {
+        role: "system",
+        content: buildSystemPrompt(patient, new Date().toISOString().slice(0, 10)),
+      },
       ...previous.map(toLlmMessage),
       { role: "user", content: message },
     ];
@@ -66,12 +73,22 @@ export class ChatService {
             break;
           case "tool_call_start":
             toolCalls.push({ id: event.id, name: event.name, input: event.input, isError: false });
-            yield { type: "tool_call_start", toolCallId: event.id, name: event.name, input: event.input };
+            yield {
+              type: "tool_call_start",
+              toolCallId: event.id,
+              name: event.name,
+              input: event.input,
+            };
             break;
           case "tool_call_result": {
             const call = toolCalls.find((c) => c.id === event.id);
             if (call) Object.assign(call, { output: event.output, isError: event.isError });
-            yield { type: "tool_call_result", toolCallId: event.id, output: event.output, isError: event.isError };
+            yield {
+              type: "tool_call_result",
+              toolCallId: event.id,
+              output: event.output,
+              isError: event.isError,
+            };
             break;
           }
           case "finish":
@@ -80,12 +97,20 @@ export class ChatService {
       }
     } catch (error) {
       if (signal.aborted) return; // client went away; nothing to report or save
-      this.logger.error(`Chat turn failed for patient ${patientId} (model ${this.llm.model})`, error);
+      this.logger.error(
+        `Chat turn failed for patient ${patientId} (model ${this.llm.model})`,
+        error,
+      );
       yield { type: "error", message: "The assistant could not answer. Please try again." };
       return;
     }
 
-    this.history.append(patientId, { id: messageId, role: "assistant", content: answer, toolCalls });
+    this.history.append(patientId, {
+      id: messageId,
+      role: "assistant",
+      content: answer,
+      toolCalls,
+    });
     yield { type: "message_end", messageId, ...(stopReason && { stopReason }) };
   }
 }

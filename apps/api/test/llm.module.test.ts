@@ -14,9 +14,9 @@ describe("LlmModule", () => {
 
       expect(client).toBeInstanceOf(OpenRouterLlmClient);
       expect(client.model).toBe("anthropic/claude-opus-5.5");
-      await expect(collect(client.stream({ messages: [{ role: "user", content: "Hi" }] }))).rejects.toThrow(
-        "OPENROUTER_API_KEY is not set",
-      );
+      await expect(
+        collect(client.stream({ messages: [{ role: "user", content: "Hi" }] })),
+      ).rejects.toThrow("OPENROUTER_API_KEY is not set");
     } finally {
       await testApp.close();
     }
@@ -36,7 +36,12 @@ describe("FakeLlmClient", () => {
       { type: "tool_call", call: { id: "t1", name: "get_lab_results", arguments: '{"limit":5}' } },
       { type: "finish", reason: "tool_calls" },
     ]);
-    expect(second.filter((e) => e.type === "text_delta").map((e) => e.delta).join("")).toBe("Hemoglobin is low.");
+    expect(
+      second
+        .filter((e) => e.type === "text_delta")
+        .map((e) => e.delta)
+        .join(""),
+    ).toBe("Hemoglobin is low.");
     expect(fake.requests.map((r) => r.messages[0]?.content)).toEqual(["Labs?", "And?"]);
     expect(fake.remainingTurns).toBe(0);
   });

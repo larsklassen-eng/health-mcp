@@ -20,7 +20,11 @@ describe("ChatTranscript", () => {
   });
 
   it("labels each message with its author and UTC time", () => {
-    render(<ChatTranscript messages={[{ ...message, id: "m0", role: "user", content: "Hi" }, message]} />);
+    render(
+      <ChatTranscript
+        messages={[{ ...message, id: "m0", role: "user", content: "Hi" }, message]}
+      />,
+    );
 
     const [userItem, assistantItem] = screen.getAllByRole("listitem");
     expect(userItem).toHaveClass("user");
@@ -31,7 +35,11 @@ describe("ChatTranscript", () => {
   });
 
   it("shows the user's messages as plain text, keeping line breaks and Markdown characters", () => {
-    render(<ChatTranscript messages={[{ ...message, role: "user", content: "Line one\n**not bold**" }]} />);
+    render(
+      <ChatTranscript
+        messages={[{ ...message, role: "user", content: "Line one\n**not bold**" }]}
+      />,
+    );
 
     const content = screen.getByText(/Line one/);
     expect(content).toHaveClass("chat-content");
@@ -40,7 +48,11 @@ describe("ChatTranscript", () => {
   });
 
   it("renders the assistant's messages as Markdown", () => {
-    render(<ChatTranscript messages={[{ ...message, content: "**Stable** at the last MRI.\n\n- one\n- two" }]} />);
+    render(
+      <ChatTranscript
+        messages={[{ ...message, content: "**Stable** at the last MRI.\n\n- one\n- two" }]}
+      />,
+    );
 
     expect(screen.getByText("Stable").tagName).toBe("STRONG");
     const item = screen.getByText("Stable").closest(".chat-message")!;
@@ -48,7 +60,9 @@ describe("ChatTranscript", () => {
   });
 
   it("shows the assistant's tool calls above the answer, but none for the user", () => {
-    const toolCalls = [{ id: "t1", name: "get_patient_profile", input: {}, output: { id: "p1" }, isError: false }];
+    const toolCalls = [
+      { id: "t1", name: "get_patient_profile", input: {}, output: { id: "p1" }, isError: false },
+    ];
     render(
       <ChatTranscript
         messages={[
@@ -62,6 +76,9 @@ describe("ChatTranscript", () => {
     expect(lists).toHaveLength(1);
     const item = lists[0]!.closest(".chat-message")!;
     expect(item).toHaveClass("assistant");
-    expect(lists[0]!.compareDocumentPosition(item.querySelector(".markdown")!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(
+      lists[0]!.compareDocumentPosition(item.querySelector(".markdown")!) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 });

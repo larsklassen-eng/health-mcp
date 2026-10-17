@@ -15,7 +15,10 @@ const lab = {
 
 describe("PatientImportFileSchema", () => {
   it("accepts a file and fills in defaults", () => {
-    const file = PatientImportFileSchema.parse({ version: 1, patients: [{ patient: validPatient, labResults: [lab] }] });
+    const file = PatientImportFileSchema.parse({
+      version: 1,
+      patients: [{ patient: validPatient, labResults: [lab] }],
+    });
     const [bundle] = file.patients;
 
     expect(bundle?.patient.status).toBe("active");
@@ -34,13 +37,22 @@ describe("PatientImportFileSchema", () => {
   it.each([
     ["an unsupported version", { version: 2, patients: [{ patient: validPatient }] }],
     ["a file without patients", { version: 1, patients: [] }],
-    ["an invalid lab flag", { version: 1, patients: [{ patient: validPatient, labResults: [{ ...lab, flag: "weird" }] }] }],
+    [
+      "an invalid lab flag",
+      {
+        version: 1,
+        patients: [{ patient: validPatient, labResults: [{ ...lab, flag: "weird" }] }],
+      },
+    ],
     [
       "a symptom severity above 10",
       {
         version: 1,
         patients: [
-          { patient: validPatient, symptoms: [{ name: "headache", severity: 11, recordedAt: "2026-09-10T08:00:00Z" }] },
+          {
+            patient: validPatient,
+            symptoms: [{ name: "headache", severity: 11, recordedAt: "2026-09-10T08:00:00Z" }],
+          },
         ],
       },
     ],
@@ -49,7 +61,10 @@ describe("PatientImportFileSchema", () => {
       {
         version: 1,
         patients: [
-          { patient: validPatient, vitals: [{ type: "mood", value: 5, unit: "", recordedAt: "2026-09-10T08:00:00Z" }] },
+          {
+            patient: validPatient,
+            vitals: [{ type: "mood", value: 5, unit: "", recordedAt: "2026-09-10T08:00:00Z" }],
+          },
         ],
       },
     ],
@@ -58,7 +73,10 @@ describe("PatientImportFileSchema", () => {
   });
 
   it("points to the failing field", () => {
-    const result = PatientImportFileSchema.safeParse({ version: 1, patients: [{ patient: { ...validPatient, mrn: "" } }] });
+    const result = PatientImportFileSchema.safeParse({
+      version: 1,
+      patients: [{ patient: { ...validPatient, mrn: "" } }],
+    });
     expect(result.success).toBe(false);
     expect(result.error?.issues[0]?.path).toEqual(["patients", 0, "patient", "mrn"]);
   });

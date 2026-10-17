@@ -20,15 +20,20 @@ afterEach(async () => {
 });
 
 const call = async (args: Record<string, unknown>) =>
-  (await client.callTool({ name: "get_vitals_trend", arguments: { patient_id: patientId, ...args } })) as CallToolResult;
-const text = (result: CallToolResult) => (result.content[0]?.type === "text" ? result.content[0].text : "");
+  (await client.callTool({
+    name: "get_vitals_trend",
+    arguments: { patient_id: patientId, ...args },
+  })) as CallToolResult;
+const text = (result: CallToolResult) =>
+  result.content[0]?.type === "text" ? result.content[0].text : "";
 const output = async (args: Record<string, unknown>) => {
   const result = await call(args);
   expect(result.isError).toBeFalsy();
   return JSON.parse(text(result)) as VitalsTrendOutput;
 };
 /** ISO time `days` before NOW. */
-const daysAgo = (days: number) => new Date(NOW.getTime() - days * 24 * 60 * 60 * 1000).toISOString();
+const daysAgo = (days: number) =>
+  new Date(NOW.getTime() - days * 24 * 60 * 60 * 1000).toISOString();
 
 describe("get_vitals_trend", () => {
   it("returns one vital's readings in the window oldest first, with a summary", async () => {
@@ -61,7 +66,12 @@ describe("get_vitals_trend", () => {
 
   it("only includes the requested vital type", async () => {
     insertVital(server.db, patientId, { value: 80, recordedAt: daysAgo(1) });
-    insertVital(server.db, patientId, { type: "weight", unit: "kg", value: 81.4, recordedAt: daysAgo(1) });
+    insertVital(server.db, patientId, {
+      type: "weight",
+      unit: "kg",
+      value: 81.4,
+      recordedAt: daysAgo(1),
+    });
 
     const trend = await output({ vital_type: "weight" });
 
@@ -71,15 +81,28 @@ describe("get_vitals_trend", () => {
 
   it("uses `days` as the window, defaulting to 30, including its exact start", async () => {
     insertVital(server.db, patientId, { value: 1, recordedAt: daysAgo(30) });
-    insertVital(server.db, patientId, { value: 2, recordedAt: new Date(NOW.getTime() - 30 * 86_400_000 - 1).toISOString() });
+    insertVital(server.db, patientId, {
+      value: 2,
+      recordedAt: new Date(NOW.getTime() - 30 * 86_400_000 - 1).toISOString(),
+    });
     insertVital(server.db, patientId, { value: 3, recordedAt: daysAgo(6) });
 
-    expect((await output({ vital_type: "heart_rate" })).readings?.map((r) => r.value)).toEqual([1, 3]);
-    expect((await output({ vital_type: "heart_rate", days: 7 })).readings?.map((r) => r.value)).toEqual([3]);
+    expect((await output({ vital_type: "heart_rate" })).readings?.map((r) => r.value)).toEqual([
+      1, 3,
+    ]);
+    expect(
+      (await output({ vital_type: "heart_rate", days: 7 })).readings?.map((r) => r.value),
+    ).toEqual([3]);
   });
 
   it("rounds the average and change to two decimals", async () => {
-    for (const value of [37.1, 37.2, 37.6]) insertVital(server.db, patientId, { type: "temperature", unit: "°C", value, recordedAt: daysAgo(value - 36) });
+    for (const value of [37.1, 37.2, 37.6])
+      insertVital(server.db, patientId, {
+        type: "temperature",
+        unit: "°C",
+        value,
+        recordedAt: daysAgo(value - 36),
+      });
 
     const { summary } = await output({ vital_type: "temperature" });
 
@@ -97,12 +120,19 @@ describe("get_vitals_trend", () => {
 
     expect(trend.readings).toBeUndefined();
     expect(trend.daily).toHaveLength(61);
-    expect(trend.daily![0]).toEqual({ date: daysAgo(60.4).slice(0, 10), count: 2, min: 70, max: 80, average: 75 });
+    expect(trend.daily![0]).toEqual({
+      date: daysAgo(60.4).slice(0, 10),
+      count: 2,
+      min: 70,
+      max: 80,
+      average: 75,
+    });
     expect(trend.summary).toMatchObject({ count: 122, min: 70, max: 80 });
   });
 
   it("returns raw readings at exactly the limit", async () => {
-    for (let i = 0; i < MAX_RAW_POINTS; i++) insertVital(server.db, patientId, { value: 70, recordedAt: daysAgo(i / 10) });
+    for (let i = 0; i < MAX_RAW_POINTS; i++)
+      insertVital(server.db, patientId, { value: 70, recordedAt: daysAgo(i / 10) });
 
     const trend = await output({ vital_type: "heart_rate" });
 
@@ -119,7 +149,12 @@ describe("get_vitals_trend", () => {
   });
 
   it("returns lastRecordedAt null when the vital was never recorded", async () => {
-    expect(await output({ vital_type: "oxygen_saturation" })).toMatchObject({ unit: null, readings: [], summary: null, lastRecordedAt: null });
+    expect(await output({ vital_type: "oxygen_saturation" })).toMatchObject({
+      unit: null,
+      readings: [],
+      summary: null,
+      lastRecordedAt: null,
+    });
   });
 
   it("only returns the requested patient's readings", async () => {
@@ -127,11 +162,17 @@ describe("get_vitals_trend", () => {
     insertVital(server.db, other.id, { value: 120, recordedAt: daysAgo(1) });
     insertVital(server.db, other.id, { value: 110, recordedAt: daysAgo(40) });
 
-    expect(await output({ vital_type: "heart_rate" })).toMatchObject({ readings: [], lastRecordedAt: null });
+    expect(await output({ vital_type: "heart_rate" })).toMatchObject({
+      readings: [],
+      lastRecordedAt: null,
+    });
   });
 
   it("returns a tool error for an unknown patient", async () => {
-    const result = (await client.callTool({ name: "get_vitals_trend", arguments: { patient_id: "does-not-exist", vital_type: "heart_rate" } })) as CallToolResult;
+    const result = (await client.callTool({
+      name: "get_vitals_trend",
+      arguments: { patient_id: "does-not-exist", vital_type: "heart_rate" },
+    })) as CallToolResult;
 
     expect(result.isError).toBe(true);
     expect(text(result)).toBe("Patient does-not-exist not found.");

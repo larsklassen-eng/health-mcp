@@ -11,7 +11,8 @@ export function PatientsTable({ patients }: { patients: PatientSummary[] }) {
       <div className="card">
         <p>No patients yet.</p>
         <p className="muted">
-          <Link href="/patients/new">Add a patient</Link> or <Link href="/patients/import">import a file of fake data</Link>.
+          <Link href="/patients/new">Add a patient</Link> or{" "}
+          <Link href="/patients/import">import a file of fake data</Link>.
         </p>
       </div>
     );

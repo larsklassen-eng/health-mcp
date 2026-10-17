@@ -19,7 +19,10 @@ export const EnvSchema = z.object({
     .pipe(
       z
         .string()
-        .min(32, "MCP_AUTH_TOKEN must be at least 32 characters. Generate one with `openssl rand -hex 32`")
+        .min(
+          32,
+          "MCP_AUTH_TOKEN must be at least 32 characters. Generate one with `openssl rand -hex 32`",
+        )
         .optional(),
     ),
   /** SQLite file; relative paths resolve from the repo root (see @health-mcp/db). */

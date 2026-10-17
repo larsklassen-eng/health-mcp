@@ -46,7 +46,8 @@ export function ImportPatientsForm({ action }: Props) {
       {state.result && (
         <div className="alert success" role="status">
           <strong>
-            Imported {state.result.imported.length} {state.result.imported.length === 1 ? "patient" : "patients"}.
+            Imported {state.result.imported.length}{" "}
+            {state.result.imported.length === 1 ? "patient" : "patients"}.
           </strong>
           <ul>
             {state.result.imported.map(({ patientId, mrn, records }) => (

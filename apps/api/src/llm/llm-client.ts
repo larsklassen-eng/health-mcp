@@ -34,7 +34,8 @@ export interface LlmUsage {
 }
 
 /** `stop` and `tool_calls` are the normal endings; `length` means the output hit the token limit. */
-export type LlmFinishReason = "stop" | "tool_calls" | "length" | "content_filter" | "error" | (string & {});
+export type LlmFinishReason =
+  "stop" | "tool_calls" | "length" | "content_filter" | "error" | (string & {});
 
 /**
  * Events from {@link LlmClient.stream}, in order: any number of `text_delta`,
@@ -51,7 +52,10 @@ export class LlmError extends Error {
   /** True when the caller aborted the request (e.g. the user closed the chat). */
   readonly aborted: boolean;
 
-  constructor(message: string, options: { status?: number | undefined; aborted?: boolean; cause?: unknown } = {}) {
+  constructor(
+    message: string,
+    options: { status?: number | undefined; aborted?: boolean; cause?: unknown } = {},
+  ) {
     super(message, { cause: options.cause });
     this.name = "LlmError";
     this.status = options.status;

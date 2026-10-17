@@ -6,7 +6,11 @@ import { ChatToolCalls } from "./chat-tool-calls";
 const ROLE_LABELS: Record<ChatMessage["role"], string> = { user: "You", assistant: "Assistant" };
 
 /** Formatted in UTC so server and browser render the same text. */
-const timeFormat = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" });
+const timeFormat = new Intl.DateTimeFormat("en-US", {
+  dateStyle: "medium",
+  timeStyle: "short",
+  timeZone: "UTC",
+});
 
 interface Props {
   messages: ChatMessage[];
@@ -29,9 +33,16 @@ export function ChatTranscript({ messages, runningToolCalls }: Props) {
         <li key={message.id} className={`chat-message ${message.role}`}>
           <div className="chat-meta">
             <strong>{ROLE_LABELS[message.role]}</strong>{" "}
-            <time dateTime={message.createdAt}>{timeFormat.format(new Date(message.createdAt))} UTC</time>
+            <time dateTime={message.createdAt}>
+              {timeFormat.format(new Date(message.createdAt))} UTC
+            </time>
           </div>
-          {message.role === "assistant" && <ChatToolCalls calls={message.toolCalls} {...(runningToolCalls && { running: runningToolCalls })} />}
+          {message.role === "assistant" && (
+            <ChatToolCalls
+              calls={message.toolCalls}
+              {...(runningToolCalls && { running: runningToolCalls })}
+            />
+          )}
           {message.role === "assistant" ? (
             <ChatMarkdown text={message.content} />
           ) : (

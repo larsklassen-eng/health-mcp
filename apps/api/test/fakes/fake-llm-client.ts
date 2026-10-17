@@ -1,4 +1,10 @@
-import { LlmClient, LlmError, type LlmRequest, type LlmStreamEvent, type LlmToolCall } from "../../src/llm/llm-client.js";
+import {
+  LlmClient,
+  LlmError,
+  type LlmRequest,
+  type LlmStreamEvent,
+  type LlmToolCall,
+} from "../../src/llm/llm-client.js";
 
 /**
  * Scripted {@link LlmClient} for tests. Queue one turn per expected model call;
@@ -12,7 +18,10 @@ export class FakeLlmClient extends LlmClient {
   /** Queues a turn that streams `text` in a few deltas and stops. */
   replyWithText(text: string): this {
     const deltas = text.match(/.{1,8}/gs) ?? [];
-    return this.enqueue([...deltas.map((delta) => ({ type: "text_delta" as const, delta })), { type: "finish", reason: "stop" }]);
+    return this.enqueue([
+      ...deltas.map((delta) => ({ type: "text_delta" as const, delta })),
+      { type: "finish", reason: "stop" },
+    ]);
   }
 
   /** Queues a turn that requests the given tool calls (arguments are JSON-encoded). */
@@ -35,7 +44,10 @@ export class FakeLlmClient extends LlmClient {
    * (like a model still generating when the client disconnects).
    */
   replyThenHang(text: string): this {
-    this.turns.push([{ type: "text_delta", delta: text }, { type: "__hang__" } as unknown as LlmStreamEvent]);
+    this.turns.push([
+      { type: "text_delta", delta: text },
+      { type: "__hang__" } as unknown as LlmStreamEvent,
+    ]);
     return this;
   }
 
@@ -59,7 +71,8 @@ export class FakeLlmClient extends LlmClient {
 
     for (const event of turn) {
       if (signal?.aborted) throw new LlmError("LLM request was aborted", { aborted: true });
-      if ((event as { type: string }).type === "__throw__") throw (event as unknown as { error: LlmError }).error;
+      if ((event as { type: string }).type === "__throw__")
+        throw (event as unknown as { error: LlmError }).error;
       if ((event as { type: string }).type === "__hang__") {
         await new Promise<void>((resolve) => {
           if (!signal) return; // never resolves: the test forgot to pass a signal

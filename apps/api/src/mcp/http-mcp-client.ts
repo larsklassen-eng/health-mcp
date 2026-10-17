@@ -50,7 +50,9 @@ export class HttpMcpClient extends McpClient {
 
   async listToolNames(signal?: AbortSignal): Promise<string[]> {
     const client = await this.connect();
-    const { tools } = await this.request(() => client.listTools(undefined, this.requestOptions(signal)));
+    const { tools } = await this.request(() =>
+      client.listTools(undefined, this.requestOptions(signal)),
+    );
     return tools.map((tool) => tool.name);
   }
 
@@ -63,7 +65,11 @@ export class HttpMcpClient extends McpClient {
     const client = await this.connect();
     // `patient_id` goes last so nothing in `args` can override it.
     const result = (await this.request(() =>
-      client.callTool({ name, arguments: { ...args, patient_id: patientId } }, undefined, this.requestOptions(signal)),
+      client.callTool(
+        { name, arguments: { ...args, patient_id: patientId } },
+        undefined,
+        this.requestOptions(signal),
+      ),
     )) as CallToolResult;
     return { output: toOutput(result), isError: result.isError === true };
   }

@@ -24,7 +24,15 @@ import {
   VitalTypeSchema,
 } from "@health-mcp/shared";
 import { type SQL, sql } from "drizzle-orm";
-import { type AnySQLiteColumn, check, index, integer, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import {
+  type AnySQLiteColumn,
+  check,
+  index,
+  integer,
+  real,
+  sqliteTable,
+  text,
+} from "drizzle-orm/sqlite-core";
 
 const id = () =>
   text("id")
@@ -59,7 +67,9 @@ export const patients = sqliteTable(
     lastName: text("last_name").notNull(),
     dateOfBirth: text("date_of_birth").notNull(),
     sex: text("sex", { enum: values(SexSchema) }).notNull(),
-    status: text("status", { enum: values(PatientStatusSchema) }).notNull().default("active"),
+    status: text("status", { enum: values(PatientStatusSchema) })
+      .notNull()
+      .default("active"),
     diagnosis: text("diagnosis").notNull(),
     surgeryDate: text("surgery_date"),
     notes: text("notes"),
@@ -156,7 +166,9 @@ export const recoveryMilestones = sqliteTable(
     patientId: patientId(),
     title: text("title").notNull(),
     description: text("description"),
-    status: text("status", { enum: values(MilestoneStatusSchema) }).notNull().default("pending"),
+    status: text("status", { enum: values(MilestoneStatusSchema) })
+      .notNull()
+      .default("pending"),
     targetDate: text("target_date"),
     achievedAt: text("achieved_at"),
   },

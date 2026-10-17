@@ -13,14 +13,18 @@ const jsonError = (status: number, error: string, message: string) =>
  * events back unchanged, so the browser never needs the api's URL. When the
  * browser disconnects, `request.signal` aborts the api request, which stops the model.
  */
-export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }): Promise<Response> {
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> },
+): Promise<Response> {
   const { id } = await params;
 
   if (Number(request.headers.get("content-length") ?? 0) > MAX_BODY_BYTES) {
     return jsonError(413, "Payload Too Large", "The message is too long");
   }
   const text = await request.text();
-  if (text.length > MAX_BODY_BYTES) return jsonError(413, "Payload Too Large", "The message is too long");
+  if (text.length > MAX_BODY_BYTES)
+    return jsonError(413, "Payload Too Large", "The message is too long");
 
   let body;
   try {

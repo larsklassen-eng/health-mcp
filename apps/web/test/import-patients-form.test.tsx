@@ -9,7 +9,10 @@ async function submitFile(state: ImportPatientsState) {
   const action = vi.fn().mockResolvedValue(state);
   const user = userEvent.setup();
   render(<ImportPatientsForm action={action} />);
-  await user.upload(screen.getByLabelText(/JSON file/), new File(["{}"], "patients.json", { type: "application/json" }));
+  await user.upload(
+    screen.getByLabelText(/JSON file/),
+    new File(["{}"], "patients.json", { type: "application/json" }),
+  );
   await user.click(screen.getByRole("button", { name: "Import" }));
   return action;
 }
@@ -27,7 +30,9 @@ describe("ImportPatientsForm", () => {
   });
 
   it("lists file problems", async () => {
-    await submitFile({ errors: ["patients.0.patient.mrn: Too small", "patients.1.labResults.0.flag: Invalid option"] });
+    await submitFile({
+      errors: ["patients.0.patient.mrn: Too small", "patients.1.labResults.0.flag: Invalid option"],
+    });
 
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent("Nothing was imported");

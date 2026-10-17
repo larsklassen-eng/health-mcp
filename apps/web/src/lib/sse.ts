@@ -5,7 +5,9 @@ import { type ChatStreamEvent, ChatStreamEventSchema } from "@health-mcp/shared"
  * per `data:` line. Network chunks can split an event anywhere, so text is
  * buffered until the blank line that ends each event.
  */
-export async function* readChatStream(body: ReadableStream<Uint8Array>): AsyncGenerator<ChatStreamEvent> {
+export async function* readChatStream(
+  body: ReadableStream<Uint8Array>,
+): AsyncGenerator<ChatStreamEvent> {
   const reader = body.getReader();
   const decoder = new TextDecoder(); // `stream: true` keeps multi-byte characters split across chunks intact
   let buffer = "";

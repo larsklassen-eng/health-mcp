@@ -14,7 +14,14 @@ export interface NewChatMessage {
   toolCalls?: ToolCall[];
 }
 
-const toChatMessage = ({ id, patientId, role, content, toolCalls, createdAt }: ChatMessageRow): ChatMessage => ({
+const toChatMessage = ({
+  id,
+  patientId,
+  role,
+  content,
+  toolCalls,
+  createdAt,
+}: ChatMessageRow): ChatMessage => ({
   id,
   patientId,
   role,
@@ -34,14 +41,16 @@ export class ChatHistoryService {
   /** Messages oldest first. Throws 404 if the patient does not exist. */
   list(patientId: string): ChatMessage[] {
     this.patients.get(patientId);
-    return this.database.db
-      .select()
-      .from(chatMessages)
-      .where(eq(chatMessages.patientId, patientId))
-      // createdAt has millisecond precision; rowid keeps insertion order for messages saved in the same millisecond.
-      .orderBy(asc(chatMessages.createdAt), asc(sql`rowid`))
-      .all()
-      .map(toChatMessage);
+    return (
+      this.database.db
+        .select()
+        .from(chatMessages)
+        .where(eq(chatMessages.patientId, patientId))
+        // createdAt has millisecond precision; rowid keeps insertion order for messages saved in the same millisecond.
+        .orderBy(asc(chatMessages.createdAt), asc(sql`rowid`))
+        .all()
+        .map(toChatMessage)
+    );
   }
 
   /** Saves a message to the patient's history. Throws 404 if the patient does not exist. */

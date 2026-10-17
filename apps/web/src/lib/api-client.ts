@@ -40,13 +40,20 @@ export class ApiUnavailableError extends Error {
   }
 }
 
-async function request<T>(path: string, schema: { parse: (value: unknown) => T }, init: RequestInit = {}): Promise<T> {
+async function request<T>(
+  path: string,
+  schema: { parse: (value: unknown) => T },
+  init: RequestInit = {},
+): Promise<T> {
   let response: Response;
   try {
     response = await fetch(`${apiUrl()}${path}`, {
       ...init,
       cache: "no-store",
-      headers: { Accept: "application/json", ...(init.body !== undefined && { "Content-Type": "application/json" }) },
+      headers: {
+        Accept: "application/json",
+        ...(init.body !== undefined && { "Content-Type": "application/json" }),
+      },
     });
   } catch (cause) {
     throw new ApiUnavailableError(cause);
@@ -68,7 +75,8 @@ export const api = {
     try {
       return await request(API_ROUTES.patient(id), PatientSchema);
     } catch (error) {
-      if (error instanceof ApiRequestError && (error.status === 404 || error.status === 400)) return null;
+      if (error instanceof ApiRequestError && (error.status === 404 || error.status === 400))
+        return null;
       throw error;
     }
   },
@@ -78,17 +86,24 @@ export const api = {
     try {
       return (await request(API_ROUTES.patientChat(patientId), ChatHistoryResponseSchema)).messages;
     } catch (error) {
-      if (error instanceof ApiRequestError && (error.status === 404 || error.status === 400)) return null;
+      if (error instanceof ApiRequestError && (error.status === 404 || error.status === 400))
+        return null;
       throw error;
     }
   },
 
   createPatient(input: CreatePatientInput): Promise<Patient> {
-    return request(API_ROUTES.patients, PatientSchema, { method: "POST", body: JSON.stringify(input) });
+    return request(API_ROUTES.patients, PatientSchema, {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
   },
 
   /** `file` is sent as-is; the api validates it again and applies defaults. */
   importPatients(file: unknown): Promise<PatientImportResult> {
-    return request(API_ROUTES.patientsImport, PatientImportResultSchema, { method: "POST", body: JSON.stringify(file) });
+    return request(API_ROUTES.patientsImport, PatientImportResultSchema, {
+      method: "POST",
+      body: JSON.stringify(file),
+    });
   },
 };

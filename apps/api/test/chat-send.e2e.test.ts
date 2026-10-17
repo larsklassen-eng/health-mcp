@@ -1,4 +1,12 @@
-import { API_ROUTES, ApiErrorSchema, ChatHistoryResponseSchema, type ChatStreamEvent, ChatStreamEventSchema, type Patient, PatientSchema } from "@health-mcp/shared";
+import {
+  API_ROUTES,
+  ApiErrorSchema,
+  ChatHistoryResponseSchema,
+  type ChatStreamEvent,
+  ChatStreamEventSchema,
+  type Patient,
+  PatientSchema,
+} from "@health-mcp/shared";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { AppModule } from "../src/app.module.js";
@@ -17,7 +25,12 @@ beforeEach(async () => {
   const { body } = await testApp.request(
     "POST",
     API_ROUTES.patients,
-    newPatient({ firstName: "Ana", lastName: "Test", diagnosis: "Synthetic meningioma", surgeryDate: "2026-09-01" }),
+    newPatient({
+      firstName: "Ana",
+      lastName: "Test",
+      diagnosis: "Synthetic meningioma",
+      surgeryDate: "2026-09-01",
+    }),
   );
   patient = PatientSchema.parse(body);
 });
@@ -41,7 +54,12 @@ async function sendChat(patientId: string, body: unknown) {
   });
   const text = await response.text();
   const isStream = response.headers.get("content-type")?.startsWith("text/event-stream") ?? false;
-  return { status: response.status, isStream, events: isStream ? parseEvents(text) : [], json: isStream ? undefined : JSON.parse(text) };
+  return {
+    status: response.status,
+    isStream,
+    events: isStream ? parseEvents(text) : [],
+    json: isStream ? undefined : JSON.parse(text),
+  };
 }
 
 const answerText = (events: ChatStreamEvent[]) =>
@@ -56,7 +74,9 @@ describe(`POST ${API_ROUTES.patientChat(":id")}`, () => {
   it("streams the answer as start, text deltas and end events", async () => {
     llm.replyWithText("Surgery was on 2026-09-01; I cannot see her labs yet.");
 
-    const { status, isStream, events } = await sendChat(patient.id, { message: "When was her surgery?" });
+    const { status, isStream, events } = await sendChat(patient.id, {
+      message: "When was her surgery?",
+    });
 
     expect(status).toBe(200);
     expect(isStream).toBe(true);
@@ -89,7 +109,11 @@ describe(`POST ${API_ROUTES.patientChat(":id")}`, () => {
     const request = llm.requests[1]!;
     expect(request.tools ?? []).toEqual([]);
     expect(request.messages.map((m) => m.role)).toEqual(["system", "user", "assistant", "user"]);
-    expect(request.messages.slice(1).map((m) => m.content)).toEqual(["First question", "First answer.", "Second question"]);
+    expect(request.messages.slice(1).map((m) => m.content)).toEqual([
+      "First question",
+      "First answer.",
+      "Second question",
+    ]);
 
     const system = request.messages[0]!.content;
     expect(system).toContain("Ana Test");
@@ -98,7 +122,11 @@ describe(`POST ${API_ROUTES.patientChat(":id")}`, () => {
   });
 
   it("keeps each patient's conversation separate", async () => {
-    const { body } = await testApp.request("POST", API_ROUTES.patients, newPatient({ mrn: "FAKE-OTHER", firstName: "Bruno" }));
+    const { body } = await testApp.request(
+      "POST",
+      API_ROUTES.patients,
+      newPatient({ mrn: "FAKE-OTHER", firstName: "Bruno" }),
+    );
     const other = PatientSchema.parse(body);
     llm.replyWithText("About Ana.").replyWithText("About Bruno.");
 
@@ -111,7 +139,10 @@ describe(`POST ${API_ROUTES.patientChat(":id")}`, () => {
   });
 
   it("reports why the model stopped, e.g. when the answer hit the token limit", async () => {
-    llm.enqueue([{ type: "text_delta", delta: "A very long answ" }, { type: "finish", reason: "length" }]);
+    llm.enqueue([
+      { type: "text_delta", delta: "A very long answ" },
+      { type: "finish", reason: "length" },
+    ]);
 
     const { events } = await sendChat(patient.id, { message: "Explain everything" });
 
@@ -145,7 +176,11 @@ describe(`POST ${API_ROUTES.patientChat(":id")}`, () => {
 
   describe("model failures", () => {
     it("streams a generic error event, keeps the question and saves no answer", async () => {
-      llm.failWith(new LlmError("OpenRouter request failed (402): insufficient credits for sk-or-secret", { status: 402 }));
+      llm.failWith(
+        new LlmError("OpenRouter request failed (402): insufficient credits for sk-or-secret", {
+          status: 402,
+        }),
+      );
 
       const { status, events } = await sendChat(patient.id, { message: "Hi" });
 
@@ -156,7 +191,9 @@ describe(`POST ${API_ROUTES.patientChat(":id")}`, () => {
     });
 
     it("does not save a partial answer when the model fails midway", async () => {
-      llm.failWith(new LlmError("Provider disconnected", { status: 502 }), [{ type: "text_delta", delta: "Her hemo" }]);
+      llm.failWith(new LlmError("Provider disconnected", { status: 502 }), [
+        { type: "text_delta", delta: "Her hemo" },
+      ]);
 
       const { events } = await sendChat(patient.id, { message: "Labs?" });
 
@@ -171,7 +208,11 @@ describe(`POST ${API_ROUTES.patientChat(":id")}`, () => {
       const { events } = await sendChat(patient.id, { message: "Second try" });
 
       expect(answerText(events)).toBe("Recovered.");
-      expect((await history()).map((m) => m.content)).toEqual(["First try", "Second try", "Recovered."]);
+      expect((await history()).map((m) => m.content)).toEqual([
+        "First try",
+        "Second try",
+        "Recovered.",
+      ]);
     });
   });
 
@@ -187,7 +228,8 @@ describe(`POST ${API_ROUTES.patientChat(":id")}`, () => {
     });
     const reader = response.body!.getReader();
     let received = "";
-    while (!received.includes("Still thinking about")) received += new TextDecoder().decode((await reader.read()).value);
+    while (!received.includes("Still thinking about"))
+      received += new TextDecoder().decode((await reader.read()).value);
     controller.abort();
 
     await expect.poll(() => llm.lastSignal?.aborted, { timeout: 2000 }).toBe(true);

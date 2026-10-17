@@ -11,7 +11,9 @@ export const validationPipe = new StandardSchemaValidationPipe({
       error: "Bad Request",
       message: "Validation failed",
       details: issues.map((issue) => ({
-        path: (issue.path ?? []).map((segment) => (typeof segment === "object" ? segment.key : segment)).join("."),
+        path: (issue.path ?? [])
+          .map((segment) => (typeof segment === "object" ? segment.key : segment))
+          .join("."),
         message: issue.message,
       })),
     }),

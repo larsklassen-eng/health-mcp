@@ -1,6 +1,13 @@
 import type { AddressInfo } from "node:net";
 
-import { createDb, type HealthDb, labResults, migrateDb, patients, vitalSigns } from "@health-mcp/db";
+import {
+  createDb,
+  type HealthDb,
+  labResults,
+  migrateDb,
+  patients,
+  vitalSigns,
+} from "@health-mcp/db";
 import type { CreatePatientInput, LabResultInput, VitalSignInput } from "@health-mcp/shared";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
@@ -24,7 +31,10 @@ export interface TestServer {
 export async function startTestServer(options: McpServerOptions = {}): Promise<TestServer> {
   const connection = createDb({ path: ":memory:" });
   migrateDb(connection.db);
-  const server = createApp({ db: connection.db, authToken: TEST_TOKEN, ...options }).listen(0, "127.0.0.1");
+  const server = createApp({ db: connection.db, authToken: TEST_TOKEN, ...options }).listen(
+    0,
+    "127.0.0.1",
+  );
   await new Promise((resolve) => server.once("listening", resolve));
   const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
   const clients: Client[] = [];
@@ -66,7 +76,11 @@ export function insertPatient(db: HealthDb, overrides: Partial<CreatePatientInpu
     .get();
 }
 
-export function insertLab(db: HealthDb, patientId: string, lab: Partial<LabResultInput> & Pick<LabResultInput, "collectedAt">) {
+export function insertLab(
+  db: HealthDb,
+  patientId: string,
+  lab: Partial<LabResultInput> & Pick<LabResultInput, "collectedAt">,
+) {
   return db
     .insert(labResults)
     .values({ testName: "Hemoglobin", value: 13.5, unit: "g/dL", ...lab, patientId })
@@ -74,7 +88,11 @@ export function insertLab(db: HealthDb, patientId: string, lab: Partial<LabResul
     .get();
 }
 
-export function insertVital(db: HealthDb, patientId: string, vital: Partial<VitalSignInput> & Pick<VitalSignInput, "recordedAt" | "value">) {
+export function insertVital(
+  db: HealthDb,
+  patientId: string,
+  vital: Partial<VitalSignInput> & Pick<VitalSignInput, "recordedAt" | "value">,
+) {
   return db
     .insert(vitalSigns)
     .values({ type: "heart_rate", unit: "bpm", ...vital, patientId })

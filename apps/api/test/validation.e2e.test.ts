@@ -1,4 +1,8 @@
-import { ApiErrorSchema, type CreatePatientInput, CreatePatientInputSchema } from "@health-mcp/shared";
+import {
+  ApiErrorSchema,
+  type CreatePatientInput,
+  CreatePatientInputSchema,
+} from "@health-mcp/shared";
 import { Body, Controller, Get, HttpCode, Module, Post } from "@nestjs/common";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -60,7 +64,9 @@ describe("request validation", () => {
     const body = ApiErrorSchema.parse(await response.json());
     expect(body.message).toBe("Validation failed");
     const paths = (body.details as { path: string }[]).map((issue) => issue.path);
-    expect(paths).toEqual(expect.arrayContaining(["mrn", "sex", "firstName", "lastName", "dateOfBirth", "diagnosis"]));
+    expect(paths).toEqual(
+      expect.arrayContaining(["mrn", "sex", "firstName", "lastName", "dateOfBirth", "diagnosis"]),
+    );
   });
 });
 

@@ -6,8 +6,5 @@
     // Node typings for tests only (they read fixture files); the build config keeps src free of Node APIs.
     "types": ["node"]
   },
-  "include": [
-    "src",
-    "test"
-  ]
+  "include": ["src", "test"]
 }

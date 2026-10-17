@@ -11,7 +11,14 @@ export function omitNulls<T extends object>(row: T): { [K in keyof T]: Exclude<T
 
 export const toPatient = (row: PatientRow): Patient => omitNulls(row) as Patient;
 
-export const toPatientSummary = ({ id, mrn, firstName, lastName, status, diagnosis }: PatientRow): PatientSummary => ({
+export const toPatientSummary = ({
+  id,
+  mrn,
+  firstName,
+  lastName,
+  status,
+  diagnosis,
+}: PatientRow): PatientSummary => ({
   id,
   mrn,
   firstName,
@@ -21,5 +28,8 @@ export const toPatientSummary = ({ id, mrn, firstName, lastName, status, diagnos
 });
 
 /** A lab result without its ids, as returned to the model. */
-export const toLabResultInput = ({ id: _id, patientId: _patientId, ...row }: LabResultRow): LabResultInput =>
-  omitNulls(row) as LabResultInput;
+export const toLabResultInput = ({
+  id: _id,
+  patientId: _patientId,
+  ...row
+}: LabResultRow): LabResultInput => omitNulls(row) as LabResultInput;

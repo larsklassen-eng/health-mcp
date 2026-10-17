@@ -27,7 +27,8 @@ export class PatientImportService {
    */
   import(file: ParsedPatientImportFile): PatientImportResult {
     const duplicate = findDuplicateMrn(file);
-    if (duplicate) throw new ConflictException(`MRN ${duplicate} appears more than once in the import file`);
+    if (duplicate)
+      throw new ConflictException(`MRN ${duplicate} appears more than once in the import file`);
 
     let currentMrn = "";
     try {
@@ -36,13 +37,29 @@ export class PatientImportService {
 
         for (const bundle of file.patients) {
           currentMrn = bundle.patient.mrn;
-          const [patient] = tx.insert(patients).values(bundle.patient).returning({ id: patients.id }).all();
+          const [patient] = tx
+            .insert(patients)
+            .values(bundle.patient)
+            .returning({ id: patients.id })
+            .all();
           const patientId = patient!.id;
 
-          const labs = bundle.labResults.map((lab) => ({ ...lab, patientId, collectedAt: toUtc(lab.collectedAt) }));
-          const vitals = bundle.vitals.map((vital) => ({ ...vital, patientId, recordedAt: toUtc(vital.recordedAt) }));
+          const labs = bundle.labResults.map((lab) => ({
+            ...lab,
+            patientId,
+            collectedAt: toUtc(lab.collectedAt),
+          }));
+          const vitals = bundle.vitals.map((vital) => ({
+            ...vital,
+            patientId,
+            recordedAt: toUtc(vital.recordedAt),
+          }));
           const meds = bundle.medications.map((medication) => ({ ...medication, patientId }));
-          const reported = bundle.symptoms.map((symptom) => ({ ...symptom, patientId, recordedAt: toUtc(symptom.recordedAt) }));
+          const reported = bundle.symptoms.map((symptom) => ({
+            ...symptom,
+            patientId,
+            recordedAt: toUtc(symptom.recordedAt),
+          }));
           const milestones = bundle.milestones.map((milestone) => ({
             ...milestone,
             patientId,
@@ -58,14 +75,16 @@ export class PatientImportService {
           imported.push({
             patientId,
             mrn: bundle.patient.mrn,
-            records: labs.length + vitals.length + meds.length + reported.length + milestones.length,
+            records:
+              labs.length + vitals.length + meds.length + reported.length + milestones.length,
           });
         }
 
         return { imported };
       });
     } catch (error) {
-      if (isUniqueViolation(error)) throw new ConflictException(`A patient with MRN ${currentMrn} already exists`);
+      if (isUniqueViolation(error))
+        throw new ConflictException(`A patient with MRN ${currentMrn} already exists`);
       throw error;
     }
   }

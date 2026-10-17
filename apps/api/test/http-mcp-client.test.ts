@@ -23,8 +23,16 @@ function createTestServer() {
       return { content: [{ type: "text" as const, text: JSON.stringify(args) }] };
     };
     // Loose schemas, so the test sees every key the client sent.
-    server.registerTool("get_patient_profile", { inputSchema: z.looseObject({ patient_id: z.string() }) }, echo("get_patient_profile"));
-    server.registerTool("get_lab_results", { inputSchema: z.looseObject({ patient_id: z.string() }) }, echo("get_lab_results"));
+    server.registerTool(
+      "get_patient_profile",
+      { inputSchema: z.looseObject({ patient_id: z.string() }) },
+      echo("get_patient_profile"),
+    );
+    server.registerTool(
+      "get_lab_results",
+      { inputSchema: z.looseObject({ patient_id: z.string() }) },
+      echo("get_lab_results"),
+    );
     server.registerTool("get_medications", { inputSchema: z.looseObject({}) }, async () => ({
       content: [{ type: "text" as const, text: "Patient not found." }],
       isError: true,
@@ -65,21 +73,36 @@ afterEach(async () => {
 });
 
 /** `authToken` has no default on purpose: passing `undefined` must mean "no token". */
-const connectWith = (authToken: string | undefined) => (client = new HttpMcpClient({ url, authToken, timeoutMs: 2000 }));
+const connectWith = (authToken: string | undefined) =>
+  (client = new HttpMcpClient({ url, authToken, timeoutMs: 2000 }));
 const connect = () => connectWith(TOKEN);
 
 describe("HttpMcpClient", () => {
   it("lists the server's tool names", async () => {
-    expect(await connect().listToolNames()).toEqual(["get_patient_profile", "get_lab_results", "get_medications"]);
+    expect(await connect().listToolNames()).toEqual([
+      "get_patient_profile",
+      "get_lab_results",
+      "get_medications",
+    ]);
   });
 
   it("sends the bearer token and adds patient_id to the arguments", async () => {
-    const result = await connect().callTool("p1", "get_lab_results", { test_name: "Hemoglobin", limit: 5 });
+    const result = await connect().callTool("p1", "get_lab_results", {
+      test_name: "Hemoglobin",
+      limit: 5,
+    });
 
     expect(received).toEqual([
-      { authorization: `Bearer ${TOKEN}`, tool: "get_lab_results", args: { test_name: "Hemoglobin", limit: 5, patient_id: "p1" } },
+      {
+        authorization: `Bearer ${TOKEN}`,
+        tool: "get_lab_results",
+        args: { test_name: "Hemoglobin", limit: 5, patient_id: "p1" },
+      },
     ]);
-    expect(result).toEqual({ output: { test_name: "Hemoglobin", limit: 5, patient_id: "p1" }, isError: false });
+    expect(result).toEqual({
+      output: { test_name: "Hemoglobin", limit: 5, patient_id: "p1" },
+      isError: false,
+    });
   });
 
   it("never lets the arguments override patient_id", async () => {
@@ -89,7 +112,10 @@ describe("HttpMcpClient", () => {
   });
 
   it("returns tool errors as results, with non-JSON text kept as text", async () => {
-    expect(await connect().callTool("p1", "get_medications", { status: "active" })).toEqual({ output: "Patient not found.", isError: true });
+    expect(await connect().callTool("p1", "get_medications", { status: "active" })).toEqual({
+      output: "Patient not found.",
+      isError: true,
+    });
   });
 
   it("reuses one connection for several calls", async () => {
@@ -97,16 +123,23 @@ describe("HttpMcpClient", () => {
     await mcp.callTool("p1", "get_patient_profile", {});
     await mcp.callTool("p2", "get_patient_profile", {});
 
-    expect(received.map((r) => (r.args as { patient_id: string }).patient_id)).toEqual(["p1", "p2"]);
+    expect(received.map((r) => (r.args as { patient_id: string }).patient_id)).toEqual([
+      "p1",
+      "p2",
+    ]);
   });
 
   it("fails with McpUnavailableError without a token, without contacting the server", async () => {
-    await expect(connectWith(undefined).listToolNames()).rejects.toThrow(new McpUnavailableError("MCP_AUTH_TOKEN is not set"));
+    await expect(connectWith(undefined).listToolNames()).rejects.toThrow(
+      new McpUnavailableError("MCP_AUTH_TOKEN is not set"),
+    );
     expect(received).toEqual([]);
   });
 
   it("fails with McpUnavailableError for a wrong token", async () => {
-    await expect(connectWith("wrong-token").listToolNames()).rejects.toBeInstanceOf(McpUnavailableError);
+    await expect(connectWith("wrong-token").listToolNames()).rejects.toBeInstanceOf(
+      McpUnavailableError,
+    );
   });
 
   it("fails with McpUnavailableError when the server is down, and connects once it is back", async () => {

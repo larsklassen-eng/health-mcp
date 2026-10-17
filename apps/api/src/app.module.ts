@@ -9,6 +9,14 @@ import { McpModule } from "./mcp/mcp.module.js";
 import { PatientsModule } from "./patients/patients.module.js";
 
 @Module({
-  imports: [ConfigModule, DatabaseModule, LlmModule, McpModule, HealthModule, PatientsModule, ChatModule],
+  imports: [
+    ConfigModule,
+    DatabaseModule,
+    LlmModule,
+    McpModule,
+    HealthModule,
+    PatientsModule,
+    ChatModule,
+  ],
 })
 export class AppModule {}

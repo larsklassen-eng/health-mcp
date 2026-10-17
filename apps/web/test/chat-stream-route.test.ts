@@ -14,7 +14,9 @@ const post = (body: string, init: RequestInit = {}) =>
 
 describe("POST /patients/[id]/chat/stream", () => {
   it("forwards the message to the api and streams its events back unchanged", async () => {
-    fetchMock.mockResolvedValueOnce(new Response(SSE, { headers: { "Content-Type": "text/event-stream" } }));
+    fetchMock.mockResolvedValueOnce(
+      new Response(SSE, { headers: { "Content-Type": "text/event-stream" } }),
+    );
     const request = post(JSON.stringify({ message: "  Any abnormal labs?  " }));
 
     const response = await POST(request, params("a/b"));

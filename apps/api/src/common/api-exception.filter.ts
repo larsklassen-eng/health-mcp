@@ -18,7 +18,9 @@ export class ApiExceptionFilter implements ExceptionFilter {
     const response = host.switchToHttp().getResponse<Response>();
 
     if (!(exception instanceof HttpException)) {
-      this.logger.error(exception instanceof Error ? (exception.stack ?? exception.message) : exception);
+      this.logger.error(
+        exception instanceof Error ? (exception.stack ?? exception.message) : exception,
+      );
       const body: ApiError = {
         statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
         error: "Internal Server Error",

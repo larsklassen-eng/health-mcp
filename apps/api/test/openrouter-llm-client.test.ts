@@ -31,7 +31,12 @@ beforeEach(async () => {
   server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
     let raw = "";
     for await (const part of req) raw += part;
-    requests.push({ method: req.method, url: req.url, authorization: req.headers.authorization, body: JSON.parse(raw || "{}") });
+    requests.push({
+      method: req.method,
+      url: req.url,
+      authorization: req.headers.authorization,
+      body: JSON.parse(raw || "{}"),
+    });
     respond(res);
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -43,7 +48,10 @@ afterEach(async () => {
   await new Promise((resolve) => server.close(resolve));
 });
 
-const createClient = ({ apiKey = "sk-or-test", zeroDataRetention = true }: { apiKey?: string | undefined; zeroDataRetention?: boolean } = {}) =>
+const createClient = ({
+  apiKey = "sk-or-test",
+  zeroDataRetention = true,
+}: { apiKey?: string | undefined; zeroDataRetention?: boolean } = {}) =>
   new OpenRouterLlmClient({
     apiKey,
     model: "anthropic/claude-opus-5.5",
@@ -53,7 +61,11 @@ const createClient = ({ apiKey = "sk-or-test", zeroDataRetention = true }: { api
     retries: false,
   });
 
-function chunk(delta: Record<string, unknown>, finishReason: string | null = null, extra: Record<string, unknown> = {}) {
+function chunk(
+  delta: Record<string, unknown>,
+  finishReason: string | null = null,
+  extra: Record<string, unknown> = {},
+) {
   return {
     id: "gen-1",
     object: "chat.completion.chunk",
@@ -73,14 +85,25 @@ function sse(res: ServerResponse, chunks: unknown[], { end = true } = {}) {
   }
 }
 
-const usageChunk = { ...chunk({}), choices: [], usage: { prompt_tokens: 120, completion_tokens: 8, total_tokens: 128 } };
+const usageChunk = {
+  ...chunk({}),
+  choices: [],
+  usage: { prompt_tokens: 120, completion_tokens: 8, total_tokens: 128 },
+};
 
 describe("OpenRouterLlmClient", () => {
   it("streams text deltas, then finishes with usage", async () => {
     respond = (res) =>
-      sse(res, [chunk({ role: "assistant", content: "Hemo" }), chunk({ content: "globin is low." }), chunk({}, "stop"), usageChunk]);
+      sse(res, [
+        chunk({ role: "assistant", content: "Hemo" }),
+        chunk({ content: "globin is low." }),
+        chunk({}, "stop"),
+        usageChunk,
+      ]);
 
-    const events = await collect(createClient().stream({ messages: [{ role: "user", content: "Labs?" }] }));
+    const events = await collect(
+      createClient().stream({ messages: [{ role: "user", content: "Labs?" }] }),
+    );
 
     expect(events).toEqual<LlmStreamEvent[]>([
       { type: "text_delta", delta: "Hemo" },
@@ -127,7 +150,13 @@ describe("OpenRouterLlmClient", () => {
         {
           role: "assistant",
           content: "",
-          tool_calls: [{ id: "call_1", type: "function", function: { name: "get_lab_results", arguments: '{"limit":5}' } }],
+          tool_calls: [
+            {
+              id: "call_1",
+              type: "function",
+              function: { name: "get_lab_results", arguments: '{"limit":5}' },
+            },
+          ],
         },
         { role: "tool", tool_call_id: "call_1", content: '[{"testName":"Hemoglobin"}]' },
       ],
@@ -150,58 +179,92 @@ describe("OpenRouterLlmClient", () => {
   });
 
   it("still excludes data-collecting providers when zero data retention is turned off", async () => {
-    await collect(createClient({ zeroDataRetention: false }).stream({ messages: [{ role: "user", content: "Hi" }] }));
+    await collect(
+      createClient({ zeroDataRetention: false }).stream({
+        messages: [{ role: "user", content: "Hi" }],
+      }),
+    );
     expect(requests[0]?.body.provider).toEqual({ data_collection: "deny" });
   });
 
   it.each([
     [true, true],
     [false, false],
-  ])("explains the data policy on a 404 only when ZDR is on (zdr=%s)", async (zeroDataRetention, mentionsZdr) => {
-    respond = (res) => {
-      res.writeHead(404, { "Content-Type": "application/json" });
-      res.end('{"error":{"code":404,"message":"No endpoints found matching your data policy"}}');
-    };
+  ])(
+    "explains the data policy on a 404 only when ZDR is on (zdr=%s)",
+    async (zeroDataRetention, mentionsZdr) => {
+      respond = (res) => {
+        res.writeHead(404, { "Content-Type": "application/json" });
+        res.end('{"error":{"code":404,"message":"No endpoints found matching your data policy"}}');
+      };
 
-    const error = await collect(createClient({ zeroDataRetention }).stream({ messages: [{ role: "user", content: "Hi" }] })).catch(
-      (e: unknown) => e,
-    );
+      const error = await collect(
+        createClient({ zeroDataRetention }).stream({ messages: [{ role: "user", content: "Hi" }] }),
+      ).catch((e: unknown) => e);
 
-    expect(error).toMatchObject({ status: 404 });
-    expect((error as LlmError).message.includes("OPENROUTER_ZDR")).toBe(mentionsZdr);
-  });
+      expect(error).toMatchObject({ status: 404 });
+      expect((error as LlmError).message.includes("OPENROUTER_ZDR")).toBe(mentionsZdr);
+    },
+  );
 
   it("omits tools when there are none", async () => {
-    await collect(createClient().stream({ messages: [{ role: "user", content: "Hi" }], tools: [] }));
+    await collect(
+      createClient().stream({ messages: [{ role: "user", content: "Hi" }], tools: [] }),
+    );
     expect(requests[0]?.body).not.toHaveProperty("tools");
   });
 
   it("reassembles parallel tool calls streamed in interleaved fragments", async () => {
-    const fragment = (index: number, fields: Record<string, unknown>) => chunk({ tool_calls: [{ index, ...fields }] });
+    const fragment = (index: number, fields: Record<string, unknown>) =>
+      chunk({ tool_calls: [{ index, ...fields }] });
     respond = (res) =>
       sse(res, [
         chunk({ content: "Checking." }),
-        fragment(0, { id: "call_a", type: "function", function: { name: "get_lab_results", arguments: "" } }),
-        fragment(1, { id: "call_b", type: "function", function: { name: "get_medications", arguments: '{"sta' } }),
+        fragment(0, {
+          id: "call_a",
+          type: "function",
+          function: { name: "get_lab_results", arguments: "" },
+        }),
+        fragment(1, {
+          id: "call_b",
+          type: "function",
+          function: { name: "get_medications", arguments: '{"sta' },
+        }),
         fragment(0, { function: { arguments: '{"limit"' } }),
         fragment(1, { function: { arguments: 'tus":"all"}' } }),
         fragment(0, { function: { arguments: ":5}" } }),
         chunk({}, "tool_calls"),
       ]);
 
-    const events = await collect(createClient().stream({ messages: [{ role: "user", content: "Labs and meds?" }] }));
+    const events = await collect(
+      createClient().stream({ messages: [{ role: "user", content: "Labs and meds?" }] }),
+    );
 
     expect(events).toEqual<LlmStreamEvent[]>([
       { type: "text_delta", delta: "Checking." },
-      { type: "tool_call", call: { id: "call_a", name: "get_lab_results", arguments: '{"limit":5}' } },
-      { type: "tool_call", call: { id: "call_b", name: "get_medications", arguments: '{"status":"all"}' } },
+      {
+        type: "tool_call",
+        call: { id: "call_a", name: "get_lab_results", arguments: '{"limit":5}' },
+      },
+      {
+        type: "tool_call",
+        call: { id: "call_b", name: "get_medications", arguments: '{"status":"all"}' },
+      },
       { type: "finish", reason: "tool_calls" },
     ]);
   });
 
   it("fails clearly without an API key and makes no request", async () => {
-    const client = new OpenRouterLlmClient({ apiKey: undefined, model: "m", maxTokens: 4000, zeroDataRetention: true, serverURL: baseUrl });
-    await expect(collect(client.stream({ messages: [] }))).rejects.toThrow("OPENROUTER_API_KEY is not set");
+    const client = new OpenRouterLlmClient({
+      apiKey: undefined,
+      model: "m",
+      maxTokens: 4000,
+      zeroDataRetention: true,
+      serverURL: baseUrl,
+    });
+    await expect(collect(client.stream({ messages: [] }))).rejects.toThrow(
+      "OPENROUTER_API_KEY is not set",
+    );
     expect(requests).toHaveLength(0);
   });
 
@@ -215,7 +278,9 @@ describe("OpenRouterLlmClient", () => {
       res.end(body);
     };
 
-    const error = await collect(createClient().stream({ messages: [{ role: "user", content: "Hi" }] })).catch((e: unknown) => e);
+    const error = await collect(
+      createClient().stream({ messages: [{ role: "user", content: "Hi" }] }),
+    ).catch((e: unknown) => e);
 
     expect(error).toBeInstanceOf(LlmError);
     expect((error as LlmError).status).toBe(status);
@@ -224,11 +289,17 @@ describe("OpenRouterLlmClient", () => {
 
   it("turns an error reported mid-stream into an LlmError", async () => {
     respond = (res) =>
-      sse(res, [chunk({ content: "Part" }), { ...chunk({}, "error"), error: { code: 502, message: "Provider disconnected" } }]);
+      sse(res, [
+        chunk({ content: "Part" }),
+        { ...chunk({}, "error"), error: { code: 502, message: "Provider disconnected" } },
+      ]);
 
     const events: LlmStreamEvent[] = [];
     const error = await (async () => {
-      for await (const event of createClient().stream({ messages: [{ role: "user", content: "Hi" }] })) events.push(event);
+      for await (const event of createClient().stream({
+        messages: [{ role: "user", content: "Hi" }],
+      }))
+        events.push(event);
     })().catch((e: unknown) => e);
 
     expect(events).toEqual([{ type: "text_delta", delta: "Part" }]);
@@ -241,7 +312,10 @@ describe("OpenRouterLlmClient", () => {
     const controller = new AbortController();
 
     const error = await (async () => {
-      for await (const event of createClient().stream({ messages: [{ role: "user", content: "Hi" }] }, controller.signal)) {
+      for await (const event of createClient().stream(
+        { messages: [{ role: "user", content: "Hi" }] },
+        controller.signal,
+      )) {
         if (event.type === "text_delta") controller.abort();
       }
     })().catch((e: unknown) => e);

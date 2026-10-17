@@ -71,6 +71,7 @@ yarn install
 yarn build       # build all packages
 yarn typecheck   # type-check all packages, including tests
 yarn test        # run all tests
+yarn format      # format code with Prettier (yarn format:check only checks)
 yarn db:migrate  # create data/health.db (if needed) and apply migrations
 yarn dev         # watch-build packages, run apps/api on :3001, apps/mcp-server on :3002 and apps/web on http://localhost:3000
 ```
@@ -105,9 +106,13 @@ Tests use [Vitest](https://vitest.dev) and live in each workspace's `test/` fold
 - API tests are compiled with SWC (`apps/api/vitest.config.ts`) because Vite's default transformer cannot compile NestJS parameter decorators such as `@Body()`.
 - Test files are type-checked by `yarn typecheck` (via each workspace's `tsconfig.test.json`); Vitest itself does not check types.
 
+### Formatting
+
+[Prettier](https://prettier.io) formats TypeScript, JavaScript, JSON, CSS and YAML with a line width of 100 (`.prettierrc.json`). Generated files, the synthetic fixture and Markdown are skipped (`.prettierignore`). Run `yarn format` before committing; CI fails if a file is not formatted. Prettier does not wrap comments or string literals, so keep those short by hand.
+
 ### Continuous integration
 
-`.github/workflows/ci.yml` runs on every push to `main` (and manually from the Actions tab): install with a locked `yarn.lock`, build, type-check, test. There are no pull requests in this repo, so a red run means `main` is broken.
+`.github/workflows/ci.yml` runs on every push to `main` (and manually from the Actions tab): install with a locked `yarn.lock`, check formatting, build, type-check, test. There are no pull requests in this repo, so a red run means `main` is broken.
 
 ### Environment variables
 

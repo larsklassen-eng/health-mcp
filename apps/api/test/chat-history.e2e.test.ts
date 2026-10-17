@@ -1,5 +1,11 @@
 import { chatMessages } from "@health-mcp/db";
-import { API_ROUTES, ApiErrorSchema, ChatHistoryResponseSchema, type Patient, PatientSchema } from "@health-mcp/shared";
+import {
+  API_ROUTES,
+  ApiErrorSchema,
+  ChatHistoryResponseSchema,
+  type Patient,
+  PatientSchema,
+} from "@health-mcp/shared";
 import { NotFoundException } from "@nestjs/common";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
@@ -44,7 +50,15 @@ describe(`GET ${API_ROUTES.patientChat(":id")}`, () => {
     history.append(patient.id, {
       role: "assistant",
       content: "Hemoglobin is low at 11.2 g/dL.",
-      toolCalls: [{ id: "t1", name: "get_lab_results", input: { limit: 5 }, output: [{ value: 11.2 }], isError: false }],
+      toolCalls: [
+        {
+          id: "t1",
+          name: "get_lab_results",
+          input: { limit: 5 },
+          output: [{ value: 11.2 }],
+          isError: false,
+        },
+      ],
     });
 
     const { status, body } = await getHistory(patient.id);
@@ -56,7 +70,10 @@ describe(`GET ${API_ROUTES.patientChat(":id")}`, () => {
       ["assistant", "Hemoglobin is low at 11.2 g/dL."],
     ]);
     expect(messages[0]?.toolCalls).toEqual([]);
-    expect(messages[1]?.toolCalls[0]).toMatchObject({ name: "get_lab_results", input: { limit: 5 } });
+    expect(messages[1]?.toolCalls[0]).toMatchObject({
+      name: "get_lab_results",
+      input: { limit: 5 },
+    });
     expect(messages.every((m) => m.patientId === patient.id)).toBe(true);
   });
 
@@ -110,13 +127,20 @@ describe("ChatHistoryService.append", () => {
     const patient = await createPatient();
     const message = history.append(patient.id, { role: "user", content: "Hi" });
 
-    expect(message).toMatchObject({ patientId: patient.id, role: "user", content: "Hi", toolCalls: [] });
+    expect(message).toMatchObject({
+      patientId: patient.id,
+      role: "user",
+      content: "Hi",
+      toolCalls: [],
+    });
     expect(message.id).toMatch(/^[0-9a-f-]{36}$/);
     expect(message.createdAt).toMatch(/Z$/);
   });
 
   it("throws 404 for an unknown patient instead of saving", () => {
-    expect(() => history.append("does-not-exist", { role: "user", content: "Hi" })).toThrow(NotFoundException);
+    expect(() => history.append("does-not-exist", { role: "user", content: "Hi" })).toThrow(
+      NotFoundException,
+    );
     expect(testApp.app.get(DatabaseService).db.select().from(chatMessages).all()).toEqual([]);
   });
 });

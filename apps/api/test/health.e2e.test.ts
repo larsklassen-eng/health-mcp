@@ -37,14 +37,21 @@ describe("app wiring", () => {
     const response = await fetch(`${testApp.url}/does-not-exist`);
 
     expect(response.status).toBe(404);
-    expect(ApiErrorSchema.parse(await response.json())).toMatchObject({ statusCode: 404, error: "Not Found" });
+    expect(ApiErrorSchema.parse(await response.json())).toMatchObject({
+      statusCode: 404,
+      error: "Not Found",
+    });
   });
 
   it("allows CORS requests from the web app only", async () => {
-    const allowed = await fetch(`${testApp.url}${API_ROUTES.health}`, { headers: { Origin: "http://localhost:3000" } });
+    const allowed = await fetch(`${testApp.url}${API_ROUTES.health}`, {
+      headers: { Origin: "http://localhost:3000" },
+    });
     expect(allowed.headers.get("access-control-allow-origin")).toBe("http://localhost:3000");
 
-    const other = await fetch(`${testApp.url}${API_ROUTES.health}`, { headers: { Origin: "https://evil.example" } });
+    const other = await fetch(`${testApp.url}${API_ROUTES.health}`, {
+      headers: { Origin: "https://evil.example" },
+    });
     expect(other.headers.get("access-control-allow-origin")).not.toBe("https://evil.example");
   });
 });

@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { CreatePatientInputSchema, PatientSummarySchema, UpdatePatientInputSchema } from "../src/index.js";
+import {
+  CreatePatientInputSchema,
+  PatientSummarySchema,
+  UpdatePatientInputSchema,
+} from "../src/index.js";
 import { validPatient } from "./fixtures.js";
 
 describe("CreatePatientInputSchema", () => {
@@ -14,11 +18,17 @@ describe("CreatePatientInputSchema", () => {
     ["a malformed date of birth", { dateOfBirth: "01/01/1980" }],
     ["a timestamp as surgery date", { surgeryDate: "2026-09-01T10:00:00Z" }],
   ])("rejects %s", (_label, override) => {
-    expect(CreatePatientInputSchema.safeParse({ ...validPatient, ...override }).success).toBe(false);
+    expect(CreatePatientInputSchema.safeParse({ ...validPatient, ...override }).success).toBe(
+      false,
+    );
   });
 
   it("does not accept server-owned fields from the client", () => {
-    const parsed = CreatePatientInputSchema.parse({ ...validPatient, id: "injected", createdAt: "x" });
+    const parsed = CreatePatientInputSchema.parse({
+      ...validPatient,
+      id: "injected",
+      createdAt: "x",
+    });
     expect(parsed).not.toHaveProperty("id");
     expect(parsed).not.toHaveProperty("createdAt");
   });
@@ -26,7 +36,9 @@ describe("CreatePatientInputSchema", () => {
 
 describe("UpdatePatientInputSchema", () => {
   it("allows partial updates", () => {
-    expect(UpdatePatientInputSchema.parse({ notes: "Walking unaided" })).toEqual({ notes: "Walking unaided" });
+    expect(UpdatePatientInputSchema.parse({ notes: "Walking unaided" })).toEqual({
+      notes: "Walking unaided",
+    });
   });
 
   it("does not reset status when it is omitted", () => {

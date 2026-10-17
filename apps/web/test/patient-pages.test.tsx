@@ -43,14 +43,19 @@ describe("/patients", () => {
 
     expect(screen.getByRole("heading", { name: "Patients" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Test, Ana" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "New patient" })).toHaveAttribute("href", "/patients/new");
+    expect(screen.getByRole("link", { name: "New patient" })).toHaveAttribute(
+      "href",
+      "/patients/new",
+    );
   });
 
   it("explains how to start the api when it is not reachable", async () => {
     listPatients.mockRejectedValueOnce(new ApiUnavailableError(new Error("ECONNREFUSED")));
     render(await PatientsPage());
 
-    expect(screen.getByRole("alert")).toHaveTextContent("The api is not reachable at http://api.test");
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "The api is not reachable at http://api.test",
+    );
   });
 
   it("lets other errors reach the error boundary", async () => {
@@ -104,12 +109,18 @@ describe("/patients/[id]/chat", () => {
 
   it("shows the patient's chat history", async () => {
     getPatient.mockResolvedValueOnce(patient);
-    getChatHistory.mockResolvedValueOnce([message("m1", "user", "Any abnormal labs?"), message("m2", "assistant", "Hemoglobin is low.")]);
+    getChatHistory.mockResolvedValueOnce([
+      message("m1", "user", "Any abnormal labs?"),
+      message("m2", "assistant", "Hemoglobin is low."),
+    ]);
     render(await PatientChatPage({ params }));
 
     expect(getChatHistory).toHaveBeenCalledWith("p1");
     expect(screen.getByRole("heading", { name: "Chat about Ana Test" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "← Ana Test" })).toHaveAttribute("href", "/patients/p1");
+    expect(screen.getByRole("link", { name: "← Ana Test" })).toHaveAttribute(
+      "href",
+      "/patients/p1",
+    );
     expect(screen.getAllByRole("listitem").map((item) => item.textContent)).toEqual([
       expect.stringMatching(/^You.*Any abnormal labs\?$/),
       expect.stringMatching(/^Assistant.*Hemoglobin is low\.$/),

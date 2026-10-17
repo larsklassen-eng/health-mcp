@@ -17,13 +17,18 @@ afterEach(async () => {
 
 const call = async (args: Record<string, unknown>) =>
   (await client.callTool({ name: "get_patient_profile", arguments: args })) as CallToolResult;
-const text = (result: CallToolResult) => (result.content[0]?.type === "text" ? result.content[0].text : undefined);
+const text = (result: CallToolResult) =>
+  result.content[0]?.type === "text" ? result.content[0].text : undefined;
 
 describe("tools/list", () => {
   it("lists the tools with the shared descriptions and a required patient_id", async () => {
     const { tools } = await client.listTools();
 
-    expect(tools.map((tool) => tool.name)).toEqual(["get_patient_profile", "get_lab_results", "get_vitals_trend"]);
+    expect(tools.map((tool) => tool.name)).toEqual([
+      "get_patient_profile",
+      "get_lab_results",
+      "get_vitals_trend",
+    ]);
     expect(tools.every((tool) => tool.inputSchema.required?.includes("patient_id"))).toBe(true);
     expect(tools[0]).toMatchObject({
       description: MCP_TOOLS.get_patient_profile.description,
@@ -40,7 +45,12 @@ describe("get_patient_profile", () => {
 
     expect(result.isError).toBeFalsy();
     const profile = PatientSchema.parse(JSON.parse(text(result)!));
-    expect(profile).toMatchObject({ id: patient.id, firstName: "Ana", diagnosis: "Synthetic meningioma", surgeryDate: "2026-09-01" });
+    expect(profile).toMatchObject({
+      id: patient.id,
+      firstName: "Ana",
+      diagnosis: "Synthetic meningioma",
+      surgeryDate: "2026-09-01",
+    });
     expect(JSON.parse(text(result)!)).not.toHaveProperty("notes"); // null columns are omitted, as in the api
   });
 
@@ -73,7 +83,9 @@ describe("get_patient_profile", () => {
 
   it("returns a generic tool error and logs the cause when the database fails", async () => {
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
-    server.db.$client.exec("DROP TABLE recovery_milestones; DROP TABLE lab_results; DROP TABLE vital_signs; DROP TABLE medications; DROP TABLE symptoms; DROP TABLE chat_messages; DROP TABLE patients");
+    server.db.$client.exec(
+      "DROP TABLE recovery_milestones; DROP TABLE lab_results; DROP TABLE vital_signs; DROP TABLE medications; DROP TABLE symptoms; DROP TABLE chat_messages; DROP TABLE patients",
+    );
 
     const result = await call({ patient_id: "p1" });
 

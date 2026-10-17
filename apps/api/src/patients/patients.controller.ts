@@ -11,7 +11,17 @@ import {
   type UpdatePatientInput,
   UpdatePatientInputSchema,
 } from "@health-mcp/shared";
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  Post,
+} from "@nestjs/common";
 
 import { PatientImportService } from "./patient-import.service.js";
 import { PatientsService } from "./patients.service.js";
@@ -37,7 +47,9 @@ export class PatientsController {
 
   /** `POST /patients/import`: see `PatientImportFileSchema` in @health-mcp/shared for the file format. */
   @Post("import")
-  import(@Body({ schema: PatientImportFileSchema }) file: ParsedPatientImportFile): PatientImportResult {
+  import(
+    @Body({ schema: PatientImportFileSchema }) file: ParsedPatientImportFile,
+  ): PatientImportResult {
     return this.importer.import(file);
   }
 
@@ -47,7 +59,10 @@ export class PatientsController {
   }
 
   @Patch(":id")
-  update(@Param("id", idParam) id: string, @Body({ schema: UpdatePatientInputSchema }) input: UpdatePatientInput): Patient {
+  update(
+    @Param("id", idParam) id: string,
+    @Body({ schema: UpdatePatientInputSchema }) input: UpdatePatientInput,
+  ): Patient {
     return this.patients.update(id, input);
   }
 

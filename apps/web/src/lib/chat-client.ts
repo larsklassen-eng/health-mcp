@@ -7,7 +7,8 @@ import { readChatStream } from "./sse";
  * (`app/patients/[id]/chat/stream/route.ts`), never the api directly.
  */
 
-export const chatStreamPath = (patientId: string): string => `/patients/${encodeURIComponent(patientId)}/chat/stream`;
+export const chatStreamPath = (patientId: string): string =>
+  `/patients/${encodeURIComponent(patientId)}/chat/stream`;
 
 /** The message could not be sent; `message` is safe to show to the user. */
 export class ChatSendError extends Error {
@@ -42,6 +43,7 @@ export async function sendChatMessage(
     if (signal.aborted) throw error;
     throw new ChatSendError(GENERIC_SEND_ERROR);
   }
-  if (!response.ok || !response.body) throw new ChatSendError(SEND_ERRORS[response.status] ?? GENERIC_SEND_ERROR);
+  if (!response.ok || !response.body)
+    throw new ChatSendError(SEND_ERRORS[response.status] ?? GENERIC_SEND_ERROR);
   return readChatStream(response.body);
 }

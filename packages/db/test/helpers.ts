@@ -1,4 +1,10 @@
-import { createDb, type DbConnection, migrateDb, type NewPatientRow, patients } from "../src/index.js";
+import {
+  createDb,
+  type DbConnection,
+  migrateDb,
+  type NewPatientRow,
+  patients,
+} from "../src/index.js";
 
 /** Fresh in-memory database with all migrations applied. */
 export function createTestDb(): DbConnection {

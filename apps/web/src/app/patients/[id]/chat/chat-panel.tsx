@@ -35,7 +35,17 @@ export function ChatPanel({ patientId, initialMessages }: Props) {
     setNotice(null);
     setInput("");
     // The api saves the question before answering, so it stays even if the answer fails.
-    setMessages((m) => [...m, { id: `local-${crypto.randomUUID()}`, patientId, role: "user", content: text, toolCalls: [], createdAt: now() }]);
+    setMessages((m) => [
+      ...m,
+      {
+        id: `local-${crypto.randomUUID()}`,
+        patientId,
+        role: "user",
+        content: text,
+        toolCalls: [],
+        createdAt: now(),
+      },
+    ]);
     setDraft("");
     setDraftCalls([]);
     setRunning(new Set());
@@ -50,12 +60,17 @@ export function ChatPanel({ patientId, initialMessages }: Props) {
           answer += event.delta;
           setDraft(answer);
         } else if (event.type === "tool_call_start") {
-          calls = [...calls, { id: event.toolCallId, name: event.name, input: event.input, isError: false }];
+          calls = [
+            ...calls,
+            { id: event.toolCallId, name: event.name, input: event.input, isError: false },
+          ];
           setDraftCalls(calls);
           setRunning((ids) => new Set(ids).add(event.toolCallId));
         } else if (event.type === "tool_call_result") {
           const { toolCallId, output, isError } = event;
-          calls = calls.map((call) => (call.id === toolCallId ? { ...call, output, isError } : call));
+          calls = calls.map((call) =>
+            call.id === toolCallId ? { ...call, output, isError } : call,
+          );
           setDraftCalls(calls);
           setRunning((ids) => {
             const next = new Set(ids);
@@ -65,7 +80,17 @@ export function ChatPanel({ patientId, initialMessages }: Props) {
         } else if (event.type === "message_end") {
           finished = true;
           const toolCalls = calls;
-          setMessages((m) => [...m, { id: event.messageId, patientId, role: "assistant", content: answer, toolCalls, createdAt: now() }]);
+          setMessages((m) => [
+            ...m,
+            {
+              id: event.messageId,
+              patientId,
+              role: "assistant",
+              content: answer,
+              toolCalls,
+              createdAt: now(),
+            },
+          ]);
         } else if (event.type === "error") {
           finished = true;
           setError(event.message);
@@ -101,7 +126,17 @@ export function ChatPanel({ patientId, initialMessages }: Props) {
   const shown: ChatMessage[] =
     draft === null
       ? messages
-      : [...messages, { id: "draft", patientId, role: "assistant", content: draft || "…", toolCalls: draftCalls, createdAt: now() }];
+      : [
+          ...messages,
+          {
+            id: "draft",
+            patientId,
+            role: "assistant",
+            content: draft || "…",
+            toolCalls: draftCalls,
+            createdAt: now(),
+          },
+        ];
 
   return (
     <>
@@ -136,9 +171,15 @@ export function ChatPanel({ patientId, initialMessages }: Props) {
           disabled={streaming}
         />
         <div className="chat-form-actions">
-          <p className="muted chat-disclaimer">For learning only, with synthetic data. Not medical advice.</p>
+          <p className="muted chat-disclaimer">
+            For learning only, with synthetic data. Not medical advice.
+          </p>
           {streaming ? (
-            <button type="button" className="button secondary" onClick={() => abortRef.current?.abort()}>
+            <button
+              type="button"
+              className="button secondary"
+              onClick={() => abortRef.current?.abort()}
+            >
               Stop
             </button>
           ) : (

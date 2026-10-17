@@ -1,10 +1,21 @@
 import { randomUUID } from "node:crypto";
 
-import { IdSchema, MCP_TOOLS, type McpToolArgs, type McpToolName, McpToolNameSchema } from "@health-mcp/shared";
+import {
+  IdSchema,
+  MCP_TOOLS,
+  type McpToolArgs,
+  type McpToolName,
+  McpToolNameSchema,
+} from "@health-mcp/shared";
 import { Injectable, Logger } from "@nestjs/common";
 import { z } from "zod";
 
-import { LlmClient, type LlmMessage, type LlmToolCall, type LlmToolDefinition } from "../llm/llm-client.js";
+import {
+  LlmClient,
+  type LlmMessage,
+  type LlmToolCall,
+  type LlmToolDefinition,
+} from "../llm/llm-client.js";
 import { McpClient, type McpToolResult } from "../mcp/mcp-client.js";
 
 /** Most rounds of tool calls in one answer; a model still asking for tools after that is stopped. */
@@ -61,13 +72,19 @@ export class AgentService {
       return McpToolNameSchema.options.filter((name) => offered.has(name));
     } catch (error) {
       if (signal?.aborted) throw error;
-      this.logger.warn(`Answering without tools: ${error instanceof Error ? error.message : String(error)}`);
+      this.logger.warn(
+        `Answering without tools: ${error instanceof Error ? error.message : String(error)}`,
+      );
       return [];
     }
   }
 
   /** Streams one answer for `patientId`. Throws `LlmError` if the model fails. */
-  async *run(patientId: string, messages: LlmMessage[], signal?: AbortSignal): AsyncGenerator<AgentEvent> {
+  async *run(
+    patientId: string,
+    messages: LlmMessage[],
+    signal?: AbortSignal,
+  ): AsyncGenerator<AgentEvent> {
     const tools = await this.availableTools(signal);
     const definitions = tools.map(toolDefinition);
     const conversation = [...messages];
@@ -78,7 +95,10 @@ export class AgentService {
       let reason = "stop";
       const calls: LlmToolCall[] = [];
 
-      for await (const event of this.llm.stream({ messages: conversation, ...(definitions.length > 0 && { tools: definitions }) }, signal)) {
+      for await (const event of this.llm.stream(
+        { messages: conversation, ...(definitions.length > 0 && { tools: definitions }) },
+        signal,
+      )) {
         if (event.type === "text_delta") {
           // Text from different rounds ("Let me check…", then the answer) reads as separate paragraphs.
           if (!text && wroteText) yield { type: "text_delta", delta: "\n\n" };
@@ -110,9 +130,16 @@ export class AgentService {
         // The input shown and saved is what the tool actually received; `patient_id` is never part of it.
         yield { type: "tool_call_start", id, name: call.name, input: prepared.input };
 
-        const result = "error" in prepared ? toolError(prepared.error) : await this.callTool(patientId, prepared.tool, prepared.input, signal);
+        const result =
+          "error" in prepared
+            ? toolError(prepared.error)
+            : await this.callTool(patientId, prepared.tool, prepared.input, signal);
         yield { type: "tool_call_result", id, ...result };
-        conversation.push({ role: "tool", toolCallId: call.id, content: toolMessageContent(result) });
+        conversation.push({
+          role: "tool",
+          toolCallId: call.id,
+          content: toolMessageContent(result),
+        });
       }
     }
   }
@@ -126,7 +153,9 @@ export class AgentService {
     name: string,
     json: string,
     tools: McpToolName[],
-  ): { tool: McpToolName; input: Record<string, unknown> } | { error: string; input: Record<string, unknown> } {
+  ):
+    | { tool: McpToolName; input: Record<string, unknown> }
+    | { error: string; input: Record<string, unknown> } {
     let raw: unknown;
     try {
       raw = JSON.parse(json.trim() || "{}");
@@ -137,11 +166,13 @@ export class AgentService {
     const { patient_id: _, ...shown } = raw;
 
     const tool = tools.find((available) => available === name);
-    if (!tool) return { error: `Unknown tool "${name}". Use only the tools provided.`, input: shown };
+    if (!tool)
+      return { error: `Unknown tool "${name}". Use only the tools provided.`, input: shown };
 
     // Strips unknown keys, so a `patient_id` chosen by the model is dropped here.
     const args = MCP_TOOLS[tool].args.safeParse(raw);
-    if (!args.success) return { error: `Invalid arguments:\n${z.prettifyError(args.error)}`, input: shown };
+    if (!args.success)
+      return { error: `Invalid arguments:\n${z.prettifyError(args.error)}`, input: shown };
     return { tool, input: args.data };
   }
 
@@ -154,8 +185,15 @@ export class AgentService {
     const started = performance.now();
     try {
       // `args` was validated against this tool's schema in `prepare`.
-      const result = await this.mcp.callTool(patientId, tool, args as McpToolArgs<typeof tool>, signal);
-      this.logger.log(`Tool ${tool} ${result.isError ? "returned an error" : "succeeded"} in ${Math.round(performance.now() - started)} ms`);
+      const result = await this.mcp.callTool(
+        patientId,
+        tool,
+        args as McpToolArgs<typeof tool>,
+        signal,
+      );
+      this.logger.log(
+        `Tool ${tool} ${result.isError ? "returned an error" : "succeeded"} in ${Math.round(performance.now() - started)} ms`,
+      );
       return result;
     } catch (error) {
       if (signal?.aborted) throw error;

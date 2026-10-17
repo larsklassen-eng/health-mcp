@@ -80,8 +80,21 @@ export const getVitalsTrend =
       .all();
 
     if (rows.length === 0) {
-      const last = db.select({ recordedAt: vitalSigns.recordedAt }).from(vitalSigns).where(forVital).orderBy(desc(vitalSigns.recordedAt)).limit(1).get();
-      return { vitalType: vital_type, unit: null, since, readings: [], summary: null, lastRecordedAt: last?.recordedAt ?? null };
+      const last = db
+        .select({ recordedAt: vitalSigns.recordedAt })
+        .from(vitalSigns)
+        .where(forVital)
+        .orderBy(desc(vitalSigns.recordedAt))
+        .limit(1)
+        .get();
+      return {
+        vitalType: vital_type,
+        unit: null,
+        since,
+        readings: [],
+        summary: null,
+        lastRecordedAt: last?.recordedAt ?? null,
+      };
     }
 
     const readings = rows.map(({ recordedAt, value }) => ({ recordedAt, value }));

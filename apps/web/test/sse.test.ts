@@ -6,7 +6,8 @@ import { readChatStream } from "@/lib/sse";
 const streamOf = (...chunks: (string | Uint8Array)[]) =>
   new ReadableStream<Uint8Array>({
     start(controller) {
-      for (const chunk of chunks) controller.enqueue(typeof chunk === "string" ? new TextEncoder().encode(chunk) : chunk);
+      for (const chunk of chunks)
+        controller.enqueue(typeof chunk === "string" ? new TextEncoder().encode(chunk) : chunk);
       controller.close();
     },
   });
@@ -20,7 +21,9 @@ const collect = async (stream: ReadableStream<Uint8Array>) => {
 describe("readChatStream", () => {
   it("parses several events from one chunk", async () => {
     const events = await collect(
-      streamOf('data: {"type":"message_start","messageId":"m1"}\n\ndata: {"type":"text_delta","delta":"Hi"}\n\n'),
+      streamOf(
+        'data: {"type":"message_start","messageId":"m1"}\n\ndata: {"type":"text_delta","delta":"Hi"}\n\n',
+      ),
     );
     expect(events).toEqual([
       { type: "message_start", messageId: "m1" },
@@ -29,7 +32,9 @@ describe("readChatStream", () => {
   });
 
   it("joins an event split across chunks", async () => {
-    const events = await collect(streamOf('data: {"type":"text_', 'delta","delta":"He', 'llo"}\n', "\n"));
+    const events = await collect(
+      streamOf('data: {"type":"text_', 'delta","delta":"He', 'llo"}\n', "\n"),
+    );
     expect(events).toEqual([{ type: "text_delta", delta: "Hello" }]);
   });
 
@@ -41,7 +46,9 @@ describe("readChatStream", () => {
   });
 
   it("accepts CRLF line endings, ignores comments and reads a final event without a blank line", async () => {
-    const events = await collect(streamOf(': keep-alive\r\n\r\ndata: {"type":"error","message":"x"}'));
+    const events = await collect(
+      streamOf(': keep-alive\r\n\r\ndata: {"type":"error","message":"x"}'),
+    );
     expect(events).toEqual([{ type: "error", message: "x" }]);
   });
 

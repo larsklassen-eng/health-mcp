@@ -3,7 +3,11 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
-import { ChatToolCalls, formatToolInput, MAX_OUTPUT_CHARS } from "@/app/patients/[id]/chat/chat-tool-calls";
+import {
+  ChatToolCalls,
+  formatToolInput,
+  MAX_OUTPUT_CHARS,
+} from "@/app/patients/[id]/chat/chat-tool-calls";
 
 const labCall: ToolCall = {
   id: "t1",
@@ -15,7 +19,9 @@ const labCall: ToolCall = {
 
 describe("formatToolInput", () => {
   it("lists the arguments in plain words, with dates in UTC", () => {
-    expect(formatToolInput(labCall.input)).toBe("test name: Hemoglobin · since: Sep 1, 2026 · limit: 20");
+    expect(formatToolInput(labCall.input)).toBe(
+      "test name: Hemoglobin · since: Sep 1, 2026 · limit: 20",
+    );
   });
 
   it("is empty for a tool without arguments", () => {
@@ -30,9 +36,24 @@ describe("ChatToolCalls", () => {
   });
 
   it("shows each call collapsed, with its label, arguments and status", async () => {
-    render(<ChatToolCalls calls={[labCall, { id: "t2", name: "get_patient_profile", input: {}, output: { id: "p1" }, isError: false }]} />);
+    render(
+      <ChatToolCalls
+        calls={[
+          labCall,
+          {
+            id: "t2",
+            name: "get_patient_profile",
+            input: {},
+            output: { id: "p1" },
+            isError: false,
+          },
+        ]}
+      />,
+    );
 
-    const [lab, profile] = within(screen.getByRole("list", { name: "Data the assistant used" })).getAllByRole("listitem");
+    const [lab, profile] = within(
+      screen.getByRole("list", { name: "Data the assistant used" }),
+    ).getAllByRole("listitem");
     expect(lab).toHaveTextContent("Lab results");
     expect(lab).toHaveTextContent("test name: Hemoglobin · since: Sep 1, 2026");
     expect(lab).toHaveTextContent("Done");
@@ -48,8 +69,19 @@ describe("ChatToolCalls", () => {
     render(
       <ChatToolCalls
         calls={[
-          { id: "t1", name: "get_vitals_trend", input: { vital_type: "heart_rate" }, isError: false },
-          { id: "t2", name: "get_lab_results", input: {}, output: "Patient p9 not found.", isError: true },
+          {
+            id: "t1",
+            name: "get_vitals_trend",
+            input: { vital_type: "heart_rate" },
+            isError: false,
+          },
+          {
+            id: "t2",
+            name: "get_lab_results",
+            input: {},
+            output: "Patient p9 not found.",
+            isError: true,
+          },
         ]}
         running={new Set(["t1"])}
       />,
@@ -65,7 +97,19 @@ describe("ChatToolCalls", () => {
   });
 
   it("shows unknown tools by name and shortens long results", () => {
-    render(<ChatToolCalls calls={[{ id: "t1", name: "some_new_tool", input: {}, output: "x".repeat(MAX_OUTPUT_CHARS + 50), isError: false }]} />);
+    render(
+      <ChatToolCalls
+        calls={[
+          {
+            id: "t1",
+            name: "some_new_tool",
+            input: {},
+            output: "x".repeat(MAX_OUTPUT_CHARS + 50),
+            isError: false,
+          },
+        ]}
+      />,
+    );
 
     expect(screen.getByText("some_new_tool")).toBeInTheDocument();
     const output = screen.getByRole("listitem").querySelector("pre")!.textContent!;

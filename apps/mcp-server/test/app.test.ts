@@ -16,13 +16,21 @@ const initialize = {
   jsonrpc: "2.0",
   id: 1,
   method: "initialize",
-  params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "test", version: "0" } },
+  params: {
+    protocolVersion: "2025-06-18",
+    capabilities: {},
+    clientInfo: { name: "test", version: "0" },
+  },
 };
 
 const post = (headers: Record<string, string>, body: unknown = initialize) =>
   fetch(`${server.url}/mcp`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream", ...headers },
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json, text/event-stream",
+      ...headers,
+    },
     body: JSON.stringify(body),
   });
 
@@ -47,7 +55,10 @@ describe("authentication", () => {
   it.each([
     ["no token", {}],
     ["a wrong token", { Authorization: "Bearer wrong-token-0123456789abcdef0123456789" }],
-    ["the token without the Bearer scheme", { Authorization: "test-token-0123456789abcdef0123456789abcdef" }],
+    [
+      "the token without the Bearer scheme",
+      { Authorization: "test-token-0123456789abcdef0123456789abcdef" },
+    ],
   ])("rejects %s with 401", async (_, headers) => {
     const response = await post(headers);
 
@@ -71,18 +82,23 @@ describe("HTTP", () => {
     expect(await statusWithHost("localhost")).toBe(200);
   });
 
-  it.each(["GET", "DELETE"])("answers %s /mcp with 405, since the server is stateless", async (method) => {
-    const response = await fetch(`${server.url}/mcp`, {
-      method,
-      headers: { Authorization: "Bearer test-token-0123456789abcdef0123456789abcdef" },
-    });
+  it.each(["GET", "DELETE"])(
+    "answers %s /mcp with 405, since the server is stateless",
+    async (method) => {
+      const response = await fetch(`${server.url}/mcp`, {
+        method,
+        headers: { Authorization: "Bearer test-token-0123456789abcdef0123456789abcdef" },
+      });
 
-    expect(response.status).toBe(405);
-    expect(response.headers.get("allow")).toBe("POST");
-  });
+      expect(response.status).toBe(405);
+      expect(response.headers.get("allow")).toBe("POST");
+    },
+  );
 
   it("does not keep sessions between requests", async () => {
-    const response = await post({ Authorization: "Bearer test-token-0123456789abcdef0123456789abcdef" });
+    const response = await post({
+      Authorization: "Bearer test-token-0123456789abcdef0123456789abcdef",
+    });
 
     expect(response.status).toBe(200);
     expect(response.headers.get("mcp-session-id")).toBeNull();
