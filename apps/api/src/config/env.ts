@@ -20,6 +20,8 @@ export const EnvSchema = z.object({
    * Providers that collect data for training are always excluded, whatever this is set to.
    */
   OPENROUTER_ZDR: z.stringbool().default(true),
+  /** Let the provider cache prompts for a few minutes, so repeated input costs less. */
+  OPENROUTER_PROMPT_CACHING: z.stringbool().default(true),
   /** Override the OpenRouter API base URL, e.g. a local fake server for a dry run of the evals. */
   OPENROUTER_BASE_URL: z.url().optional(),
   /** apps/mcp-server endpoint. Only loopback URLs make sense: the server listens on localhost only. */

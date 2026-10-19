@@ -10,6 +10,7 @@ describe("loadEnv", () => {
       WEB_ORIGIN: "http://localhost:3000",
       OPENROUTER_MODEL: "anthropic/claude-opus-5.5",
       OPENROUTER_ZDR: true,
+      OPENROUTER_PROMPT_CACHING: true,
       LLM_MAX_TOKENS: 16_000,
       CHAT_HISTORY_MAX_CHARS: 40_000,
       MCP_URL: "http://127.0.0.1:3002/mcp",

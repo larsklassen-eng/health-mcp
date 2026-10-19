@@ -25,6 +25,12 @@ export interface OpenRouterLlmClientOptions {
    * no such provider. Providers that train on data are excluded either way.
    */
   zeroDataRetention: boolean;
+  /**
+   * Ask the provider to cache the request's prompt, so the next request that
+   * starts the same way (the next tool round, the next question) reads it at
+   * a lower price. Defaults to `true`.
+   */
+  promptCaching?: boolean;
   /** Override the API base URL (tests point this at a local fake server). */
   serverURL?: string;
   /** Set to `false` to disable the SDK's automatic retries (tests). */
@@ -36,6 +42,7 @@ export class OpenRouterLlmClient extends LlmClient {
   readonly model: string;
   private readonly maxTokens: number;
   private readonly zeroDataRetention: boolean;
+  private readonly promptCaching: boolean;
   private readonly sdk: OpenRouter | undefined;
 
   constructor(options: OpenRouterLlmClientOptions) {
@@ -43,6 +50,7 @@ export class OpenRouterLlmClient extends LlmClient {
     this.model = options.model;
     this.maxTokens = options.maxTokens;
     this.zeroDataRetention = options.zeroDataRetention;
+    this.promptCaching = options.promptCaching ?? true;
     this.sdk = options.apiKey
       ? new OpenRouter({
           apiKey: options.apiKey,
@@ -68,6 +76,8 @@ export class OpenRouterLlmClient extends LlmClient {
             // Health data: never route to providers that store prompts for training,
             // and (by default) only to providers that keep no data at all.
             provider: { dataCollection: "deny", ...(this.zeroDataRetention && { zdr: true }) },
+            // Automatic caching: OpenRouter marks the end of the prompt as a cache breakpoint.
+            ...(this.promptCaching && { cacheControl: { type: "ephemeral" as const } }),
             stream: true,
             streamOptions: { includeUsage: true },
           },

@@ -51,12 +51,14 @@ afterEach(async () => {
 const createClient = ({
   apiKey = "sk-or-test",
   zeroDataRetention = true,
-}: { apiKey?: string | undefined; zeroDataRetention?: boolean } = {}) =>
+  promptCaching = true,
+}: { apiKey?: string | undefined; zeroDataRetention?: boolean; promptCaching?: boolean } = {}) =>
   new OpenRouterLlmClient({
     apiKey,
     model: "anthropic/claude-opus-5.5",
     maxTokens: 4000,
     zeroDataRetention,
+    promptCaching,
     serverURL: baseUrl,
     retries: false,
   });
@@ -277,6 +279,18 @@ describe("OpenRouterLlmClient", () => {
       },
       { type: "finish", reason: "tool_calls" },
     ]);
+  });
+
+  it("asks for automatic prompt caching unless it is turned off", async () => {
+    await collect(createClient().stream({ messages: [{ role: "user", content: "Hi" }] }));
+    await collect(
+      createClient({ promptCaching: false }).stream({
+        messages: [{ role: "user", content: "Hi" }],
+      }),
+    );
+
+    expect(requests[0]?.body).toMatchObject({ cache_control: { type: "ephemeral" } });
+    expect(requests[1]?.body).not.toHaveProperty("cache_control");
   });
 
   it("fails clearly without an API key and makes no request", async () => {

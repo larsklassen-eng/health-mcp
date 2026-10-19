@@ -143,6 +143,7 @@ Each run prints ✓/✗ per case with the reasons and the case's model calls, to
 | `OPENROUTER_API_KEY` | `apps/api` (chat) | none; the api starts without it, chat requests fail. Keep it in `.env`, never commit it |
 | `OPENROUTER_MODEL` | `apps/api` (chat) | `anthropic/claude-opus-5.5` |
 | `OPENROUTER_ZDR` | `apps/api` (chat) | `true`; only use zero-data-retention providers. Set `false` for a model that has none (data-collecting providers stay excluded) |
+| `OPENROUTER_PROMPT_CACHING` | `apps/api` (chat) | `true`; asks OpenRouter for automatic prompt caching. The provider keeps the prompt for a few minutes, so the next tool round or question reads it at a lower price. Set `false` to turn it off |
 | `OPENROUTER_BASE_URL` | `apps/api` (chat) | none (OpenRouter's API); for a local fake server, e.g. a free dry run of `yarn eval` |
 | `MCP_AUTH_TOKEN` | `apps/mcp-server`, `apps/api` | none; the MCP server rejects every request and chat answers without tools. Generate with `openssl rand -hex 32`, keep it in `.env`, never commit it |
 | `MCP_HOST` | `apps/mcp-server` | `127.0.0.1`; only loopback addresses (`127.0.0.1`, `localhost`, `::1`) are allowed |

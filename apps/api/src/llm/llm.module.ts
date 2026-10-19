@@ -18,6 +18,7 @@ import { OpenRouterLlmClient } from "./openrouter-llm-client.js";
           model: env.OPENROUTER_MODEL,
           maxTokens: env.LLM_MAX_TOKENS,
           zeroDataRetention: env.OPENROUTER_ZDR,
+          promptCaching: env.OPENROUTER_PROMPT_CACHING,
           ...(env.OPENROUTER_BASE_URL !== undefined && { serverURL: env.OPENROUTER_BASE_URL }),
         }),
     },
