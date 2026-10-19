@@ -60,7 +60,7 @@ docs/
 
 ## Status
 
-`packages/shared` holds the Zod schemas for patients, health records, the JSON import format, chat and its SSE stream events, dashboards, MCP tool inputs and API routes. `packages/db` has the SQLite schema (7 tables: patients, lab results, vital signs, medications, symptoms, recovery milestones, chat messages), the first migration and a client. `packages/evals` has 14 agent eval cases and a runner (see [Evals](#evals)). `apps/api` has its NestJS foundation: validated config, the database connection, `GET /health`, Zod request validation and a consistent error format. It also has the patient endpoints (create, list, get, update, delete, import) and each patient's chat history. Chat works end to end with tools: `POST /patients/:id/chat` runs the agent loop (OpenRouter model, tools on the MCP server), streams the answer and tool events, and saves the conversation with its tool calls. `GET /dashboards/overview` and `GET /dashboards/patients/:id` serve the dashboards (how each number is calculated is documented on the schemas in `packages/shared/src/schemas/dashboard.ts`). `apps/web` has the Patients pages: list, create, import a JSON file of fake data, a profile with an edit page (including delete, after a confirmation), and a chat per patient that streams the answer as it is written, with a card for each tool call (what was asked, and the result when expanded). It also has the dashboards: an overview of all patients (`/dashboard`) and one per patient (`/patients/:id/dashboard`). `apps/mcp-server` serves all six tools (`get_patient_profile`, `get_lab_results`, `get_vitals_trend`, `get_medications`, `get_recovery_milestones`, `log_symptom`) over MCP Streamable HTTP, on localhost only and behind a shared token. `log_symptom`, the only tool that writes, runs only after the clinician confirms it in the chat (see [Confirming changes](#confirming-changes)). Every workspace has tests, and CI runs on each push to `main`. `fixtures/synthetic-patients.json` has 8 invented patients to import (see [fixtures/README.md](fixtures/README.md)). Work is tracked in Linear (LKLA-1).
+`packages/shared` holds the Zod schemas for patients, health records, the JSON import format, chat and its SSE stream events, dashboards, MCP tool inputs and API routes. `packages/db` has the SQLite schema (9 tables: patients, lab results, vital signs, medications, symptoms, recovery milestones, imaging studies, imaging series, chat messages), its migrations and a client. `packages/evals` has 15 agent eval cases and a runner (see [Evals](#evals)). `apps/api` has its NestJS foundation: validated config, the database connection, `GET /health`, Zod request validation and a consistent error format. It also has the patient endpoints (create, list, get, update, delete, import) and each patient's chat history. Chat works end to end with tools: `POST /patients/:id/chat` runs the agent loop (OpenRouter model, tools on the MCP server), streams the answer and tool events, and saves the conversation with its tool calls. Imaging studies come from the JSON import (with reports) or from a DICOM upload (a zip of a CD/DVD; see [Imaging](#imaging)). `GET /dashboards/overview` and `GET /dashboards/patients/:id` serve the dashboards (how each number is calculated is documented on the schemas in `packages/shared/src/schemas/dashboard.ts`). `apps/web` has the Patients pages: list, create, import a JSON file of fake data, a profile with an edit page (including delete, after a confirmation), and a chat per patient that streams the answer as it is written, with a card for each tool call (what was asked, and the result when expanded). It also has the dashboards: an overview of all patients (`/dashboard`) and one per patient (`/patients/:id/dashboard`), and imaging: a study page with a slice viewer and the editable report, and a DICOM upload page. `apps/mcp-server` serves seven tools (`get_patient_profile`, `get_lab_results`, `get_vitals_trend`, `get_medications`, `get_recovery_milestones`, `get_imaging_studies`, `log_symptom`) over MCP Streamable HTTP, on localhost only and behind a shared token. `log_symptom`, the only tool that writes, runs only after the clinician confirms it in the chat (see [Confirming changes](#confirming-changes)). Every workspace has tests, and CI runs on each push to `main`. `fixtures/synthetic-patients.json` has 8 invented patients to import (see [fixtures/README.md](fixtures/README.md)). Work is tracked in Linear (LKLA-1).
 
 ## Getting started
 
@@ -73,6 +73,7 @@ yarn typecheck   # type-check all packages, including tests
 yarn test        # run all tests
 yarn format      # format code with Prettier (yarn format:check only checks)
 yarn db:migrate  # create data/health.db (if needed) and apply migrations
+yarn imaging:synthetic  # write data/synthetic-mri.zip, a phantom MRI study to try the DICOM upload
 yarn dev         # watch-build packages, run apps/api on :3001, apps/mcp-server on :3002 and apps/web on http://localhost:3000
 ```
 
@@ -90,6 +91,21 @@ yarn db:migrate                               # apply it to data/health.db
 ```
 
 Store timestamps as UTC ISO strings ending in `Z` (convert offsets before writing), so sorting by text matches sorting by time.
+
+After pulling a commit that adds a migration, run `yarn db:migrate`: the api does not migrate on startup.
+
+### Imaging
+
+A study (MRI, CT, X-ray…) has a date, a description, an impression and a full report, and its series. Studies get in two ways:
+
+- **JSON import:** `imagingStudies` in the import file, with reports but no images. The synthetic patients each have 2–4.
+- **DICOM upload** (`/patients/:id/imaging/upload` in the web app): a zip of a CD/DVD export, up to 2 GB. Files that are not DICOM (such as the viewer program on the disc) are skipped. Each image becomes an 8-bit PNG slice, using the file's window settings (or the image's own range), stored under `IMAGING_DIR` (default `data/imaging/<study>/<series>/<n>.png`, git-ignored). Uncompressed images are supported; compressed ones (JPEG, JPEG 2000) are counted and listed without images.
+
+What is kept from DICOM files: modality, study date and description, body part, series number and description, and the pixels. Names, birth dates, patient IDs, institutions, physicians and accession numbers are never read; the study's UID is only stored as a SHA-256 hash, to recognize a study that is uploaded twice. The zip itself is deleted as soon as it is read. Pixels can contain burned-in text (some X-rays show the patient's name), so real scans should stay on your machine: `data/` is never committed.
+
+DICOM files have no report: add it on the study page. The assistant reads reports through `get_imaging_studies`; it never sees the images.
+
+`yarn imaging:synthetic` writes a synthetic phantom MRI (two series of 24 slices) to try the upload and the viewer without real scans.
 
 Each package compiles to `dist/`. Apps import packages as `@health-mcp/<name>`.
 
@@ -137,6 +153,7 @@ Each run prints ✓/✗ per case with the reasons and the case's model calls, to
 | Variable | Used by | Default |
 |---|---|---|
 | `DATABASE_PATH` | `packages/db`, `apps/api`, `apps/mcp-server` | `data/health.db` |
+| `IMAGING_DIR` | `apps/api` | `data/imaging`; where the PNG slices of uploaded studies are stored (relative to the repo root) |
 | `PORT` | `apps/api` | `3001` |
 | `API_URL` | `apps/web` (server side only) | `http://localhost:3001` |
 | `WEB_ORIGIN` | `apps/api` (CORS) | `http://localhost:3000` |
@@ -172,6 +189,7 @@ Serves the patient-scoped health tools over [MCP](https://modelcontextprotocol.i
 | `get_vitals_trend` | Done: one `vital_type` over the last `days` (default 30, max 365), oldest first, with a `summary` (count, min, max, average, first, latest, change). Above 120 readings it returns one `daily` entry per UTC day instead of every reading. When the window is empty, `lastRecordedAt` says when the vital was last recorded |
 | `get_medications` | Done: `status` is `active` (default), `stopped` or `all`. Active before stopped, then the most recently started first, as `{ medications }` |
 | `get_recovery_milestones` | Done: optional `status` (`pending`, `achieved`, `missed`). By target date, earliest first, undated last, as `{ milestones, counts }`; `counts` has every status, whatever the filter |
+| `get_imaging_studies` | Done: newest first, with impression, report (first 4000 characters; `reportTruncated` when cut) and series; optional `modality` (`MR`, `CT`, `CR`…) and `limit` (default 5, max 20). Reports and details only, never the images |
 | `log_symptom` | Done: saves `name`, `severity` (0–10) and optional `notes`, recorded at the time it runs, and returns `{ symptom }`. apps/api only calls it after the clinician confirms (see [Confirming changes](#confirming-changes)) |
 
 Tool descriptions and input schemas come from `MCP_TOOLS` in `packages/shared`; each tool's input is the model's arguments plus `patient_id`, validated before the tool runs. Results are JSON text. An unknown patient or invalid input is returned as a tool error (`isError`) that the model can read; unexpected failures return a generic message and are logged.
@@ -192,7 +210,9 @@ The tools trust the `patient_id` they receive, so the server must only be reacha
 | `/dashboard` | Overview of all patients: totals, abnormal labs in the last 7 days, and per patient the last activity, abnormal labs, active medications, latest pain score and milestone progress |
 | `/patients/:id` | Profile, with links to edit it, the patient's dashboard and chat |
 | `/patients/:id/edit` | Edit form (the create form, filled in; emptying an optional field clears it), and a Delete button that asks for confirmation first, because it also deletes the patient's records and chat history |
-| `/patients/:id/dashboard` | One patient: latest vitals with a sparkline trend, the latest result of each lab (abnormal ones highlighted), active medications, recent symptoms and recovery milestones |
+| `/patients/:id/dashboard` | One patient: latest vitals with a sparkline trend, the latest result of each lab (abnormal ones highlighted), active medications, recent symptoms, recovery milestones and imaging studies |
+| `/patients/:id/imaging/:studyId` | One study: a slice viewer (series tabs, slider, buttons, arrow keys, mouse wheel; starts at the middle slice), the report form (description, impression, report; empty fields are cleared) and Delete, after a confirmation |
+| `/patients/:id/imaging/upload` | Upload a zip of DICOM files with a progress bar; lists the studies found, what was already uploaded, skipped files and images in formats the viewer cannot show |
 | `/patients/:id/chat` | The patient's chat: history, a message box (Enter sends, Shift+Enter adds a line) and the answer streamed as it is written, with a Stop button. Answers are rendered as Markdown (bold, italics, lists, tables, code) with `react-markdown`; raw HTML is not rendered, images are never loaded (a model-written image URL could leak data), and links open in a new tab. Above each answer, a collapsible card per tool call shows the tool, its arguments, running/done/failed, and the result (first 4000 characters). An entry the assistant proposes (a symptom to log) shows Save and Discard buttons; the card then says Saved or Discarded |
 
 The web app only calls the api from the server (server components and server actions in `src/app/patients/actions.ts`, through `src/lib/api-client.ts`), so `API_URL` never reaches the browser. If the api is not running, the pages say so instead of failing.
@@ -213,6 +233,12 @@ Chat answers stream through a proxy route, `POST /patients/:id/chat/stream` (`sr
 | `GET` | `/patients/:id/chat` | | `ChatHistoryResponse` (the patient's messages, oldest first) |
 | `POST` | `/patients/:id/chat` | `SendChatMessageRequest` | `200` SSE stream of `ChatStreamEvent` (see below) |
 | `POST` | `/patients/:id/chat/tool-calls/:toolCallId/decision` | `ToolCallDecisionRequest` (`confirm` or `reject`) | `ToolCall`, updated; `409` if already decided, `503`/`502` if saving failed (it stays pending) |
+| `GET` | `/patients/:id/imaging` | | `ImagingStudyListResponse` (newest first, with series) |
+| `POST` | `/patients/:id/imaging/dicom` | the zip itself (`Content-Type: application/zip`, up to 2 GB) | `201` `DicomImportResult`; `400` not a zip, `413` too large, `415` wrong type |
+| `GET` | `/patients/:id/imaging/:studyId` | | `ImagingStudy` |
+| `PATCH` | `/patients/:id/imaging/:studyId` | `UpdateImagingStudyInput` (`null` clears a field) | `ImagingStudy` |
+| `DELETE` | `/patients/:id/imaging/:studyId` | | `204`; also deletes its images |
+| `GET` | `/patients/:id/imaging/:studyId/series/:seriesId/images/:n` | | PNG slice `n` (from 0), cached by the browser |
 | `GET` | `/dashboards/overview` | | `DashboardOverview` |
 | `GET` | `/dashboards/patients/:id` | | `PatientDashboard` |
 

@@ -9,6 +9,7 @@ const TOOL_LABELS: Record<McpToolName, string> = {
   get_medications: "Medications",
   log_symptom: "Log symptom",
   get_recovery_milestones: "Recovery milestones",
+  get_imaging_studies: "Imaging studies",
 };
 
 /** Results can be large (up to 100 lab results); the card shows the start. */

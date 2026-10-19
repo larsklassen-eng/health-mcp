@@ -31,6 +31,7 @@ describe("tools/list", () => {
       "get_medications",
       "get_recovery_milestones",
       "log_symptom",
+      "get_imaging_studies",
     ]);
     expect(tools.every((tool) => tool.inputSchema.required?.includes("patient_id"))).toBe(true);
     expect(tools[0]).toMatchObject({

@@ -11,6 +11,11 @@ export const EnvSchema = z.object({
   WEB_ORIGIN: z.url().default("http://localhost:3000"),
   /** SQLite file; relative paths resolve from the repo root (see @health-mcp/db). */
   DATABASE_PATH: z.string().min(1).optional(),
+  /**
+   * Folder for the PNG slices of uploaded imaging studies; relative paths
+   * resolve from the repo root.
+   */
+  IMAGING_DIR: z.string().min(1).optional(),
   /** Needed for chat. The app starts without it; LLM requests then fail with a clear error. */
   OPENROUTER_API_KEY: z
     .string()

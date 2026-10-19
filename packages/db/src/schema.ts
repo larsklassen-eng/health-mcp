@@ -15,6 +15,7 @@ import { randomUUID } from "node:crypto";
 
 import {
   ChatRoleSchema,
+  ImagingSourceSchema,
   LabFlagSchema,
   MedicationStatusSchema,
   MilestoneStatusSchema,
@@ -32,6 +33,7 @@ import {
   real,
   sqliteTable,
   text,
+  uniqueIndex,
 } from "drizzle-orm/sqlite-core";
 
 const id = () =>
@@ -178,6 +180,50 @@ export const recoveryMilestones = sqliteTable(
   ],
 );
 
+// -------------------------------------------------------------------- imaging
+
+export const imagingStudies = sqliteTable(
+  "imaging_studies",
+  {
+    id: id(),
+    patientId: patientId(),
+    modality: text("modality").notNull(),
+    bodyPart: text("body_part"),
+    description: text("description"),
+    studyDate: text("study_date").notNull(),
+    impression: text("impression"),
+    report: text("report"),
+    source: text("source", { enum: values(ImagingSourceSchema) }).notNull(),
+    /**
+     * SHA-256 of the DICOM StudyInstanceUID, to recognize a study uploaded twice.
+     * The UID itself is not stored.
+     */
+    dicomStudyHash: text("dicom_study_hash"),
+    createdAt: text("created_at").notNull().default(nowUtc),
+  },
+  (t) => [
+    check("imaging_studies_source_check", oneOf(t.source, ImagingSourceSchema.options)),
+    index("imaging_studies_patient_date_idx").on(t.patientId, t.studyDate),
+    uniqueIndex("imaging_studies_patient_dicom_uidx").on(t.patientId, t.dicomStudyHash),
+  ],
+);
+
+/** A series of a study. Its images are PNG files on disk (see `resolveImagingDir`). */
+export const imagingSeries = sqliteTable(
+  "imaging_series",
+  {
+    id: id(),
+    studyId: text("study_id")
+      .notNull()
+      .references(() => imagingStudies.id, { onDelete: "cascade" }),
+    seriesNumber: integer("series_number"),
+    description: text("description"),
+    modality: text("modality").notNull(),
+    imageCount: integer("image_count").notNull().default(0),
+  },
+  (t) => [index("imaging_series_study_idx").on(t.studyId)],
+);
+
 // ----------------------------------------------------------------------- chat
 
 export const chatMessages = sqliteTable(
@@ -211,5 +257,8 @@ export type SymptomRow = typeof symptoms.$inferSelect;
 export type NewSymptomRow = typeof symptoms.$inferInsert;
 export type RecoveryMilestoneRow = typeof recoveryMilestones.$inferSelect;
 export type NewRecoveryMilestoneRow = typeof recoveryMilestones.$inferInsert;
+export type ImagingStudyRow = typeof imagingStudies.$inferSelect;
+export type NewImagingStudyRow = typeof imagingStudies.$inferInsert;
+export type ImagingSeriesRow = typeof imagingSeries.$inferSelect;
 export type ChatMessageRow = typeof chatMessages.$inferSelect;
 export type NewChatMessageRow = typeof chatMessages.$inferInsert;

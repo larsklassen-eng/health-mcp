@@ -55,8 +55,8 @@
 
   <rect x="577" y="150" width="120" height="78" rx="7" fill="#ffffff" stroke="#0284c7"/>
   <text x="637" y="172" text-anchor="middle" class="lbl">Dashboards</text>
-  <text x="637" y="192" text-anchor="middle" class="s">overview (all)</text>
-  <text x="637" y="208" text-anchor="middle" class="s">per patient + trends</text>
+  <text x="637" y="192" text-anchor="middle" class="s">overview · per patient</text>
+  <text x="637" y="208" text-anchor="middle" class="s">imaging viewer, upload</text>
   <use href="#done" x="677" y="154" width="18" height="18"/>
 
   <text x="306" y="254" class="s">talks only to apps/api</text>
@@ -77,7 +77,7 @@
   <rect x="740" y="280" width="230" height="75" rx="10" fill="#f5f3ff" stroke="#7c3aed" stroke-width="1.5"/>
   <text x="756" y="304" class="h">packages/evals</text>
   <text x="756" y="324" class="t">real stack, deterministic grader</text>
-  <text x="756" y="343" class="s">14 cases on synthetic patients · yarn eval</text>
+  <text x="756" y="343" class="s">15 cases on synthetic patients · yarn eval</text>
   <use href="#done" x="946" y="286" width="18" height="18"/>
 
   <!-- apps/api -->
@@ -118,8 +118,8 @@
 
   <!-- row 3 -->
   <rect x="310" y="590" width="200" height="60" rx="8" fill="#ffffff" stroke="#059669"/>
-  <text x="410" y="614" text-anchor="middle" class="lbl">DashboardsController</text>
-  <text x="410" y="634" text-anchor="middle" class="s">overview + per-patient metrics</text>
+  <text x="410" y="614" text-anchor="middle" class="lbl">Dashboards + Imaging</text>
+  <text x="410" y="634" text-anchor="middle" class="s">metrics · DICOM upload → PNG</text>
   <use href="#done" x="488" y="594" width="18" height="18"/>
 
   <rect x="760" y="590" width="190" height="60" rx="8" fill="#ffffff" stroke="#059669"/>
@@ -128,7 +128,7 @@
   <use href="#done" x="928" y="594" width="18" height="18"/>
 
   <!-- apps/mcp-server -->
-  <rect x="440" y="715" width="300" height="200" rx="10" fill="#fff7ed" stroke="#ea580c" stroke-width="1.5"/>
+  <rect x="440" y="715" width="300" height="218" rx="10" fill="#fff7ed" stroke="#ea580c" stroke-width="1.5"/>
   <text x="456" y="741" class="h">apps/mcp-server: MCP SDK</text>
   <text x="456" y="765" class="t">Tools (Zod input, require patient_id):</text>
   <use href="#done" x="462" y="774" width="14" height="14"/><text x="482" y="785" class="t">get_patient_profile</text>
@@ -136,18 +136,19 @@
   <use href="#done" x="462" y="810" width="14" height="14"/><text x="482" y="821" class="t">get_vitals_trend</text>
   <use href="#done" x="462" y="828" width="14" height="14"/><text x="482" y="839" class="t">get_medications</text>
   <use href="#done" x="462" y="846" width="14" height="14"/><text x="482" y="857" class="t">get_recovery_milestones</text>
-  <use href="#done" x="462" y="864" width="14" height="14"/><text x="482" y="875" class="t">log_symptom <tspan class="s">(after clinician confirms)</tspan></text>
-  <text x="456" y="900" class="s">localhost only · bearer token</text>
+  <use href="#done" x="462" y="864" width="14" height="14"/><text x="482" y="875" class="t">get_imaging_studies <tspan class="s">(reports only)</tspan></text>
+  <use href="#done" x="462" y="882" width="14" height="14"/><text x="482" y="893" class="t">log_symptom <tspan class="s">(after clinician confirms)</tspan></text>
+  <text x="456" y="918" class="s">localhost only · bearer token</text>
 
   <!-- SQLite (cylinder) -->
   <path d="M790,745 a80,16 0 0,0 160,0 v130 a80,16 0 0,1 -160,0 z" fill="#fefce8" stroke="#ca8a04" stroke-width="1.5"/>
   <ellipse cx="870" cy="745" rx="80" ry="16" fill="#fef9c3" stroke="#ca8a04" stroke-width="1.5"/>
   <text x="870" y="785" text-anchor="middle" class="h">SQLite</text>
   <text x="870" y="805" text-anchor="middle" class="s">data/health.db (git-ignored)</text>
-  <text x="870" y="825" text-anchor="middle" class="s">patients · labs · vitals</text>
-  <text x="870" y="841" text-anchor="middle" class="s">meds · symptoms · milestones</text>
+  <text x="870" y="825" text-anchor="middle" class="s">patients · labs · vitals · meds</text>
+  <text x="870" y="841" text-anchor="middle" class="s">symptoms · milestones</text>
   <use href="#done" x="934" y="768" width="18" height="18"/>
-  <text x="870" y="857" text-anchor="middle" class="s">chat messages (per patient)</text>
+  <text x="870" y="857" text-anchor="middle" class="s">imaging · chat messages</text>
 
   <!-- External -->
   <text x="1030" y="94" class="lbl">External services</text>
@@ -195,7 +196,8 @@
   <!-- api -> SQLite (patients, dashboards, chat history) -->
   <path d="M870,665 L870,727" class="edge"/>
   <text x="878" y="690" class="s">read/write</text>
-  <text x="878" y="704" class="s">via packages/db</text>
+  <text x="878" y="704" class="s">via packages/db;</text>
+  <text x="878" y="718" class="s">PNGs in data/imaging</text>
   <!-- evals -> LlmProvider -->
   <path d="M855,355 L855,428" class="edge"/>
   <text x="863" y="405" class="s">eval runs</text>

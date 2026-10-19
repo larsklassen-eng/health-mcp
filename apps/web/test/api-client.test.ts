@@ -140,6 +140,38 @@ describe("api client", () => {
     expect(call.confirmation).toBe("rejected");
   });
 
+  it("gets, updates and deletes an imaging study", async () => {
+    const study = {
+      id: "s1",
+      patientId: "p1",
+      modality: "MR",
+      studyDate: "2026-08-18",
+      source: "import",
+      series: [],
+      createdAt: "2026-10-01T10:00:00.000Z",
+    };
+    respond(200, study);
+    respond(200, { ...study, report: "Synthetic." });
+    respond(204);
+
+    expect(await api.getImagingStudy("p1", "s1")).toMatchObject({ id: "s1" });
+    expect(await api.updateImagingStudy("p1", "s1", { report: "Synthetic." })).toMatchObject({
+      report: "Synthetic.",
+    });
+    await api.deleteImagingStudy("p1", "s1");
+
+    expect(fetchMock.mock.calls.map(([url, init]) => [url, init?.method ?? "GET"])).toEqual([
+      ["http://api.test/patients/p1/imaging/s1", "GET"],
+      ["http://api.test/patients/p1/imaging/s1", "PATCH"],
+      ["http://api.test/patients/p1/imaging/s1", "DELETE"],
+    ]);
+  });
+
+  it("returns null for a missing imaging study", async () => {
+    respond(404, { statusCode: 404, error: "x", message: "x" });
+    await expect(api.getImagingStudy("p1", "nope")).resolves.toBeNull();
+  });
+
   it("gets the dashboard overview", async () => {
     respond(200, { totalPatients: 0, activePatients: 0, abnormalLabsLast7Days: 0, patients: [] });
 
@@ -151,7 +183,7 @@ describe("api client", () => {
 
   it("gets a patient's dashboard", async () => {
     const empty = { latestVitals: [], vitalTrends: [], recentLabs: [], activeMedications: [] };
-    respond(200, { patient, ...empty, recentSymptoms: [], milestones: [] });
+    respond(200, { patient, ...empty, recentSymptoms: [], milestones: [], imagingStudies: [] });
 
     const dashboard = await api.getPatientDashboard("p 1");
 

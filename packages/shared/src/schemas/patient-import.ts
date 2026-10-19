@@ -8,6 +8,7 @@ import {
   SymptomInputSchema,
   VitalSignInputSchema,
 } from "./health-records.js";
+import { ImagingStudyInputSchema } from "./imaging.js";
 import { CreatePatientInputSchema } from "./patient.js";
 
 /** One patient and all of their records, as found in an import file. */
@@ -18,6 +19,7 @@ export const PatientImportBundleSchema = z.object({
   medications: z.array(MedicationInputSchema).default([]),
   symptoms: z.array(SymptomInputSchema).default([]),
   milestones: z.array(RecoveryMilestoneInputSchema).default([]),
+  imagingStudies: z.array(ImagingStudyInputSchema).default([]),
 });
 
 /**

@@ -4,6 +4,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   chatMessages,
   type DbConnection,
+  imagingSeries,
+  imagingStudies,
   labResults,
   medications,
   patients,
@@ -164,6 +166,48 @@ describe("health records", () => {
       const rows = connection.db.select().from(table).all();
       expect(rows.map((row) => row.patientId)).toEqual([other.id]);
     }
+  });
+});
+
+describe("imaging", () => {
+  const study = (patientId: string, overrides = {}) =>
+    connection.db
+      .insert(imagingStudies)
+      .values({ patientId, modality: "MR", studyDate: "2026-08-13", source: "dicom", ...overrides })
+      .returning()
+      .get();
+
+  it("deletes a study's series with it, and studies with their patient", () => {
+    const patient = insertPatient(connection);
+    const { id: studyId } = study(patient.id);
+    connection.db.insert(imagingSeries).values({ studyId, modality: "MR", imageCount: 3 }).run();
+
+    connection.db.delete(imagingStudies).where(eq(imagingStudies.id, studyId)).run();
+    expect(connection.db.select().from(imagingSeries).all()).toEqual([]);
+
+    study(patient.id);
+    connection.db.delete(patients).where(eq(patients.id, patient.id)).run();
+    expect(connection.db.select().from(imagingStudies).all()).toEqual([]);
+  });
+
+  it("allows a DICOM study once per patient, and any number without a hash", () => {
+    const a = insertPatient(connection);
+    const b = insertPatient(connection, { mrn: "FAKE-002" });
+    study(a.id, { dicomStudyHash: "h1" });
+    study(b.id, { dicomStudyHash: "h1" });
+    study(a.id, { source: "import" });
+    study(a.id, { source: "import" });
+
+    expect(sqliteErrorCode(() => study(a.id, { dicomStudyHash: "h1" }))).toBe(
+      "SQLITE_CONSTRAINT_UNIQUE",
+    );
+  });
+
+  it("rejects an unknown source", () => {
+    const patient = insertPatient(connection);
+    expect(sqliteErrorCode(() => study(patient.id, { source: "fax" as "import" }))).toBe(
+      "SQLITE_CONSTRAINT_CHECK",
+    );
   });
 });
 

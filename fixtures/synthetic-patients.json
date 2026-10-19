@@ -3148,6 +3148,40 @@
           "description": "Requires 6 months without seizures.",
           "targetDate": "2027-02-05"
         }
+      ],
+      "imagingStudies": [
+        {
+          "modality": "MR",
+          "bodyPart": "Brain",
+          "description": "MRI brain with and without contrast, with MR spectroscopy",
+          "studyDate": "2026-07-30",
+          "impression": "4.1 cm ring-enhancing right frontal mass with vasogenic edema, most consistent with high-grade glioma.",
+          "report": "Synthetic report for testing; not a real patient. Findings: Heterogeneous ring-enhancing mass in the right frontal lobe measuring 4.1 x 3.6 cm with central necrosis and surrounding T2/FLAIR hyperintensity. 4 mm leftward midline shift. Spectroscopy shows an elevated choline peak and reduced NAA. No other lesions. Impression: 4.1 cm ring-enhancing right frontal mass with vasogenic edema, most consistent with high-grade glioma."
+        },
+        {
+          "modality": "CT",
+          "bodyPart": "Head",
+          "description": "CT head without contrast",
+          "studyDate": "2026-08-06",
+          "impression": "Expected postoperative changes after right frontal craniotomy. No hemorrhage.",
+          "report": "Synthetic report for testing; not a real patient. Findings: Right frontal craniotomy with resection cavity containing fluid and a small amount of air. No intracranial hemorrhage. Midline shift has resolved. Impression: Expected postoperative changes after right frontal craniotomy. No hemorrhage."
+        },
+        {
+          "modality": "CR",
+          "bodyPart": "Chest",
+          "description": "Chest X-ray, portable AP",
+          "studyDate": "2026-08-06",
+          "impression": "No acute cardiopulmonary findings.",
+          "report": "Synthetic report for testing; not a real patient. Findings: Lungs are clear. No pleural effusion or pneumothorax. Normal heart size. Impression: No acute cardiopulmonary findings."
+        },
+        {
+          "modality": "MR",
+          "bodyPart": "Brain",
+          "description": "MRI brain with and without contrast (postoperative)",
+          "studyDate": "2026-08-18",
+          "impression": "Gross total resection: resection cavity without residual enhancement.",
+          "report": "Synthetic report for testing; not a real patient. Findings: Right frontal resection cavity with thin smooth marginal enhancement consistent with postoperative change. No nodular enhancement to suggest residual tumor. Decreased surrounding FLAIR signal. No new lesions. Impression: Gross total resection: resection cavity without residual enhancement."
+        }
       ]
     },
     {
@@ -4254,6 +4288,32 @@
           "status": "pending",
           "targetDate": "2026-10-27"
         }
+      ],
+      "imagingStudies": [
+        {
+          "modality": "MR",
+          "bodyPart": "Brain",
+          "description": "MRI brain with and without contrast",
+          "studyDate": "2026-07-14",
+          "impression": "3.2 cm dural-based left frontal convexity mass, most consistent with meningioma.",
+          "report": "Synthetic report for testing; not a real patient. Findings: Extra-axial, homogeneously enhancing mass along the left frontal convexity measuring 3.2 x 2.8 cm with a dural tail and mild adjacent edema. No hydrocephalus. Impression: 3.2 cm dural-based left frontal convexity mass, most consistent with meningioma."
+        },
+        {
+          "modality": "CT",
+          "bodyPart": "Head",
+          "description": "CT head without contrast",
+          "studyDate": "2026-07-22",
+          "impression": "Expected postoperative changes. No hemorrhage.",
+          "report": "Synthetic report for testing; not a real patient. Findings: Left frontal craniotomy with small extra-axial fluid collection and pneumocephalus. No hemorrhage or mass effect. Impression: Expected postoperative changes. No hemorrhage."
+        },
+        {
+          "modality": "MR",
+          "bodyPart": "Brain",
+          "description": "MRI brain with and without contrast (postoperative)",
+          "studyDate": "2026-08-03",
+          "impression": "No residual tumor.",
+          "report": "Synthetic report for testing; not a real patient. Findings: Postoperative changes of left frontal resection with smooth dural enhancement. No nodular enhancement. Resolving edema. Impression: No residual tumor."
+        }
       ]
     },
     {
@@ -4579,6 +4639,24 @@
           "title": "12-month MRI shows no progression",
           "status": "pending",
           "targetDate": "2026-10-27"
+        }
+      ],
+      "imagingStudies": [
+        {
+          "modality": "MR",
+          "bodyPart": "Brain",
+          "description": "MRI brain with and without contrast (surveillance)",
+          "studyDate": "2025-10-30",
+          "impression": "Postoperative baseline after right frontal resection.",
+          "report": "Synthetic report for testing; not a real patient. Findings: Right frontal resection cavity with surrounding non-enhancing FLAIR signal. No enhancement. Impression: Postoperative baseline after right frontal resection."
+        },
+        {
+          "modality": "MR",
+          "bodyPart": "Brain",
+          "description": "MRI brain with and without contrast (6-month surveillance)",
+          "studyDate": "2026-04-16",
+          "impression": "Stable non-enhancing FLAIR signal around the cavity. No progression.",
+          "report": "Synthetic report for testing; not a real patient. Findings: Unchanged non-enhancing T2/FLAIR signal around the right frontal resection cavity compared with the prior study. No new enhancement or mass effect. Impression: Stable non-enhancing FLAIR signal around the cavity. No progression."
         }
       ]
     },
@@ -5547,6 +5625,32 @@
           "status": "pending",
           "targetDate": "2026-10-30"
         }
+      ],
+      "imagingStudies": [
+        {
+          "modality": "MR",
+          "bodyPart": "Brain",
+          "description": "MRI brain with and without contrast",
+          "studyDate": "2026-09-15",
+          "impression": "3.8 cm mostly non-enhancing left parietal mass with a small enhancing focus, suspicious for a higher-grade glioma.",
+          "report": "Synthetic report for testing; not a real patient. Findings: Infiltrative T2/FLAIR hyperintense mass in the left parietal lobe measuring 3.8 x 3.1 cm, abutting the postcentral gyrus. A 6 mm focus of enhancement along its anterior margin. No hemorrhage. Impression: 3.8 cm mostly non-enhancing left parietal mass with a small enhancing focus, suspicious for a higher-grade glioma."
+        },
+        {
+          "modality": "CT",
+          "bodyPart": "Head",
+          "description": "CT head without contrast",
+          "studyDate": "2026-09-24",
+          "impression": "No hemorrhage after left parietal resection.",
+          "report": "Synthetic report for testing; not a real patient. Findings: Left parietal craniotomy and resection cavity. No hemorrhage. Mild surrounding edema. Impression: No hemorrhage after left parietal resection."
+        },
+        {
+          "modality": "MR",
+          "bodyPart": "Brain",
+          "description": "MRI brain with and without contrast (postoperative)",
+          "studyDate": "2026-10-06",
+          "impression": "Small residual non-enhancing tumor along the posterior margin.",
+          "report": "Synthetic report for testing; not a real patient. Findings: Left parietal resection cavity. Residual non-enhancing T2/FLAIR abnormality along the posterior margin measuring 1.4 cm. The previously enhancing focus has been resected. Impression: Small residual non-enhancing tumor along the posterior margin."
+        }
       ]
     },
     {
@@ -6509,6 +6613,40 @@
           "status": "pending",
           "targetDate": "2026-11-03"
         }
+      ],
+      "imagingStudies": [
+        {
+          "modality": "MR",
+          "bodyPart": "Brain",
+          "description": "MRI brain with and without contrast",
+          "studyDate": "2026-08-19",
+          "impression": "2.9 cm enhancing right cerebellar lesion compressing the fourth ventricle, without hydrocephalus; consistent with metastasis.",
+          "report": "Synthetic report for testing; not a real patient. Findings: Rim-enhancing lesion in the right cerebellar hemisphere measuring 2.9 x 2.5 cm with surrounding edema and partial effacement of the fourth ventricle. Ventricles are not enlarged. No other enhancing lesions. Impression: 2.9 cm enhancing right cerebellar lesion compressing the fourth ventricle, without hydrocephalus; consistent with metastasis."
+        },
+        {
+          "modality": "CT",
+          "bodyPart": "Head",
+          "description": "CT head without contrast",
+          "studyDate": "2026-08-27",
+          "impression": "No hemorrhage after suboccipital resection.",
+          "report": "Synthetic report for testing; not a real patient. Findings: Right suboccipital craniectomy and resection cavity. No hemorrhage. Fourth ventricle is patent. Impression: No hemorrhage after suboccipital resection."
+        },
+        {
+          "modality": "CR",
+          "bodyPart": "Chest",
+          "description": "Chest X-ray, portable AP",
+          "studyDate": "2026-08-27",
+          "impression": "Known left upper lobe nodule, unchanged. No new findings.",
+          "report": "Synthetic report for testing; not a real patient. Findings: Known 1.8 cm left upper lobe nodule. No consolidation, effusion or pneumothorax. Impression: Known left upper lobe nodule, unchanged. No new findings."
+        },
+        {
+          "modality": "MR",
+          "bodyPart": "Brain",
+          "description": "MRI brain with and without contrast (radiosurgery planning)",
+          "studyDate": "2026-09-08",
+          "impression": "Postoperative cavity without nodular enhancement, used for radiosurgery planning.",
+          "report": "Synthetic report for testing; not a real patient. Findings: Right cerebellar resection cavity with thin marginal enhancement. No nodular residual. No new lesions. Impression: Postoperative cavity without nodular enhancement, used for radiosurgery planning."
+        }
       ]
     },
     {
@@ -7333,6 +7471,24 @@
           "title": "3-month MRI",
           "status": "pending",
           "targetDate": "2026-12-02"
+        }
+      ],
+      "imagingStudies": [
+        {
+          "modality": "MR",
+          "bodyPart": "Pituitary",
+          "description": "MRI pituitary with and without contrast",
+          "studyDate": "2026-08-25",
+          "impression": "2.6 cm sellar and suprasellar mass lifting the optic chiasm, consistent with pituitary macroadenoma.",
+          "report": "Synthetic report for testing; not a real patient. Findings: Enhancing sellar mass measuring 2.6 x 2.2 cm with suprasellar extension elevating and compressing the optic chiasm. Possible extension into the right cavernous sinus. Impression: 2.6 cm sellar and suprasellar mass lifting the optic chiasm, consistent with pituitary macroadenoma."
+        },
+        {
+          "modality": "MR",
+          "bodyPart": "Pituitary",
+          "description": "MRI pituitary with and without contrast (postoperative)",
+          "studyDate": "2026-09-30",
+          "impression": "Optic chiasm decompressed. Small residual tumor in the right cavernous sinus.",
+          "report": "Synthetic report for testing; not a real patient. Findings: Postoperative changes after transsphenoidal resection. The optic chiasm is no longer compressed. Residual enhancing tissue in the right cavernous sinus measuring 7 mm. Impression: Optic chiasm decompressed. Small residual tumor in the right cavernous sinus."
         }
       ]
     },
@@ -8352,6 +8508,24 @@
           "title": "MRI after 4 doses of bevacizumab",
           "status": "pending",
           "targetDate": "2026-11-24"
+        }
+      ],
+      "imagingStudies": [
+        {
+          "modality": "MR",
+          "bodyPart": "Brain",
+          "description": "MRI brain with and without contrast",
+          "studyDate": "2026-08-24",
+          "impression": "New enhancement along the posterior cavity wall with increased FLAIR signal, concerning for recurrence.",
+          "report": "Synthetic report for testing; not a real patient. Findings: Left parietal resection cavity with new nodular enhancement along the posterior wall measuring 2.2 cm and increased surrounding FLAIR signal compared with prior studies. Impression: New enhancement along the posterior cavity wall with increased FLAIR signal, concerning for recurrence."
+        },
+        {
+          "modality": "MR",
+          "bodyPart": "Brain",
+          "description": "MRI brain with and without contrast (postoperative)",
+          "studyDate": "2026-09-17",
+          "impression": "Thin residual enhancement along the medial cavity wall.",
+          "report": "Synthetic report for testing; not a real patient. Findings: Postoperative changes after re-resection. Thin residual enhancement along the medial margin of the cavity. No new lesions. Impression: Thin residual enhancement along the medial cavity wall."
         }
       ]
     },
@@ -9895,6 +10069,24 @@
           "title": "Complete 6 adjuvant cycles",
           "status": "pending",
           "targetDate": "2026-11-13"
+        }
+      ],
+      "imagingStudies": [
+        {
+          "modality": "MR",
+          "bodyPart": "Brain",
+          "description": "MRI brain with and without contrast (postoperative)",
+          "studyDate": "2026-03-12",
+          "impression": "Postoperative baseline: resection cavity without residual enhancement.",
+          "report": "Synthetic report for testing; not a real patient. Findings: Right parieto-occipital resection cavity with thin marginal enhancement. No nodular enhancement. Impression: Postoperative baseline: resection cavity without residual enhancement."
+        },
+        {
+          "modality": "MR",
+          "bodyPart": "Brain",
+          "description": "MRI brain with and without contrast (after cycle 3)",
+          "studyDate": "2026-09-08",
+          "impression": "Stable disease. No new enhancement.",
+          "report": "Synthetic report for testing; not a real patient. Findings: Unchanged right parieto-occipital resection cavity. No new enhancement. Stable surrounding FLAIR signal. Impression: Stable disease. No new enhancement."
         }
       ]
     }

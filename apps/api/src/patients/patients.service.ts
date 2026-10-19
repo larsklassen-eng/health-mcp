@@ -1,4 +1,4 @@
-import { labResults, patients, toPatient, toPatientSummary } from "@health-mcp/db";
+import { imagingStudies, labResults, patients, toPatient, toPatientSummary } from "@health-mcp/db";
 import type {
   CreatePatientInput,
   Patient,
@@ -10,10 +10,14 @@ import { asc, eq } from "drizzle-orm";
 
 import { isUniqueViolation } from "../common/sqlite-errors.js";
 import { DatabaseService } from "../database/database.service.js";
+import { ImagingStorage } from "../imaging/imaging-storage.js";
 
 @Injectable()
 export class PatientsService {
-  constructor(private readonly database: DatabaseService) {}
+  constructor(
+    private readonly database: DatabaseService,
+    private readonly storage: ImagingStorage,
+  ) {}
 
   list(): PatientSummary[] {
     return this.database.db
@@ -68,14 +72,23 @@ export class PatientsService {
     return toPatient(row);
   }
 
-  /** Deletes the patient and, through ON DELETE CASCADE, all of their records and chat history. */
-  remove(id: string): void {
+  /**
+   * Deletes the patient and, through ON DELETE CASCADE, all of their records
+   * and chat history; then the image files of their studies.
+   */
+  async remove(id: string): Promise<void> {
+    const studies = this.database.db
+      .select({ id: imagingStudies.id })
+      .from(imagingStudies)
+      .where(eq(imagingStudies.patientId, id))
+      .all();
     const deleted = this.database.db
       .delete(patients)
       .where(eq(patients.id, id))
       .returning({ id: patients.id })
       .all();
     if (deleted.length === 0) throw new NotFoundException(`Patient ${id} not found`);
+    await this.storage.removeStudies(studies.map((study) => study.id));
   }
 
   private mapConflict(error: unknown, mrn: string | undefined): unknown {

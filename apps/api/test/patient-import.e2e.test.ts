@@ -1,4 +1,11 @@
-import { labResults, medications, recoveryMilestones, symptoms, vitalSigns } from "@health-mcp/db";
+import {
+  imagingStudies,
+  labResults,
+  medications,
+  recoveryMilestones,
+  symptoms,
+  vitalSigns,
+} from "@health-mcp/db";
 import {
   ApiErrorSchema,
   type PatientImportFile,
@@ -49,6 +56,16 @@ const fullBundle = {
   milestones: [
     { title: "Walk 100 m unaided", status: "achieved", achievedAt: "2026-09-20T15:00:00-03:00" },
   ],
+  imagingStudies: [
+    {
+      modality: "MR",
+      bodyPart: "Brain",
+      description: "MRI brain with contrast",
+      studyDate: "2026-09-12",
+      impression: "Synthetic: no residual enhancement.",
+      report: "Synthetic report. Findings: postoperative changes. Impression: stable.",
+    },
+  ],
 } satisfies PatientImportFile["patients"][number];
 
 describe("POST /patients/import", () => {
@@ -63,7 +80,7 @@ describe("POST /patients/import", () => {
     expect(status).toBe(201);
     const { imported } = PatientImportResultSchema.parse(body);
     expect(imported.map(({ mrn, records }) => ({ mrn, records }))).toEqual([
-      { mrn: "FAKE-100", records: 5 },
+      { mrn: "FAKE-100", records: 6 },
       { mrn: "FAKE-200", records: 0 },
     ]);
     expect(await patientCount()).toBe(2);
@@ -76,6 +93,16 @@ describe("POST /patients/import", () => {
     });
     expect(db().select().from(vitalSigns).all()).toHaveLength(1);
     expect(db().select().from(medications).all()).toHaveLength(1);
+    expect(db().select().from(imagingStudies).all()).toEqual([
+      expect.objectContaining({
+        patientId: imported[0]!.patientId,
+        modality: "MR",
+        studyDate: "2026-09-12",
+        impression: "Synthetic: no residual enhancement.",
+        source: "import",
+        dicomStudyHash: null,
+      }),
+    ]);
   });
 
   it("stores every timestamp in UTC", async () => {

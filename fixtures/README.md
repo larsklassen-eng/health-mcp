@@ -20,4 +20,4 @@ None of it describes a real person. Names, dates of birth and record numbers (`F
 | FAKE-GBM-0007 | Thomas Reid, 61, M | Recurrent glioblastoma | Re-resection, bevacizumab; blood pressure rising |
 | FAKE-GBM-0008 | Aisha Rahman, 46, F | Glioblastoma | Adjuvant temozolomide; cycle 4 delayed for low platelets |
 
-There is no imaging record type yet, so each patient's imaging history (MRI, CT and chest X-ray, with invented findings) is described in `notes` and in milestones.
+Each patient has 2–4 imaging studies (MRI, CT and chest X-ray) with invented radiology reports; every report starts with "Synthetic report for testing". The studies have no images: the import file only carries reports. The same history is summarized in `notes`.

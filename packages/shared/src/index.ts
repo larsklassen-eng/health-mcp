@@ -5,5 +5,6 @@ export * from "./schemas/common.js";
 export * from "./schemas/dashboard.js";
 export * from "./schemas/health-check.js";
 export * from "./schemas/health-records.js";
+export * from "./schemas/imaging.js";
 export * from "./schemas/patient.js";
 export * from "./schemas/patient-import.js";

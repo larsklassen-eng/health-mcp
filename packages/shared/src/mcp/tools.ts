@@ -6,6 +6,7 @@ import {
   MilestoneStatusSchema,
   VitalTypeSchema,
 } from "../schemas/health-records.js";
+import { ModalitySchema } from "../schemas/imaging.js";
 
 /*
  * MCP tool contracts.
@@ -80,6 +81,17 @@ export const MCP_TOOLS = {
       status: MilestoneStatusSchema.optional().describe(
         "Filter by status. Omit for all milestones.",
       ),
+    }),
+  },
+  get_imaging_studies: {
+    description:
+      "Get the current patient's imaging studies (MRI, CT, X-ray), newest first, with their " +
+      "radiology reports. You get the reports and study details only, not the images.",
+    args: z.object({
+      modality: ModalitySchema.optional().describe(
+        "DICOM modality code: 'MR' (MRI), 'CT', 'CR' or 'DX' (X-ray), 'US'. Omit for all.",
+      ),
+      limit: z.int().min(1).max(20).default(5).describe("Maximum number of studies."),
     }),
   },
 } as const;

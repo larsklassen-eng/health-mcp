@@ -71,7 +71,7 @@ export class PatientsController {
 
   @Delete(":id")
   @HttpCode(HttpStatus.NO_CONTENT)
-  remove(@Param("id", idParam) id: string): void {
-    this.patients.remove(id);
+  async remove(@Param("id", idParam) id: string): Promise<void> {
+    await this.patients.remove(id);
   }
 }

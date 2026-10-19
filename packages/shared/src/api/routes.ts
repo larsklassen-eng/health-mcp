@@ -9,6 +9,13 @@ export const API_ROUTES = {
   patientChat: (patientId: string) => `${patientPath(patientId)}/chat`,
   toolCallDecision: (patientId: string, toolCallId: string) =>
     `${patientPath(patientId)}/chat/tool-calls/${encodeURIComponent(toolCallId)}/decision`,
+  patientImaging: (patientId: string) => `${patientPath(patientId)}/imaging`,
+  imagingStudy: (patientId: string, studyId: string) =>
+    `${patientPath(patientId)}/imaging/${encodeURIComponent(studyId)}`,
+  dicomUpload: (patientId: string) => `${patientPath(patientId)}/imaging/dicom`,
+  imagingImage: (patientId: string, studyId: string, seriesId: string, position: number) =>
+    `${patientPath(patientId)}/imaging/${encodeURIComponent(studyId)}` +
+    `/series/${encodeURIComponent(seriesId)}/images/${position}`,
   dashboardOverview: "/dashboards/overview",
   patientDashboard: (patientId: string) => `/dashboards/patients/${encodeURIComponent(patientId)}`,
 } as const;

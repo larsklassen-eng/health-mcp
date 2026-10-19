@@ -35,3 +35,25 @@ export const VITAL_LABELS: Record<VitalType, string> = {
 
 export const isAbnormalFlag = (flag: LabFlag | undefined): boolean =>
   flag !== undefined && flag !== "normal";
+
+const MODALITY_LABELS: Record<string, string> = {
+  MR: "MRI",
+  CT: "CT",
+  CR: "X-ray",
+  DX: "X-ray",
+  US: "Ultrasound",
+  PT: "PET",
+  NM: "Nuclear medicine",
+  MG: "Mammography",
+  XA: "Angiography",
+};
+
+/** "MR" → "MRI"; unknown DICOM modality codes are shown as they are. */
+export const modalityLabel = (modality: string): string => MODALITY_LABELS[modality] ?? modality;
+
+/** "3 series, 120 images" (images only when the study has any). */
+export function seriesSummary(series: { imageCount: number }[]): string {
+  const images = series.reduce((sum, s) => sum + s.imageCount, 0);
+  const seriesText = `${series.length} series`;
+  return images === 0 ? seriesText : `${seriesText}, ${images} image${images === 1 ? "" : "s"}`;
+}

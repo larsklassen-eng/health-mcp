@@ -188,6 +188,32 @@ const dashboard: PatientDashboard = {
     },
     { id: "r2", patientId: "p1", title: "Drive again", status: "pending" },
   ],
+  imagingStudies: [
+    {
+      id: "i1",
+      patientId: "p1",
+      modality: "MR",
+      bodyPart: "Brain",
+      description: "MRI brain with contrast",
+      studyDate: "2026-09-08",
+      impression: "Stable disease.",
+      source: "dicom",
+      series: [
+        { id: "r1", studyId: "i1", modality: "MR", imageCount: 176 },
+        { id: "r2", studyId: "i1", modality: "MR", imageCount: 24 },
+      ],
+      createdAt: "2026-10-01T10:00:00.000Z",
+    },
+    {
+      id: "i2",
+      patientId: "p1",
+      modality: "CR",
+      studyDate: "2026-08-06",
+      source: "import",
+      series: [],
+      createdAt: "2026-10-01T10:00:00.000Z",
+    },
+  ],
 };
 
 describe("/patients/[id]/dashboard", () => {
@@ -242,6 +268,26 @@ describe("/patients/[id]/dashboard", () => {
     expect(drive).toHaveTextContent("No target date");
   });
 
+  it("lists imaging studies with links, and links to the upload", async () => {
+    getPatientDashboard.mockResolvedValueOnce(dashboard);
+    render(await PatientDashboardPage({ params }));
+
+    const [mri, xray] = within(section("Imaging")).getAllByRole("listitem");
+    expect(within(mri!).getByRole("link", { name: "MRI brain" })).toHaveAttribute(
+      "href",
+      "/patients/p1/imaging/i1",
+    );
+    expect(mri).toHaveTextContent("Sep 8, 2026 · MRI brain with contrast");
+    expect(mri).toHaveTextContent("Stable disease.");
+    expect(mri).toHaveTextContent("2 series, 200 images");
+    expect(xray).toHaveTextContent("X-ray");
+    expect(xray).toHaveTextContent("Report only, no images");
+    expect(screen.getByRole("link", { name: "Upload DICOM images" })).toHaveAttribute(
+      "href",
+      "/patients/p1/imaging/upload",
+    );
+  });
+
   it("explains empty sections", async () => {
     getPatientDashboard.mockResolvedValueOnce({
       ...dashboard,
@@ -251,12 +297,14 @@ describe("/patients/[id]/dashboard", () => {
       activeMedications: [],
       recentSymptoms: [],
       milestones: [],
+      imagingStudies: [],
     });
     render(await PatientDashboardPage({ params }));
 
     expect(section("Vitals")).toHaveTextContent("No vitals recorded.");
     expect(section("Labs")).toHaveTextContent("No lab results.");
     expect(section("Recovery milestones")).toHaveTextContent("No milestones.");
+    expect(section("Imaging")).toHaveTextContent("No imaging studies.");
   });
 
   it("renders Next's 404 for an unknown patient", async () => {

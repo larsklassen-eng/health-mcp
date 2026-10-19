@@ -1,3 +1,6 @@
+import { tmpdir } from "node:os";
+import path from "node:path";
+
 import swc from "unplugin-swc";
 import { defineConfig } from "vitest/config";
 
@@ -12,6 +15,8 @@ export default defineConfig({
     // MCP server, even if these variables are set in the developer's shell.
     env: {
       DATABASE_PATH: ":memory:",
+      // Uploaded images go to a temporary folder, never to data/imaging.
+      IMAGING_DIR: path.join(tmpdir(), "health-mcp-api-tests", "imaging"),
       OPENROUTER_API_KEY: "",
       MCP_AUTH_TOKEN: "",
       MCP_URL: "http://127.0.0.1:9/mcp",

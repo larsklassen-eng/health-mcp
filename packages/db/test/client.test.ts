@@ -43,6 +43,8 @@ describe("migrateDb", () => {
     expect(tables).toEqual([
       "__drizzle_migrations",
       "chat_messages",
+      "imaging_series",
+      "imaging_studies",
       "lab_results",
       "medications",
       "patients",

@@ -115,6 +115,14 @@ export const CASES: EvalCaseInput[] = [
     answerExcludes: ["FAKE-MEN-0002", "amlodipine"],
   },
   {
+    id: "postoperative-mri",
+    description: "Answers from the radiology report of the right study",
+    patientMrn: "FAKE-AST-0004",
+    userMessage: "What did her post-operative MRI show?",
+    expectedToolCalls: [{ name: "get_imaging_studies" }],
+    answerIncludes: ["residual", "posterior"],
+  },
+  {
     id: "log-symptom-when-asked",
     description: "Proposes a symptom entry and asks the clinician to confirm it",
     patientMrn: "FAKE-AST-0004",

@@ -9,6 +9,7 @@ import {
   VitalSignSchema,
   VitalTypeSchema,
 } from "./health-records.js";
+import { ImagingStudySchema } from "./imaging.js";
 import { PatientSchema, PatientStatusSchema } from "./patient.js";
 
 /** Lab flags that count as abnormal on the dashboards. */
@@ -70,6 +71,8 @@ export const PatientDashboardSchema = z.object({
   recentSymptoms: z.array(SymptomSchema),
   /** By target date, earliest first; milestones without one come last. */
   milestones: z.array(RecoveryMilestoneSchema),
+  /** Newest first, without the full report text. */
+  imagingStudies: z.array(ImagingStudySchema.omit({ report: true })),
 });
 
 export type PatientOverviewRow = z.infer<typeof PatientOverviewRowSchema>;

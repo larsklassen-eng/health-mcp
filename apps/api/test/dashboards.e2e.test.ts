@@ -1,5 +1,7 @@
 import {
   type HealthDb,
+  imagingSeries,
+  imagingStudies,
   labResults,
   medications,
   patients,
@@ -203,7 +205,43 @@ describe("GET /dashboards/patients/:id", () => {
       activeMedications: [],
       recentSymptoms: [],
       milestones: [],
+      imagingStudies: [],
     });
+  });
+
+  it("lists imaging studies newest first, with their series but without the report", async () => {
+    const id = insertPatient();
+    const [older, newer] = db
+      .insert(imagingStudies)
+      .values([
+        { patientId: id, modality: "CT", studyDate: "2026-08-01", source: "dicom" },
+        {
+          patientId: id,
+          modality: "MR",
+          studyDate: "2026-09-01",
+          source: "import",
+          impression: "Stable.",
+          report: "Long report",
+        },
+      ])
+      .returning()
+      .all();
+    db.insert(imagingSeries)
+      .values([
+        { studyId: older!.id, seriesNumber: 2, modality: "CT", imageCount: 40 },
+        { studyId: older!.id, seriesNumber: 1, modality: "CT", imageCount: 1 },
+      ])
+      .run();
+
+    const { imagingStudies: studies } = await getPatientDashboard(id);
+
+    expect(studies.map((s) => s.id)).toEqual([newer!.id, older!.id]);
+    expect(studies[0]).toMatchObject({ impression: "Stable.", series: [] });
+    expect(studies[0]).not.toHaveProperty("report");
+    expect(studies[1]!.series.map((s) => [s.seriesNumber, s.imageCount])).toEqual([
+      [1, 1],
+      [2, 40],
+    ]);
   });
 
   it("returns the latest reading and a trend per vital type, in shared order", async () => {

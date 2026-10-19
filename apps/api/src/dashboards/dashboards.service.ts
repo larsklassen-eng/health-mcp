@@ -26,6 +26,7 @@ import { Injectable, NotFoundException } from "@nestjs/common";
 import { and, asc, desc, eq, type SQL, sql } from "drizzle-orm";
 
 import { DatabaseService } from "../database/database.service.js";
+import { ImagingService } from "../imaging/imaging.service.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -36,7 +37,10 @@ const abnormalFlags = sql.join(
 
 @Injectable()
 export class DashboardsService {
-  constructor(private readonly database: DatabaseService) {}
+  constructor(
+    private readonly database: DatabaseService,
+    private readonly imaging: ImagingService,
+  ) {}
 
   /** `now` sets the end of the 7-day window; tests pass a fixed time. */
   overview(now = new Date()): DashboardOverview {
@@ -176,6 +180,8 @@ export class DashboardsService {
         )
         .all()
         .map((milestone) => omitNulls(milestone) as RecoveryMilestone),
+      // Reports can be long; the dashboard shows the impression.
+      imagingStudies: this.imaging.list(id).map(({ report: _report, ...study }) => study),
     };
   }
 

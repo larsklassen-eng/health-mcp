@@ -5,6 +5,7 @@ import { ConfigModule } from "./config/config.module.js";
 import { DashboardsModule } from "./dashboards/dashboards.module.js";
 import { DatabaseModule } from "./database/database.module.js";
 import { HealthModule } from "./health/health.module.js";
+import { ImagingModule } from "./imaging/imaging.module.js";
 import { LlmModule } from "./llm/llm.module.js";
 import { McpModule } from "./mcp/mcp.module.js";
 import { PatientsModule } from "./patients/patients.module.js";
@@ -19,6 +20,7 @@ import { PatientsModule } from "./patients/patients.module.js";
     PatientsModule,
     ChatModule,
     DashboardsModule,
+    ImagingModule,
   ],
 })
 export class AppModule {}

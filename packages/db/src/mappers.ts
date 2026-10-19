@@ -1,4 +1,6 @@
 import type {
+  ImagingSeries,
+  ImagingStudy,
   LabResultInput,
   MedicationInput,
   Patient,
@@ -8,6 +10,8 @@ import type {
 } from "@health-mcp/shared";
 
 import type {
+  ImagingSeriesRow,
+  ImagingStudyRow,
   LabResultRow,
   MedicationRow,
   PatientRow,
@@ -67,3 +71,15 @@ export const toSymptomInput = ({
   patientId: _patientId,
   ...row
 }: SymptomRow): SymptomInput => omitNulls(row) as SymptomInput;
+
+export const toImagingSeries = (row: ImagingSeriesRow): ImagingSeries =>
+  omitNulls(row) as ImagingSeries;
+
+/** A study with its series. The DICOM study hash stays internal. */
+export const toImagingStudy = (
+  { dicomStudyHash: _hash, ...row }: ImagingStudyRow,
+  series: ImagingSeriesRow[],
+): ImagingStudy => ({
+  ...(omitNulls(row) as Omit<ImagingStudy, "series">),
+  series: series.map(toImagingSeries),
+});

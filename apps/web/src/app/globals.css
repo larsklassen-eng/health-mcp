@@ -576,3 +576,45 @@ tr.abnormal td {
 .tool-call.rejected .tool-call-status {
   text-decoration: line-through;
 }
+
+/* Imaging */
+.viewer {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+}
+.viewer-series {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.viewer-series .button {
+  padding: 4px 10px;
+  font-size: 0.85rem;
+}
+.viewer-frame {
+  background: #000;
+  border-radius: var(--radius);
+  padding: 4px;
+  line-height: 0;
+}
+.viewer-frame:focus-visible {
+  outline: 3px solid var(--accent);
+}
+.viewer-frame img {
+  width: min(512px, 85vw);
+  height: auto;
+  image-rendering: auto;
+}
+.viewer-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.viewer-controls input[type="range"] {
+  width: min(280px, 60vw);
+}
+.study-report-form {
+  max-width: 720px;
+}

@@ -16,6 +16,8 @@ import {
   formatDateTime,
   formatNumber,
   isAbnormalFlag,
+  modalityLabel,
+  seriesSummary,
   VITAL_LABELS,
 } from "@/lib/format";
 
@@ -97,6 +99,17 @@ export default async function PatientDashboardPage({
       >
         <Milestones milestones={dashboard.milestones} />
       </Section>
+      <Section
+        title="Imaging"
+        empty={dashboard.imagingStudies.length === 0 && "No imaging studies."}
+      >
+        <Imaging patientPath={patientPath} studies={dashboard.imagingStudies} />
+      </Section>
+      <p>
+        <Link className="button secondary" href={`${patientPath}/imaging/upload`}>
+          Upload DICOM images
+        </Link>
+      </p>
     </>
   );
 }
@@ -224,6 +237,37 @@ function Milestones({ milestones }: { milestones: RecoveryMilestone[] }) {
               : milestone.targetDate
                 ? `Target ${formatDate(milestone.targetDate)}`
                 : "No target date"}
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function Imaging({
+  patientPath,
+  studies,
+}: {
+  patientPath: string;
+  studies: PatientDashboard["imagingStudies"];
+}) {
+  return (
+    <ul className="record-list card">
+      {studies.map((study) => (
+        <li key={study.id}>
+          <Link href={`${patientPath}/imaging/${encodeURIComponent(study.id)}`}>
+            <strong>
+              {modalityLabel(study.modality)}
+              {study.bodyPart && ` ${study.bodyPart.toLowerCase()}`}
+            </strong>
+          </Link>{" "}
+          <span className="muted">
+            {formatDate(study.studyDate)}
+            {study.description && ` · ${study.description}`}
+          </span>
+          {study.impression && <div>{study.impression}</div>}
+          <div className="muted small">
+            {study.series.length > 0 ? seriesSummary(study.series) : "Report only, no images"}
           </div>
         </li>
       ))}

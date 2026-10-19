@@ -18,7 +18,8 @@
     "format:check": "prettier --check .",
     "clean": "turbo run clean",
     "db:generate": "turbo run build --filter=@health-mcp/shared && yarn workspace @health-mcp/db db:generate",
-    "db:migrate": "turbo run build --filter=@health-mcp/db && yarn workspace @health-mcp/db db:migrate"
+    "db:migrate": "turbo run build --filter=@health-mcp/db && yarn workspace @health-mcp/db db:migrate",
+    "imaging:synthetic": "turbo run build --filter=@health-mcp/api && yarn workspace @health-mcp/api imaging:synthetic"
   },
   "devDependencies": {
     "prettier": "^3.9.10",

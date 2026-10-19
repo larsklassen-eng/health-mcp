@@ -1,4 +1,5 @@
 import {
+  imagingStudies,
   labResults,
   medications,
   patients,
@@ -74,12 +75,24 @@ export class PatientImportService {
           if (meds.length > 0) tx.insert(medications).values(meds).run();
           if (reported.length > 0) tx.insert(symptoms).values(reported).run();
           if (milestones.length > 0) tx.insert(recoveryMilestones).values(milestones).run();
+          // Imported studies have a report but no images.
+          const studies = bundle.imagingStudies.map((study) => ({
+            ...study,
+            patientId,
+            source: "import" as const,
+          }));
+          if (studies.length > 0) tx.insert(imagingStudies).values(studies).run();
 
           imported.push({
             patientId,
             mrn: bundle.patient.mrn,
             records:
-              labs.length + vitals.length + meds.length + reported.length + milestones.length,
+              labs.length +
+              vitals.length +
+              meds.length +
+              reported.length +
+              milestones.length +
+              studies.length,
           });
         }
 

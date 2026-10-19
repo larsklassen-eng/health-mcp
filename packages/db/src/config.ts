@@ -7,6 +7,9 @@ export const REPO_ROOT = fileURLToPath(new URL("../../../", import.meta.url));
 /** Relative to the repo root. The `data/` folder is git-ignored. */
 export const DEFAULT_DATABASE_PATH = "data/health.db";
 
+/** Relative to the repo root: the PNG slices of uploaded imaging studies. */
+export const DEFAULT_IMAGING_DIR = "data/imaging";
+
 /** Drizzle migrations generated from `src/schema.ts`, shipped with this package. */
 export const MIGRATIONS_FOLDER = fileURLToPath(new URL("../drizzle", import.meta.url));
 
@@ -22,4 +25,9 @@ export function resolveDatabasePath(
   const configured = env.DATABASE_PATH ?? DEFAULT_DATABASE_PATH;
   // `:memory:` is SQLite's in-memory database, not a file name.
   return configured === ":memory:" ? configured : path.resolve(REPO_ROOT, configured);
+}
+
+/** Resolves `IMAGING_DIR` (default {@link DEFAULT_IMAGING_DIR}) against the repo root. */
+export function resolveImagingDir(env: { IMAGING_DIR?: string | undefined } = process.env): string {
+  return path.resolve(REPO_ROOT, env.IMAGING_DIR ?? DEFAULT_IMAGING_DIR);
 }

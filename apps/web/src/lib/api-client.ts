@@ -6,6 +6,8 @@ import {
   type ChatMessage,
   type CreatePatientInput,
   type DashboardOverview,
+  type ImagingStudy,
+  ImagingStudySchema,
   DashboardOverviewSchema,
   type Patient,
   type PatientDashboard,
@@ -18,6 +20,7 @@ import {
   type ToolCall,
   type ToolCallDecisionRequest,
   ToolCallSchema,
+  type UpdateImagingStudyInput,
   type UpdatePatientInput,
 } from "@health-mcp/shared";
 
@@ -115,6 +118,35 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ decision }),
     });
+  },
+
+  /** Returns `null` when the patient or the study does not exist. */
+  getImagingStudy(patientId: string, studyId: string): Promise<ImagingStudy | null> {
+    return orNullIfMissing(
+      request(API_ROUTES.imagingStudy(patientId, studyId), ImagingStudySchema),
+    );
+  },
+
+  updateImagingStudy(
+    patientId: string,
+    studyId: string,
+    input: UpdateImagingStudyInput,
+  ): Promise<ImagingStudy> {
+    return request(API_ROUTES.imagingStudy(patientId, studyId), ImagingStudySchema, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    });
+  },
+
+  /** Deletes the study with its images. */
+  async deleteImagingStudy(patientId: string, studyId: string): Promise<void> {
+    await request(
+      API_ROUTES.imagingStudy(patientId, studyId),
+      { parse: () => undefined },
+      {
+        method: "DELETE",
+      },
+    );
   },
 
   getDashboardOverview(): Promise<DashboardOverview> {

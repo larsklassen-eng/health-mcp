@@ -2,7 +2,13 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { DEFAULT_DATABASE_PATH, REPO_ROOT, resolveDatabasePath } from "../src/index.js";
+import {
+  DEFAULT_DATABASE_PATH,
+  DEFAULT_IMAGING_DIR,
+  REPO_ROOT,
+  resolveDatabasePath,
+  resolveImagingDir,
+} from "../src/index.js";
 
 describe("resolveDatabasePath", () => {
   it("defaults to data/health.db at the repo root", () => {
@@ -27,5 +33,13 @@ describe("resolveDatabasePath", () => {
 
   it("points REPO_ROOT at the monorepo root", () => {
     expect(REPO_ROOT).toBe(path.resolve(import.meta.dirname, "../../..") + path.sep);
+  });
+});
+
+describe("resolveImagingDir", () => {
+  it("defaults to data/imaging at the repo root and resolves relative paths from it", () => {
+    expect(resolveImagingDir({})).toBe(path.join(REPO_ROOT, DEFAULT_IMAGING_DIR));
+    expect(resolveImagingDir({ IMAGING_DIR: "tmp/img" })).toBe(path.join(REPO_ROOT, "tmp/img"));
+    expect(resolveImagingDir({ IMAGING_DIR: "/srv/img" })).toBe("/srv/img");
   });
 });

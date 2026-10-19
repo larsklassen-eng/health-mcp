@@ -30,13 +30,22 @@ describe("fixtures/synthetic-patients.json", () => {
   });
 
   it("has no records dated before the patient was born", () => {
-    for (const { patient, labResults, vitals, symptoms } of patients) {
+    for (const { patient, labResults, vitals, symptoms, imagingStudies } of patients) {
       const dates = [
         ...labResults.map((r) => r.collectedAt),
         ...vitals.map((v) => v.recordedAt),
         ...symptoms.map((s) => s.recordedAt),
+        ...imagingStudies.map((s) => s.studyDate),
       ];
       expect(dates.every((date) => date.slice(0, 10) > patient.dateOfBirth)).toBe(true);
+    }
+  });
+
+  it("gives every patient imaging studies with reports marked as synthetic", () => {
+    for (const { imagingStudies } of patients) {
+      expect(imagingStudies.length).toBeGreaterThanOrEqual(2);
+      for (const study of imagingStudies)
+        expect(study.report).toMatch(/^Synthetic report for testing; not a real patient\./);
     }
   });
 
