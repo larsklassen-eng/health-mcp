@@ -10,18 +10,26 @@ export interface LabResultsOutput {
   results: LabResultInput[];
   /** True when more results match than `limit` allowed. */
   hasMore: boolean;
-  /** The patient's test names, only when a `test_name` filter matched nothing, so the model can retry. */
+  /** Requested test names the patient has no results for, so the model can retry. */
+  unknownTests?: string[];
+  /** The patient's test names, only when `unknownTests` is set. */
   availableTests?: string[];
 }
 
 export const getLabResults =
   (db: HealthDb): ToolHandler<"get_lab_results"> =>
-  ({ patient_id, test_name, since, limit }): LabResultsOutput => {
+  ({ patient_id, test_names, since, limit }): LabResultsOutput => {
     requirePatient(db, patient_id);
+    const requested = test_names?.map((name) => name.trim());
 
     const conditions: SQL[] = [eq(labResults.patientId, patient_id)];
-    if (test_name !== undefined)
-      conditions.push(sql`${labResults.testName} = ${test_name.trim()} collate nocase`);
+    if (requested) {
+      const names = sql.join(
+        requested.map((name) => sql`${name.toLowerCase()}`),
+        sql`, `,
+      );
+      conditions.push(sql`lower(${labResults.testName}) in (${names})`);
+    }
     // Stored times are UTC ISO strings, so `since` is converted to the same form before comparing text.
     if (since !== undefined)
       conditions.push(gte(labResults.collectedAt, new Date(since).toISOString()));
@@ -38,14 +46,18 @@ export const getLabResults =
       results: rows.slice(0, limit).map(toLabResultInput),
       hasMore: rows.length > limit,
     };
-    if (rows.length === 0 && test_name !== undefined) {
-      output.availableTests = db
+    if (requested) {
+      const available = db
         .selectDistinct({ testName: labResults.testName })
         .from(labResults)
         .where(eq(labResults.patientId, patient_id))
         .orderBy(asc(labResults.testName))
         .all()
         .map((row) => row.testName);
+      const known = new Set(available.map((name) => name.toLowerCase()));
+      const unknown = requested.filter((name) => !known.has(name.toLowerCase()));
+      if (unknown.length > 0)
+        Object.assign(output, { unknownTests: unknown, availableTests: available });
     }
     return output;
   };

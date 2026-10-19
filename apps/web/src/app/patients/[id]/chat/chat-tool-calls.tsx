@@ -24,6 +24,7 @@ function formatValue(value: unknown): string {
   if (typeof value === "string")
     return ISO_DATE.test(value) ? dateFormat.format(new Date(value)) : value;
   if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (Array.isArray(value)) return value.map(formatValue).join(", ");
   return JSON.stringify(value);
 }
 

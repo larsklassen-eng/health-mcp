@@ -60,6 +60,13 @@ describe("MCP tool contracts", () => {
       mcpToolInputSchema("get_lab_results").safeParse({ patient_id: "p1", limit: 500 }).success,
     ).toBe(false);
   });
+
+  it("takes several lab test names in one call, but not an empty list", () => {
+    const schema = mcpToolInputSchema("get_lab_results");
+    expect(schema.safeParse({ patient_id: "p1", test_names: ["WBC", "ANC"] }).success).toBe(true);
+    expect(schema.safeParse({ patient_id: "p1", test_names: [] }).success).toBe(false);
+    expect(schema.safeParse({ patient_id: "p1", test_names: "WBC" }).success).toBe(false);
+  });
 });
 
 describe("requiresConfirmation", () => {

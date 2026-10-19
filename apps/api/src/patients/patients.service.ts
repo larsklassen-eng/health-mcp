@@ -1,4 +1,4 @@
-import { patients, toPatient, toPatientSummary } from "@health-mcp/db";
+import { labResults, patients, toPatient, toPatientSummary } from "@health-mcp/db";
 import type {
   CreatePatientInput,
   Patient,
@@ -28,6 +28,17 @@ export class PatientsService {
     const row = this.database.db.select().from(patients).where(eq(patients.id, id)).get();
     if (!row) throw new NotFoundException(`Patient ${id} not found`);
     return toPatient(row);
+  }
+
+  /** Names of the lab tests the patient has results for, alphabetically. */
+  labTestNames(id: string): string[] {
+    return this.database.db
+      .selectDistinct({ testName: labResults.testName })
+      .from(labResults)
+      .where(eq(labResults.patientId, id))
+      .orderBy(asc(labResults.testName))
+      .all()
+      .map((row) => row.testName);
   }
 
   create(input: CreatePatientInput): Patient {

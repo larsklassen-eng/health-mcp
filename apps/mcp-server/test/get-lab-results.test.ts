@@ -84,10 +84,20 @@ describe("get_lab_results", () => {
       collectedAt: "2026-10-01T08:00:00.000Z",
     });
 
-    const { results, availableTests } = await output({ test_name: " hemoglobin " });
+    const { results, availableTests } = await output({ test_names: [" hemoglobin "] });
 
     expect(results.map((r) => r.testName)).toEqual(["Hemoglobin"]);
     expect(availableTests).toBeUndefined();
+  });
+
+  it("returns several tests in one call", async () => {
+    for (const testName of ["Hemoglobin", "Platelets", "ALT"])
+      insertLab(server.db, patientId, { testName, collectedAt: "2026-10-01T08:00:00.000Z" });
+
+    const found = await output({ test_names: ["PLATELETS", "hemoglobin"] });
+
+    expect(found.results.map((r) => r.testName)).toEqual(["Hemoglobin", "Platelets"]);
+    expect(found).not.toHaveProperty("unknownTests");
   });
 
   it("lists the available test names when the filter matches nothing", async () => {
@@ -98,10 +108,23 @@ describe("get_lab_results", () => {
     insertLab(server.db, patientId, { testName: "ALT", collectedAt: "2026-10-02T08:00:00.000Z" });
     insertLab(server.db, patientId, { testName: "ALT", collectedAt: "2026-10-03T08:00:00.000Z" });
 
-    const { results, availableTests } = await output({ test_name: "Hgb" });
+    const { results, unknownTests, availableTests } = await output({ test_names: ["Hgb"] });
 
     expect(results).toEqual([]);
+    expect(unknownTests).toEqual(["Hgb"]);
     expect(availableTests).toEqual(["ALT", "Platelets"]);
+  });
+
+  it("returns the tests it found and names the ones it did not", async () => {
+    insertLab(server.db, patientId, { testName: "ALT", collectedAt: "2026-10-02T08:00:00.000Z" });
+
+    const { results, unknownTests, availableTests } = await output({
+      test_names: ["alt", "Vitamin D"],
+    });
+
+    expect(results.map((r) => r.testName)).toEqual(["ALT"]);
+    expect(unknownTests).toEqual(["Vitamin D"]);
+    expect(availableTests).toEqual(["ALT"]);
   });
 
   it("returns results at or after `since`, comparing in UTC", async () => {
@@ -156,7 +179,7 @@ describe("get_lab_results", () => {
       collectedAt: "2026-10-01T08:00:00.000Z",
     });
 
-    const { availableTests } = await output({ test_name: "x" });
+    const { availableTests } = await output({ test_names: ["x"] });
 
     expect(availableTests).toEqual([]);
   });
@@ -179,6 +202,7 @@ describe("get_lab_results", () => {
     ["a limit above 100", { limit: 101 }],
     ["a limit of 0", { limit: 0 }],
     ["a since that is not a timestamp", { since: "last week" }],
+    ["an empty list of test names", { test_names: [] }],
   ])("rejects %s", async (_, args) => {
     const result = await call(args);
 

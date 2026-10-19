@@ -126,7 +126,7 @@ The cases are in `packages/evals/src/cases.ts`. Grading is deterministic, with n
 - text the answer must mention (case-insensitive; a list means any one of them), and text it must not mention, such as values the patient does not have;
 - that the model finished normally (not an error or the tool-round limit).
 
-Each run prints ✓/✗ per case with the reasons and the case's model calls, tokens and cost, then the totals. It writes a JSON report with the answers, each case's `usage` and the run's total to `eval-results/` (git-ignored). The exit code is 1 if any case fails. CI does not run evals; `yarn test` checks the grader, the stream parsing, and that every expected value really is in the fixture. To try the runner without model calls, point `OPENROUTER_BASE_URL` at a local fake server.
+Each run prints ✓/✗ per case with the reasons and the case's model calls, tokens and cost, then the totals. It writes a JSON report with the answers, each case's tool calls with their arguments and `usage`, and the run's total to `eval-results/` (git-ignored). The exit code is 1 if any case fails. CI does not run evals; `yarn test` checks the grader, the stream parsing, and that every expected value really is in the fixture. To try the runner without model calls, point `OPENROUTER_BASE_URL` at a local fake server.
 
 ### Continuous integration
 
@@ -168,7 +168,7 @@ Serves the patient-scoped health tools over [MCP](https://modelcontextprotocol.i
 | Tool | Status |
 |---|---|
 | `get_patient_profile` | Done: demographics, diagnosis and surgery date |
-| `get_lab_results` | Done: newest first, as `{ results, hasMore }`. Optional `test_name` (case-insensitive; when nothing matches, `availableTests` lists the patient's test names), `since` (any UTC offset) and `limit` (default 20, max 100) |
+| `get_lab_results` | Done: newest first, as `{ results, hasMore }`. Optional `test_names` (one or more, case-insensitive, so related tests come in one call; names the patient has no results for are listed in `unknownTests`, with the patient's test names in `availableTests`), `since` (any UTC offset) and `limit` (default 20, max 100) |
 | `get_vitals_trend` | Done: one `vital_type` over the last `days` (default 30, max 365), oldest first, with a `summary` (count, min, max, average, first, latest, change). Above 120 readings it returns one `daily` entry per UTC day instead of every reading. When the window is empty, `lastRecordedAt` says when the vital was last recorded |
 | `get_medications` | Done: `status` is `active` (default), `stopped` or `all`. Active before stopped, then the most recently started first, as `{ medications }` |
 | `get_recovery_milestones` | Done: optional `status` (`pending`, `achieved`, `missed`). By target date, earliest first, undated last, as `{ milestones, counts }`; `counts` has every status, whatever the filter |
@@ -238,7 +238,7 @@ data: {"type":"message_end","messageId":"…","stopReason":"stop","usage":{"mode
 - `message_end.usage` has the answer's model calls, tokens and cost in USD, summed over all tool rounds. Cached tokens and cost are included when OpenRouter reports them. The api also logs these totals.
 - If the model fails, the stream ends with `{"type":"error","message":"…"}` (details are logged on the server, not sent) and no partial answer is saved.
 - If the client disconnects, the model request is cancelled and nothing more is saved.
-- The model gets a system prompt with the patient's profile (`apps/api/src/chat/system-prompt.ts`), then the text of the patient's recent chat history: the newest whole messages within `CHAT_HISTORY_MAX_CHARS` (40,000 characters by default), starting with a question. When older messages are left out, the system prompt says so. The saved history keeps every message. Tool results from earlier answers are not resent; the model calls the tools again when it needs the data.
+- The model gets a system prompt with the patient's profile and the names of their lab tests (`apps/api/src/chat/system-prompt.ts`), so it can ask for the right tests in one call; then the text of the patient's recent chat history: the newest whole messages within `CHAT_HISTORY_MAX_CHARS` (40,000 characters by default), starting with a question. When older messages are left out, the system prompt says so. The saved history keeps every message. Tool results from earlier answers are not resent; the model calls the tools again when it needs the data.
 
 #### Agent loop (`apps/api/src/chat/agent.service.ts`)
 

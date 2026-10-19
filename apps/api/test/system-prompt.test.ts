@@ -56,4 +56,12 @@ describe("buildSystemPrompt", () => {
     expect(prompt).not.toContain(patient.id);
     expect(prompt).not.toContain(patient.updatedAt);
   });
+
+  it("lists the patient's lab test names when there are any", () => {
+    const prompt = buildSystemPrompt(patient, "2026-10-13", ["ALT", "Hemoglobin"]);
+
+    expect(prompt).toContain("Lab tests on record (use these exact names");
+    expect(prompt).toContain(": ALT, Hemoglobin.");
+    expect(buildSystemPrompt(patient, "2026-10-13")).not.toContain("Lab tests on record");
+  });
 });

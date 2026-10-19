@@ -88,7 +88,7 @@ describe("HttpMcpClient", () => {
 
   it("sends the bearer token and adds patient_id to the arguments", async () => {
     const result = await connect().callTool("p1", "get_lab_results", {
-      test_name: "Hemoglobin",
+      test_names: ["Hemoglobin"],
       limit: 5,
     });
 
@@ -96,11 +96,11 @@ describe("HttpMcpClient", () => {
       {
         authorization: `Bearer ${TOKEN}`,
         tool: "get_lab_results",
-        args: { test_name: "Hemoglobin", limit: 5, patient_id: "p1" },
+        args: { test_names: ["Hemoglobin"], limit: 5, patient_id: "p1" },
       },
     ]);
     expect(result).toEqual({
-      output: { test_name: "Hemoglobin", limit: 5, patient_id: "p1" },
+      output: { test_names: ["Hemoglobin"], limit: 5, patient_id: "p1" },
       isError: false,
     });
   });

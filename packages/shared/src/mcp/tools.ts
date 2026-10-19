@@ -30,12 +30,17 @@ export const MCP_TOOLS = {
   },
   get_lab_results: {
     description:
-      "Get the current patient's lab results, newest first. Optionally filter by test name or date.",
+      "Get the current patient's lab results, newest first. Optionally filter by test names or date.",
     args: z.object({
-      test_name: z
-        .string()
+      test_names: z
+        .array(z.string().min(1).max(200))
+        .min(1)
+        .max(20)
         .optional()
-        .describe("Exact lab test name, e.g. 'Hemoglobin'. Omit for all tests."),
+        .describe(
+          "Exact lab test names, e.g. ['Hemoglobin', 'Platelets']. " +
+            "Ask for every test you need in one call. Omit for all tests.",
+        ),
       since: IsoDateTimeSchema.optional().describe("Only results collected at or after this time."),
       limit: z.int().min(1).max(100).default(20).describe("Maximum number of results."),
     }),

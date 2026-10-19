@@ -63,7 +63,8 @@ export class ChatService {
     const previous = recentHistory(this.history.list(patientId), this.env.CHAT_HISTORY_MAX_CHARS);
     this.history.append(patientId, { role: "user", content: message });
 
-    let system = buildSystemPrompt(patient, new Date().toISOString().slice(0, 10));
+    const today = new Date().toISOString().slice(0, 10);
+    let system = buildSystemPrompt(patient, today, this.patients.labTestNames(patientId));
     if (previous.omitted > 0) {
       system += `\n\n${OMITTED_HISTORY_NOTE}`;
       this.logger.log(`Left out ${previous.omitted} older messages for patient ${patientId}`);

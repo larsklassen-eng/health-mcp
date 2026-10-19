@@ -68,6 +68,7 @@ async function runCase(apiUrl: string, bundle: PatientImportBundle, evalCase: Ev
   return {
     ...grade(evalCase, transcript),
     durationMs,
+    toolInputs: transcript.toolCalls.map(({ name, input }) => ({ name, input })),
     ...(transcript.usage && { usage: transcript.usage }),
     answer: transcript.answer,
   };

@@ -87,7 +87,7 @@ describe("chat with tools", () => {
     });
     expect(tools[1]!.parameters).toMatchObject({
       type: "object",
-      properties: { test_name: { type: "string" } },
+      properties: { test_names: { type: "array", items: { type: "string" } } },
     });
     expect(JSON.stringify(tools)).not.toContain("patient_id");
   });
@@ -156,7 +156,7 @@ describe("chat with tools", () => {
       .replyWithToolCalls({
         id: "call_1",
         name: "get_lab_results",
-        arguments: { test_name: "Hemoglobin" },
+        arguments: { test_names: ["Hemoglobin"] },
       })
       .replyWithText("Hemoglobin is 11.2.");
 
@@ -168,7 +168,7 @@ describe("chat with tools", () => {
       {
         id: "call_1",
         name: "get_lab_results",
-        input: { test_name: "Hemoglobin", limit: 20 },
+        input: { test_names: ["Hemoglobin"], limit: 20 },
         output: [{ testName: "Hemoglobin", value: 11.2 }],
         isError: false,
       },
@@ -199,13 +199,13 @@ describe("chat with tools", () => {
       .replyWithToolCalls({
         id: "call_1",
         name: "get_lab_results",
-        arguments: { test_name: "Hemoglobin" },
+        arguments: { test_names: ["Hemoglobin"] },
       })
       .replyWithText("Done.");
 
     await sendChat("Labs?");
 
-    expect(mcp.calls[0]!.args).toEqual({ test_name: "Hemoglobin", limit: 20 });
+    expect(mcp.calls[0]!.args).toEqual({ test_names: ["Hemoglobin"], limit: 20 });
   });
 
   it("shows the rejected arguments, without patient_id, when they fail validation", async () => {

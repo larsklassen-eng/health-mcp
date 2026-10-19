@@ -57,6 +57,10 @@ export const EvalResultSchema = z.object({
   toolCalls: z.array(z.string()),
   failures: z.array(z.string()),
   durationMs: z.number().nonnegative().optional(),
+  /** The arguments of each tool call, in order (in the report, for review). */
+  toolInputs: z
+    .array(z.object({ name: z.string(), input: z.record(z.string(), z.unknown()) }))
+    .optional(),
   usage: ChatUsageSchema.optional(),
   answer: z.string().optional(),
 });

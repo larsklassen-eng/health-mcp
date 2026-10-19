@@ -24,6 +24,10 @@ describe("formatToolInput", () => {
     );
   });
 
+  it("lists array values, such as several test names", () => {
+    expect(formatToolInput({ test_names: ["WBC", "ANC"] })).toBe("test names: WBC, ANC");
+  });
+
   it("is empty for a tool without arguments", () => {
     expect(formatToolInput({})).toBe("");
   });

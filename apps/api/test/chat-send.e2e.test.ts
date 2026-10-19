@@ -1,3 +1,4 @@
+import { labResults } from "@health-mcp/db";
 import {
   API_ROUTES,
   ApiErrorSchema,
@@ -12,6 +13,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { AppModule } from "../src/app.module.js";
 import { OMITTED_HISTORY_NOTE } from "../src/chat/chat.service.js";
 import { ENV } from "../src/config/config.module.js";
+import { DatabaseService } from "../src/database/database.service.js";
 import { loadEnv } from "../src/config/env.js";
 import { LlmClient, LlmError } from "../src/llm/llm-client.js";
 import { FakeLlmClient } from "./fakes/fake-llm-client.js";
@@ -147,6 +149,25 @@ describe(`POST ${API_ROUTES.patientChat(":id")}`, () => {
     // The saved history is not affected.
     const { body: saved } = await testApp.request("GET", API_ROUTES.patientChat(id));
     expect(ChatHistoryResponseSchema.parse(saved).messages).toHaveLength(6);
+  });
+
+  it("tells the model the patient's lab test names", async () => {
+    const db = testApp.app.get(DatabaseService).db;
+    for (const testName of ["Sodium", "ALT", "Sodium"])
+      db.insert(labResults)
+        .values({
+          patientId: patient.id,
+          testName,
+          value: 1,
+          unit: "u",
+          collectedAt: "2026-10-01T08:00:00.000Z",
+        })
+        .run();
+    llm.replyWithText("Ok.");
+
+    await sendChat(patient.id, { message: "Labs?" });
+
+    expect(llm.requests[0]!.messages[0]!.content).toContain(": ALT, Sodium.");
   });
 
   it("keeps each patient's conversation separate", async () => {

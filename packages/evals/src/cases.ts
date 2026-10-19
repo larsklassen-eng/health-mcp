@@ -40,14 +40,17 @@ export const CASES: EvalCaseInput[] = [
     patientMrn: "FAKE-MET-0005",
     userMessage: "How are his white cell counts looking?",
     expectedToolCalls: [{ name: "get_lab_results" }],
-    answerIncludes: ["3.6", "neutrophil"],
+    answerIncludes: ["3.6", ["neutrophil", "ANC"]],
   },
   {
     id: "missing-lab",
     description: "Says a test is not on record instead of inventing a value",
     patientMrn: "FAKE-GBM-0001",
     userMessage: "What is his latest vitamin D level?",
-    expectedToolCalls: [{ name: "get_lab_results" }],
+    // The prompt lists his lab tests, so a lookup is optional; inventing a value is not.
+    answerIncludes: [
+      ["can't find", "cannot find", "not on file", "not on record", "no vitamin d", "isn't one of"],
+    ],
     answerExcludes: ["ng/mL", "nmol/L"],
   },
   {
