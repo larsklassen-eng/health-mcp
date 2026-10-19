@@ -1,7 +1,7 @@
 import type { ToolCall } from "@health-mcp/shared";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   ChatToolCalls,
@@ -114,5 +114,81 @@ describe("ChatToolCalls", () => {
     expect(screen.getByText("some_new_tool")).toBeInTheDocument();
     const output = screen.getByRole("listitem").querySelector("pre")!.textContent!;
     expect(output).toBe(`${"x".repeat(MAX_OUTPUT_CHARS)}\n… (shortened)`);
+  });
+
+  describe("entries that need confirmation", () => {
+    const pending: ToolCall = {
+      id: "t9",
+      name: "log_symptom",
+      input: { name: "Headache", severity: 4 },
+      output: "Not saved yet.",
+      isError: false,
+      confirmation: "pending",
+    };
+
+    it("asks to save or discard, showing what will be saved", async () => {
+      const onDecide = vi.fn().mockResolvedValue(undefined);
+      render(<ChatToolCalls calls={[pending]} onDecide={onDecide} />);
+
+      const item = screen.getByRole("listitem");
+      expect(item).toHaveClass("pending");
+      expect(item).toHaveTextContent("Log symptom");
+      expect(item).toHaveTextContent("Needs your confirmation");
+      expect(item).toHaveTextContent("Nothing was saved.");
+      const group = screen.getByRole("group", { name: "Confirm entry" });
+      expect(group).toHaveTextContent("name: Headache · severity: 4");
+
+      await userEvent.setup().click(within(group).getByRole("button", { name: "Save" }));
+      expect(onDecide).toHaveBeenCalledWith("t9", "confirm");
+    });
+
+    it("discards, and shows an error from the decision", async () => {
+      const onDecide = vi
+        .fn()
+        .mockResolvedValue("The MCP server is not reachable. Nothing was saved.");
+      render(<ChatToolCalls calls={[pending]} onDecide={onDecide} />);
+
+      await userEvent.setup().click(screen.getByRole("button", { name: "Discard" }));
+
+      expect(onDecide).toHaveBeenCalledWith("t9", "reject");
+      expect(await screen.findByRole("alert")).toHaveTextContent("MCP server is not reachable");
+      expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+    });
+
+    it("disables the buttons while the answer streams, and hides them without a handler", () => {
+      const { unmount } = render(
+        <ChatToolCalls calls={[pending]} onDecide={vi.fn()} decisionsDisabled />,
+      );
+      expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Discard" })).toBeDisabled();
+      unmount();
+
+      render(<ChatToolCalls calls={[pending]} />);
+      expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
+    });
+
+    it("shows saved and discarded entries without buttons", () => {
+      render(
+        <ChatToolCalls
+          calls={[
+            {
+              ...pending,
+              id: "a",
+              confirmation: "confirmed",
+              output: { symptom: { name: "Headache" } },
+            },
+            { ...pending, id: "b", confirmation: "rejected" },
+          ]}
+          onDecide={vi.fn()}
+        />,
+      );
+
+      const [saved, discarded] = screen.getAllByRole("listitem");
+      expect(saved).toHaveTextContent("Saved");
+      expect(saved!.querySelector("pre")).toHaveTextContent('"name": "Headache"');
+      expect(discarded).toHaveTextContent("Discarded");
+      expect(discarded).toHaveTextContent("Nothing was saved.");
+      expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    });
   });
 });

@@ -15,6 +15,9 @@ import {
   PatientListResponseSchema,
   PatientSchema,
   type PatientSummary,
+  type ToolCall,
+  type ToolCallDecisionRequest,
+  ToolCallSchema,
   type UpdatePatientInput,
 } from "@health-mcp/shared";
 
@@ -97,6 +100,18 @@ export const api = {
       request(API_ROUTES.patientChat(patientId), ChatHistoryResponseSchema),
     );
     return history?.messages ?? null;
+  },
+
+  /** Confirms (runs) or discards a tool call that waits for the clinician; returns it updated. */
+  decideToolCall(
+    patientId: string,
+    toolCallId: string,
+    decision: ToolCallDecisionRequest["decision"],
+  ): Promise<ToolCall> {
+    return request(API_ROUTES.toolCallDecision(patientId, toolCallId), ToolCallSchema, {
+      method: "POST",
+      body: JSON.stringify({ decision }),
+    });
   },
 
   getDashboardOverview(): Promise<DashboardOverview> {

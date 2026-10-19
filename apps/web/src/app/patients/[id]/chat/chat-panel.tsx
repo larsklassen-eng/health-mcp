@@ -5,7 +5,9 @@ import { type FormEvent, type KeyboardEvent, useRef, useState } from "react";
 
 import { ChatSendError, GENERIC_SEND_ERROR, sendChatMessage } from "@/lib/chat-client";
 
+import { decideToolCallAction } from "./actions";
 import { ChatTranscript } from "./chat-transcript";
+import type { DecideToolCall } from "./tool-call-confirmation";
 
 const MAX_MESSAGE_LENGTH = 8000;
 
@@ -67,9 +69,11 @@ export function ChatPanel({ patientId, initialMessages }: Props) {
           setDraftCalls(calls);
           setRunning((ids) => new Set(ids).add(event.toolCallId));
         } else if (event.type === "tool_call_result") {
-          const { toolCallId, output, isError } = event;
+          const { toolCallId, output, isError, confirmation } = event;
           calls = calls.map((call) =>
-            call.id === toolCallId ? { ...call, output, isError } : call,
+            call.id === toolCallId
+              ? { ...call, output, isError, ...(confirmation && { confirmation }) }
+              : call,
           );
           setDraftCalls(calls);
           setRunning((ids) => {
@@ -109,6 +113,20 @@ export function ChatPanel({ patientId, initialMessages }: Props) {
     }
   }
 
+  /** Saves or discards an entry the assistant proposed, then shows the updated card. */
+  const decide: DecideToolCall = async (toolCallId, decision) => {
+    const result = await decideToolCallAction(patientId, toolCallId, decision);
+    if ("error" in result) return result.error;
+    const updated = result.toolCall;
+    setMessages((m) =>
+      m.map((message) => ({
+        ...message,
+        toolCalls: message.toolCalls.map((call) => (call.id === updated.id ? updated : call)),
+      })),
+    );
+    return undefined;
+  };
+
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const text = input.trim();
@@ -141,7 +159,12 @@ export function ChatPanel({ patientId, initialMessages }: Props) {
   return (
     <>
       <div aria-busy={streaming}>
-        <ChatTranscript messages={shown} runningToolCalls={running} />
+        <ChatTranscript
+          messages={shown}
+          runningToolCalls={running}
+          onDecide={decide}
+          decisionsDisabled={streaming}
+        />
       </div>
 
       {error && (

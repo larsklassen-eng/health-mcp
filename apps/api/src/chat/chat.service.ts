@@ -12,7 +12,19 @@ import { ChatHistoryService } from "./chat-history.service.js";
 import { recentHistory } from "./history-window.js";
 import { buildSystemPrompt } from "./system-prompt.js";
 
-const toLlmMessage = ({ role, content }: ChatMessage): LlmMessage => ({ role, content });
+/** Tells the model, in later turns, what became of entries that needed the clinician's decision. */
+function decisionNote({ name, input, confirmation }: ToolCall): string | undefined {
+  const entry = `${name} ${JSON.stringify(input)}`;
+  if (confirmation === "confirmed") return `[The clinician confirmed and saved: ${entry}]`;
+  if (confirmation === "rejected") return `[The clinician discarded: ${entry}]`;
+  if (confirmation === "pending") return `[Still waiting for the clinician to confirm: ${entry}]`;
+  return undefined;
+}
+
+const toLlmMessage = ({ role, content, toolCalls }: ChatMessage): LlmMessage => {
+  const notes = toolCalls.map(decisionNote).filter((note) => note !== undefined);
+  return { role, content: [content, ...notes].filter(Boolean).join("\n\n") };
+};
 
 /** Added to the system prompt when older messages were left out. */
 export const OMITTED_HISTORY_NOTE =
@@ -93,13 +105,15 @@ export class ChatService {
             };
             break;
           case "tool_call_result": {
+            const { output, isError, confirmation } = event;
             const call = toolCalls.find((c) => c.id === event.id);
-            if (call) Object.assign(call, { output: event.output, isError: event.isError });
+            if (call) Object.assign(call, { output, isError }, confirmation && { confirmation });
             yield {
               type: "tool_call_result",
               toolCallId: event.id,
-              output: event.output,
-              isError: event.isError,
+              output,
+              isError,
+              ...(confirmation && { confirmation }),
             };
             break;
           }

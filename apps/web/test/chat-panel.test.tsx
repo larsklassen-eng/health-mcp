@@ -5,6 +5,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ChatPanel } from "@/app/patients/[id]/chat/chat-panel";
 
+const { decideToolCallAction } = vi.hoisted(() => ({ decideToolCallAction: vi.fn() }));
+vi.mock("@/app/patients/[id]/chat/actions", () => ({ decideToolCallAction }));
+
 const fetchMock = vi.fn<typeof fetch>();
 vi.stubGlobal("fetch", fetchMock);
 afterEach(() => fetchMock.mockReset());
@@ -166,6 +169,41 @@ describe("ChatPanel", () => {
       .at(-1)!;
     expect(answer).toHaveTextContent("No results.");
     expect(answer.querySelector(".tool-call.done")).toHaveTextContent("test name: Hemoglobin");
+  });
+
+  it("lets the clinician save an entry the assistant proposed, once the answer is done", async () => {
+    const stream = controlledStream();
+    const call = { id: "t1", name: "log_symptom", input: { name: "Headache", severity: 4 } };
+    decideToolCallAction.mockResolvedValueOnce({
+      toolCall: { ...call, output: { symptom: {} }, isError: false, confirmation: "confirmed" },
+    });
+    const { user, box } = setup();
+
+    await user.type(box, "Log a headache{Enter}");
+    stream.push({ type: "message_start", messageId: "a1" });
+    stream.push({ type: "tool_call_start", toolCallId: "t1", name: call.name, input: call.input });
+    stream.push({
+      type: "tool_call_result",
+      toolCallId: "t1",
+      output: "Not saved yet.",
+      isError: false,
+      confirmation: "pending",
+    });
+    const save = await screen.findByRole("button", { name: "Save" });
+    expect(save).toBeDisabled(); // the answer is not saved yet
+
+    stream.push({ type: "text_delta", delta: "Please confirm." });
+    stream.push({ type: "message_end", messageId: "a1" });
+    stream.close();
+    // The saved answer replaces the draft, so look the button up again.
+    await waitFor(() => expect(screen.getByRole("button", { name: "Save" })).toBeEnabled());
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(decideToolCallAction).toHaveBeenCalledWith("p1", "t1", "confirm");
+    await waitFor(() =>
+      expect(screen.getByText("Log symptom").closest(".tool-call")).toHaveTextContent("Saved"),
+    );
+    expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
   });
 
   it("shows the api's error event and keeps the question", async () => {

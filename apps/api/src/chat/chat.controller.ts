@@ -4,12 +4,16 @@ import {
   IdSchema,
   type SendChatMessageRequest,
   SendChatMessageRequestSchema,
+  type ToolCall,
+  type ToolCallDecisionRequest,
+  ToolCallDecisionRequestSchema,
 } from "@health-mcp/shared";
-import { Body, Controller, Get, Param, Post, Res } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Res } from "@nestjs/common";
 import type { Response } from "express";
 
 import { ChatHistoryService } from "./chat-history.service.js";
 import { ChatService } from "./chat.service.js";
+import { ToolCallDecisionService } from "./tool-call-decision.service.js";
 
 const idParam = { schema: IdSchema };
 
@@ -19,7 +23,22 @@ export class ChatController {
   constructor(
     private readonly history: ChatHistoryService,
     private readonly chat: ChatService,
+    private readonly decisions: ToolCallDecisionService,
   ) {}
+
+  /**
+   * Confirms or discards a tool call that waits for the clinician (e.g. a
+   * symptom to log). Confirming runs the tool; returns the updated tool call.
+   */
+  @Post(":id/chat/tool-calls/:toolCallId/decision")
+  @HttpCode(HttpStatus.OK)
+  decide(
+    @Param("id", idParam) patientId: string,
+    @Param("toolCallId", idParam) toolCallId: string,
+    @Body({ schema: ToolCallDecisionRequestSchema }) body: ToolCallDecisionRequest,
+  ): Promise<ToolCall> {
+    return this.decisions.decide(patientId, toolCallId, body);
+  }
 
   @Get(":id/chat")
   getHistory(@Param("id", idParam) patientId: string): ChatHistoryResponse {

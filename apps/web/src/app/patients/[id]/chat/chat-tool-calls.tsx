@@ -1,5 +1,7 @@
 import type { McpToolName, ToolCall } from "@health-mcp/shared";
 
+import { type DecideToolCall, ToolCallConfirmation } from "./tool-call-confirmation";
+
 const TOOL_LABELS: Record<McpToolName, string> = {
   get_patient_profile: "Patient profile",
   get_lab_results: "Lab results",
@@ -40,20 +42,41 @@ function formatOutput(output: unknown): string {
     : text;
 }
 
+type Status = "running" | "failed" | "done" | "pending" | "confirmed" | "rejected";
+
+const STATUS_LABELS: Record<Status, string> = {
+  running: "Running…",
+  failed: "Failed",
+  done: "Done",
+  pending: "Needs your confirmation",
+  confirmed: "Saved",
+  rejected: "Discarded",
+};
+
+function statusOf(call: ToolCall, running: ReadonlySet<string> | undefined): Status {
+  if (running?.has(call.id)) return "running";
+  if (call.isError) return "failed";
+  return call.confirmation ?? "done";
+}
+
 interface Props {
   calls: ToolCall[];
   /** Calls still waiting for their result. */
   running?: ReadonlySet<string>;
+  /** Saves or discards a pending entry; without it, pending entries show no buttons. */
+  onDecide?: DecideToolCall;
+  /** Disables the Save and Discard buttons, e.g. while the answer streams. */
+  decisionsDisabled?: boolean;
 }
 
-/** What data the assistant looked at for an answer: one collapsible card per tool call. */
-export function ChatToolCalls({ calls, running }: Props) {
+/** What the assistant did for an answer: one collapsible card per tool call. */
+export function ChatToolCalls({ calls, running, onDecide, decisionsDisabled }: Props) {
   if (calls.length === 0) return null;
 
   return (
     <ul className="tool-calls" aria-label="Data the assistant used">
       {calls.map((call) => {
-        const status = running?.has(call.id) ? "running" : call.isError ? "failed" : "done";
+        const status = statusOf(call, running);
         const input = formatToolInput(call.input);
         return (
           <li key={call.id} className={`tool-call ${status}`}>
@@ -61,16 +84,24 @@ export function ChatToolCalls({ calls, running }: Props) {
               <summary>
                 <span className="tool-call-name">{toolLabel(call.name)}</span>
                 {input && <span className="tool-call-input">{input}</span>}
-                <span className="tool-call-status">
-                  {status === "running" ? "Running…" : status === "failed" ? "Failed" : "Done"}
-                </span>
+                <span className="tool-call-status">{STATUS_LABELS[status]}</span>
               </summary>
               {status === "running" ? (
                 <p className="muted tool-call-output">Waiting for the result…</p>
+              ) : status === "pending" || status === "rejected" ? (
+                <p className="muted tool-call-output">Nothing was saved.</p>
               ) : (
                 <pre className="tool-call-output">{formatOutput(call.output)}</pre>
               )}
             </details>
+            {status === "pending" && onDecide && (
+              <ToolCallConfirmation
+                toolCallId={call.id}
+                summary={input}
+                onDecide={onDecide}
+                disabled={decisionsDisabled ?? false}
+              />
+            )}
           </li>
         );
       })}

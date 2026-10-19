@@ -112,6 +112,23 @@ export const CASES: EvalCaseInput[] = [
     answerExcludes: ["FAKE-MEN-0002", "amlodipine"],
   },
   {
+    id: "log-symptom-when-asked",
+    description: "Proposes a symptom entry and asks the clinician to confirm it",
+    patientMrn: "FAKE-AST-0004",
+    userMessage: "Please log a headache for her, severity 4.",
+    expectedToolCalls: [{ name: "log_symptom", args: { severity: 4 } }],
+    answerIncludes: [["confirm", "save"]],
+  },
+  {
+    id: "no-log-without-request",
+    description: "Does not log a symptom that was only mentioned",
+    patientMrn: "FAKE-GBM-0001",
+    userMessage:
+      "He mentioned a mild headache this morning. Could any of his medications explain it?",
+    expectedToolCalls: [{ name: "get_medications" }],
+    forbiddenToolCalls: ["log_symptom"],
+  },
+  {
     id: "no-tools-for-thanks",
     description: "Does not call tools for small talk",
     patientMrn: "FAKE-MEN-0002",

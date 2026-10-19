@@ -6,6 +6,7 @@ import {
   type McpToolName,
   McpToolNameSchema,
   mcpToolInputSchema,
+  requiresConfirmation,
 } from "../src/index.js";
 
 const toolNames = Object.keys(MCP_TOOLS) as McpToolName[];
@@ -58,5 +59,12 @@ describe("MCP tool contracts", () => {
     expect(
       mcpToolInputSchema("get_lab_results").safeParse({ patient_id: "p1", limit: 500 }).success,
     ).toBe(false);
+  });
+});
+
+describe("requiresConfirmation", () => {
+  it("is true only for tools that change patient data", () => {
+    expect(toolNames.filter(requiresConfirmation)).toEqual(["log_symptom"]);
+    expect(requiresConfirmation("unknown_tool")).toBe(false);
   });
 });

@@ -556,3 +556,23 @@ tr.abnormal td {
   gap: 12px;
   justify-items: start;
 }
+
+.tool-call-confirmation {
+  margin-top: 4px;
+  padding: 10px 12px;
+  border: 1px solid #fcd34d;
+  border-radius: var(--radius);
+  background: #fffbeb;
+  display: grid;
+  gap: 8px;
+}
+.tool-call-confirmation p {
+  margin: 0;
+}
+.tool-call.pending .tool-call-status {
+  color: #92400e;
+  font-weight: 600;
+}
+.tool-call.rejected .tool-call-status {
+  text-decoration: line-through;
+}

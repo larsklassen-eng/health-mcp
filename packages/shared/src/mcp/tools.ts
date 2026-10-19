@@ -59,7 +59,8 @@ export const MCP_TOOLS = {
   },
   log_symptom: {
     description:
-      "Record a symptom the current patient reports. Only use when the user explicitly asks to log it.",
+      "Record a symptom for the current patient. Only use when the clinician asks to log or record it. " +
+      "Nothing is saved until the clinician confirms it in the chat.",
     args: z.object({
       name: z.string().min(1).max(200).describe("Symptom name, e.g. 'headache'."),
       severity: z.int().min(0).max(10).describe("0 = none, 10 = worst imaginable."),
@@ -77,6 +78,15 @@ export const MCP_TOOLS = {
 } as const;
 
 export type McpToolName = keyof typeof MCP_TOOLS;
+
+/**
+ * Tools that change patient data. apps/api never runs them when the model
+ * asks; it shows the call to the clinician, and only runs it once they confirm.
+ */
+export const TOOLS_REQUIRING_CONFIRMATION: readonly McpToolName[] = ["log_symptom"];
+
+export const requiresConfirmation = (name: string): boolean =>
+  (TOOLS_REQUIRING_CONFIRMATION as readonly string[]).includes(name);
 
 export const McpToolNameSchema = z.enum(Object.keys(MCP_TOOLS) as [McpToolName, ...McpToolName[]]);
 

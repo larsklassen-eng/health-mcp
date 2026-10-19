@@ -4,6 +4,12 @@ import { IdSchema, IsoDateTimeSchema } from "./common.js";
 
 export const ChatRoleSchema = z.enum(["user", "assistant"]);
 
+/**
+ * For tools that change data (see `TOOLS_REQUIRING_CONFIRMATION`): `pending`
+ * until the clinician decides, then `confirmed` (the tool ran) or `rejected`.
+ */
+export const ToolCallConfirmationSchema = z.enum(["pending", "confirmed", "rejected"]);
+
 /** A tool the agent called while producing an assistant message. */
 export const ToolCallSchema = z.object({
   id: IdSchema,
@@ -12,6 +18,7 @@ export const ToolCallSchema = z.object({
   input: z.record(z.string(), z.unknown()),
   output: z.unknown().optional(),
   isError: z.boolean().default(false),
+  confirmation: ToolCallConfirmationSchema.optional(),
 });
 
 /** A stored message in one patient's chat history. */
@@ -27,6 +34,11 @@ export const ChatMessageSchema = z.object({
 /** Body of `POST /patients/:id/chat`. */
 export const SendChatMessageRequestSchema = z.object({
   message: z.string().trim().min(1).max(8000),
+});
+
+/** Body of `POST /patients/:id/chat/tool-calls/:toolCallId/decision`. Returns the updated `ToolCall`. */
+export const ToolCallDecisionRequestSchema = z.object({
+  decision: z.enum(["confirm", "reject"]),
 });
 
 /** Response of `GET /patients/:id/chat`. */
@@ -52,6 +64,8 @@ export const ChatStreamEventSchema = z.discriminatedUnion("type", [
     toolCallId: IdSchema,
     output: z.unknown(),
     isError: z.boolean(),
+    /** `pending` when the tool did not run and waits for the clinician to confirm it. */
+    confirmation: z.literal("pending").optional(),
   }),
   z.object({
     type: z.literal("message_end"),
@@ -62,7 +76,9 @@ export const ChatStreamEventSchema = z.discriminatedUnion("type", [
 ]);
 
 export type ChatRole = z.infer<typeof ChatRoleSchema>;
+export type ToolCallConfirmation = z.infer<typeof ToolCallConfirmationSchema>;
 export type ToolCall = z.infer<typeof ToolCallSchema>;
+export type ToolCallDecisionRequest = z.infer<typeof ToolCallDecisionRequestSchema>;
 export type ChatMessage = z.infer<typeof ChatMessageSchema>;
 export type SendChatMessageRequest = z.infer<typeof SendChatMessageRequestSchema>;
 export type ChatHistoryResponse = z.infer<typeof ChatHistoryResponseSchema>;

@@ -6,6 +6,7 @@ import {
   type McpToolArgs,
   type McpToolName,
   McpToolNameSchema,
+  requiresConfirmation,
 } from "@health-mcp/shared";
 import { Injectable, Logger } from "@nestjs/common";
 import { z } from "zod";
@@ -28,7 +29,14 @@ export const TOOL_LIMIT_STOP_REASON = "max_tool_rounds";
 export type AgentEvent =
   | { type: "text_delta"; delta: string }
   | { type: "tool_call_start"; id: string; name: string; input: Record<string, unknown> }
-  | { type: "tool_call_result"; id: string; output: unknown; isError: boolean }
+  | {
+      type: "tool_call_result";
+      id: string;
+      output: unknown;
+      isError: boolean;
+      /** The tool did not run: it changes data, so the clinician must confirm it first. */
+      confirmation?: "pending";
+    }
   | { type: "finish"; reason: string };
 
 /** Tool definition sent to the model: the shared description and the JSON Schema of the model's arguments (no `patient_id`). */
@@ -41,6 +49,12 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
 const toolError = (message: string): McpToolResult => ({ output: message, isError: true });
+
+/** What the model is told instead of running a tool that needs the clinician's confirmation. */
+export const AWAITING_CONFIRMATION =
+  "Not saved yet. The clinician sees this entry in the chat and saves or discards it there. " +
+  "Briefly tell them what will be saved and ask them to confirm. " +
+  "Do not call the tool again for the same entry.";
 
 /** Tool result as the model sees it. */
 const toolMessageContent = ({ output, isError }: McpToolResult) => {
@@ -130,10 +144,12 @@ export class AgentService {
         // The input shown and saved is what the tool actually received; `patient_id` is never part of it.
         yield { type: "tool_call_start", id, name: call.name, input: prepared.input };
 
-        const result =
-          "error" in prepared
-            ? toolError(prepared.error)
-            : await this.callTool(patientId, prepared.tool, prepared.input, signal);
+        let result: McpToolResult & { confirmation?: "pending" };
+        if ("error" in prepared) result = toolError(prepared.error);
+        // Tools that change data never run on the model's request alone; see ToolCallDecisionService.
+        else if (requiresConfirmation(prepared.tool))
+          result = { output: AWAITING_CONFIRMATION, isError: false, confirmation: "pending" };
+        else result = await this.callTool(patientId, prepared.tool, prepared.input, signal);
         yield { type: "tool_call_result", id, ...result };
         conversation.push({
           role: "tool",

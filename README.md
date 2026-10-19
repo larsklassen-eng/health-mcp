@@ -60,7 +60,7 @@ docs/
 
 ## Status
 
-`packages/shared` holds the Zod schemas for patients, health records, the JSON import format, chat and its SSE stream events, dashboards, MCP tool inputs and API routes. `packages/db` has the SQLite schema (7 tables: patients, lab results, vital signs, medications, symptoms, recovery milestones, chat messages), the first migration and a client. `packages/evals` has 12 agent eval cases and a runner (see [Evals](#evals)). `apps/api` has its NestJS foundation: validated config, the database connection, `GET /health`, Zod request validation and a consistent error format. It also has the patient endpoints (create, list, get, update, delete, import) and each patient's chat history (read-only for now). Chat works end to end with tools: `POST /patients/:id/chat` runs the agent loop (OpenRouter model, tools on the MCP server), streams the answer and tool events, and saves the conversation with its tool calls. `GET /dashboards/overview` and `GET /dashboards/patients/:id` serve the dashboards (how each number is calculated is documented on the schemas in `packages/shared/src/schemas/dashboard.ts`). `apps/web` has the Patients pages: list, create, import a JSON file of fake data, a profile with an edit page (including delete, after a confirmation), and a chat per patient that streams the answer as it is written, with a card for each tool call (what was asked, and the result when expanded). It also has the dashboards: an overview of all patients (`/dashboard`) and one per patient (`/patients/:id/dashboard`). `apps/mcp-server` serves the five read-only tools (`get_patient_profile`, `get_lab_results`, `get_vitals_trend`, `get_medications`, `get_recovery_milestones`) over MCP Streamable HTTP, on localhost only and behind a shared token; `log_symptom`, the only tool that writes, comes next. Every workspace has tests, and CI runs on each push to `main`. `fixtures/synthetic-patients.json` has 8 invented patients to import (see [fixtures/README.md](fixtures/README.md)). Work is tracked in Linear (LKLA-1).
+`packages/shared` holds the Zod schemas for patients, health records, the JSON import format, chat and its SSE stream events, dashboards, MCP tool inputs and API routes. `packages/db` has the SQLite schema (7 tables: patients, lab results, vital signs, medications, symptoms, recovery milestones, chat messages), the first migration and a client. `packages/evals` has 14 agent eval cases and a runner (see [Evals](#evals)). `apps/api` has its NestJS foundation: validated config, the database connection, `GET /health`, Zod request validation and a consistent error format. It also has the patient endpoints (create, list, get, update, delete, import) and each patient's chat history. Chat works end to end with tools: `POST /patients/:id/chat` runs the agent loop (OpenRouter model, tools on the MCP server), streams the answer and tool events, and saves the conversation with its tool calls. `GET /dashboards/overview` and `GET /dashboards/patients/:id` serve the dashboards (how each number is calculated is documented on the schemas in `packages/shared/src/schemas/dashboard.ts`). `apps/web` has the Patients pages: list, create, import a JSON file of fake data, a profile with an edit page (including delete, after a confirmation), and a chat per patient that streams the answer as it is written, with a card for each tool call (what was asked, and the result when expanded). It also has the dashboards: an overview of all patients (`/dashboard`) and one per patient (`/patients/:id/dashboard`). `apps/mcp-server` serves all six tools (`get_patient_profile`, `get_lab_results`, `get_vitals_trend`, `get_medications`, `get_recovery_milestones`, `log_symptom`) over MCP Streamable HTTP, on localhost only and behind a shared token. `log_symptom`, the only tool that writes, runs only after the clinician confirms it in the chat (see [Confirming changes](#confirming-changes)). Every workspace has tests, and CI runs on each push to `main`. `fixtures/synthetic-patients.json` has 8 invented patients to import (see [fixtures/README.md](fixtures/README.md)). Work is tracked in Linear (LKLA-1).
 
 ## Getting started
 
@@ -171,7 +171,7 @@ Serves the patient-scoped health tools over [MCP](https://modelcontextprotocol.i
 | `get_vitals_trend` | Done: one `vital_type` over the last `days` (default 30, max 365), oldest first, with a `summary` (count, min, max, average, first, latest, change). Above 120 readings it returns one `daily` entry per UTC day instead of every reading. When the window is empty, `lastRecordedAt` says when the vital was last recorded |
 | `get_medications` | Done: `status` is `active` (default), `stopped` or `all`. Active before stopped, then the most recently started first, as `{ medications }` |
 | `get_recovery_milestones` | Done: optional `status` (`pending`, `achieved`, `missed`). By target date, earliest first, undated last, as `{ milestones, counts }`; `counts` has every status, whatever the filter |
-| `log_symptom` | Not yet |
+| `log_symptom` | Done: saves `name`, `severity` (0–10) and optional `notes`, recorded at the time it runs, and returns `{ symptom }`. apps/api only calls it after the clinician confirms (see [Confirming changes](#confirming-changes)) |
 
 Tool descriptions and input schemas come from `MCP_TOOLS` in `packages/shared`; each tool's input is the model's arguments plus `patient_id`, validated before the tool runs. Results are JSON text. An unknown patient or invalid input is returned as a tool error (`isError`) that the model can read; unexpected failures return a generic message and are logged.
 
@@ -192,7 +192,7 @@ The tools trust the `patient_id` they receive, so the server must only be reacha
 | `/patients/:id` | Profile, with links to edit it, the patient's dashboard and chat |
 | `/patients/:id/edit` | Edit form (the create form, filled in; emptying an optional field clears it), and a Delete button that asks for confirmation first, because it also deletes the patient's records and chat history |
 | `/patients/:id/dashboard` | One patient: latest vitals with a sparkline trend, the latest result of each lab (abnormal ones highlighted), active medications, recent symptoms and recovery milestones |
-| `/patients/:id/chat` | The patient's chat: history, a message box (Enter sends, Shift+Enter adds a line) and the answer streamed as it is written, with a Stop button. Answers are rendered as Markdown (bold, italics, lists, tables, code) with `react-markdown`; raw HTML is not rendered, images are never loaded (a model-written image URL could leak data), and links open in a new tab. Above each answer, a collapsible card per tool call shows the tool, its arguments, running/done/failed, and the result (first 4000 characters) |
+| `/patients/:id/chat` | The patient's chat: history, a message box (Enter sends, Shift+Enter adds a line) and the answer streamed as it is written, with a Stop button. Answers are rendered as Markdown (bold, italics, lists, tables, code) with `react-markdown`; raw HTML is not rendered, images are never loaded (a model-written image URL could leak data), and links open in a new tab. Above each answer, a collapsible card per tool call shows the tool, its arguments, running/done/failed, and the result (first 4000 characters). An entry the assistant proposes (a symptom to log) shows Save and Discard buttons; the card then says Saved or Discarded |
 
 The web app only calls the api from the server (server components and server actions in `src/app/patients/actions.ts`, through `src/lib/api-client.ts`), so `API_URL` never reaches the browser. If the api is not running, the pages say so instead of failing.
 
@@ -211,6 +211,7 @@ Chat answers stream through a proxy route, `POST /patients/:id/chat/stream` (`sr
 | `DELETE` | `/patients/:id` | | `204`; also deletes the patient's records and chat history |
 | `GET` | `/patients/:id/chat` | | `ChatHistoryResponse` (the patient's messages, oldest first) |
 | `POST` | `/patients/:id/chat` | `SendChatMessageRequest` | `200` SSE stream of `ChatStreamEvent` (see below) |
+| `POST` | `/patients/:id/chat/tool-calls/:toolCallId/decision` | `ToolCallDecisionRequest` (`confirm` or `reject`) | `ToolCall`, updated; `409` if already decided, `503`/`502` if saving failed (it stays pending) |
 | `GET` | `/dashboards/overview` | | `DashboardOverview` |
 | `GET` | `/dashboards/patients/:id` | | `PatientDashboard` |
 
@@ -244,6 +245,16 @@ data: {"type":"message_end","messageId":"…","stopReason":"stop"}
 3. `HttpMcpClient` calls the tool with the chat's `patient_id`, added after the model's arguments so nothing can override it.
 4. Results go back to the model, and the loop repeats until it answers, at most 8 rounds of tool calls (`MAX_TOOL_ROUNDS`); a model still asking for tools after that is stopped with `stopReason: "max_tool_rounds"`.
 5. Each call is streamed as `tool_call_start` (the validated arguments the tool received) and `tool_call_result`, and saved with the answer in `toolCalls`. Logs record tool names and timings, never arguments or results.
+
+#### Confirming changes
+
+Tools that change patient data (`TOOLS_REQUIRING_CONFIRMATION` in `packages/shared`, currently `log_symptom`) never run because the model asked:
+
+1. When the model calls one, the api does not call the MCP server. It saves the call with `confirmation: "pending"`, streams it to the web app, and tells the model that nothing is saved until the clinician confirms.
+2. The chat shows the entry with Save and Discard buttons.
+3. Save sends `POST /patients/:id/chat/tool-calls/:toolCallId/decision` with `confirm`. The api validates the saved input again, runs the tool on the MCP server, and marks the call `confirmed` with the result. Discard marks it `rejected` without running anything.
+4. Each entry can be decided once: a second decision gets 409, and two Saves at the same time save only once. If the MCP server fails, the entry stays pending so it can be tried again.
+5. In later turns, the model sees what was decided (e.g. "The clinician confirmed and saved: …").
 
 To try it with a real key (uses OpenRouter credits), set `OPENROUTER_API_KEY` in `.env`, run `yarn dev`, create a patient, then:
 

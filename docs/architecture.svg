@@ -77,7 +77,7 @@
   <rect x="740" y="280" width="230" height="75" rx="10" fill="#f5f3ff" stroke="#7c3aed" stroke-width="1.5"/>
   <text x="756" y="304" class="h">packages/evals</text>
   <text x="756" y="324" class="t">real stack, deterministic grader</text>
-  <text x="756" y="343" class="s">12 cases on synthetic patients · yarn eval</text>
+  <text x="756" y="343" class="s">14 cases on synthetic patients · yarn eval</text>
   <use href="#done" x="946" y="286" width="18" height="18"/>
 
   <!-- apps/api -->
@@ -136,8 +136,8 @@
   <use href="#done" x="462" y="810" width="14" height="14"/><text x="482" y="821" class="t">get_vitals_trend</text>
   <use href="#done" x="462" y="828" width="14" height="14"/><text x="482" y="839" class="t">get_medications</text>
   <use href="#done" x="462" y="846" width="14" height="14"/><text x="482" y="857" class="t">get_recovery_milestones</text>
-  <use href="#todo" x="462" y="864" width="14" height="14"/><text x="482" y="875" class="t">log_symptom <tspan class="s">(next: first write tool)</tspan></text>
-  <text x="456" y="900" class="s">localhost only · bearer token · read-only so far</text>
+  <use href="#done" x="462" y="864" width="14" height="14"/><text x="482" y="875" class="t">log_symptom <tspan class="s">(after clinician confirms)</tspan></text>
+  <text x="456" y="900" class="s">localhost only · bearer token</text>
 
   <!-- SQLite (cylinder) -->
   <path d="M790,745 a80,16 0 0,0 160,0 v130 a80,16 0 0,1 -160,0 z" fill="#fefce8" stroke="#ca8a04" stroke-width="1.5"/>

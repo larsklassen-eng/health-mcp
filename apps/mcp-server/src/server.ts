@@ -6,12 +6,13 @@ import { getMedications } from "./tools/get-medications.js";
 import { getPatientProfile } from "./tools/get-patient-profile.js";
 import { getRecoveryMilestones } from "./tools/get-recovery-milestones.js";
 import { getVitalsTrend } from "./tools/get-vitals-trend.js";
+import { logSymptom } from "./tools/log-symptom.js";
 import { registerTool } from "./tools/tool.js";
 
 export const SERVER_INFO = { name: "health-mcp", version: "0.0.0" };
 
 export interface McpServerOptions {
-  /** Clock for "recent" windows; tests pass a fixed time. */
+  /** Clock for "recent" windows and new records; tests pass a fixed time. */
   now?: () => Date;
 }
 
@@ -23,5 +24,6 @@ export function createMcpServer(db: HealthDb, { now }: McpServerOptions = {}): M
   registerTool(server, "get_vitals_trend", getVitalsTrend(db, now));
   registerTool(server, "get_medications", getMedications(db));
   registerTool(server, "get_recovery_milestones", getRecoveryMilestones(db));
+  registerTool(server, "log_symptom", logSymptom(db, now));
   return server;
 }

@@ -123,6 +123,23 @@ describe("api client", () => {
     expect(fetchMock.mock.calls[0]![1]).toMatchObject({ method: "DELETE" });
   });
 
+  it("sends a tool call decision", async () => {
+    respond(200, {
+      id: "t1",
+      name: "log_symptom",
+      input: {},
+      isError: false,
+      confirmation: "rejected",
+    });
+
+    const call = await api.decideToolCall("p1", "t1", "reject");
+
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(url).toBe("http://api.test/patients/p1/chat/tool-calls/t1/decision");
+    expect(init).toMatchObject({ method: "POST", body: JSON.stringify({ decision: "reject" }) });
+    expect(call.confirmation).toBe("rejected");
+  });
+
   it("gets the dashboard overview", async () => {
     respond(200, { totalPatients: 0, activePatients: 0, abnormalLabsLast7Days: 0, patients: [] });
 

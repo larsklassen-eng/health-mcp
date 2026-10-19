@@ -2,6 +2,7 @@ import type { ChatMessage } from "@health-mcp/shared";
 
 import { ChatMarkdown } from "./chat-markdown";
 import { ChatToolCalls } from "./chat-tool-calls";
+import type { DecideToolCall } from "./tool-call-confirmation";
 
 const ROLE_LABELS: Record<ChatMessage["role"], string> = { user: "You", assistant: "Assistant" };
 
@@ -16,9 +17,12 @@ interface Props {
   messages: ChatMessage[];
   /** Tool calls still waiting for their result (only in the answer being streamed). */
   runningToolCalls?: ReadonlySet<string>;
+  /** Saves or discards entries the assistant proposed (see `ChatToolCalls`). */
+  onDecide?: DecideToolCall;
+  decisionsDisabled?: boolean;
 }
 
-export function ChatTranscript({ messages, runningToolCalls }: Props) {
+export function ChatTranscript({ messages, runningToolCalls, onDecide, decisionsDisabled }: Props) {
   if (messages.length === 0) {
     return (
       <div className="card">
@@ -41,6 +45,8 @@ export function ChatTranscript({ messages, runningToolCalls }: Props) {
             <ChatToolCalls
               calls={message.toolCalls}
               {...(runningToolCalls && { running: runningToolCalls })}
+              {...(onDecide && { onDecide })}
+              decisionsDisabled={decisionsDisabled ?? false}
             />
           )}
           {message.role === "assistant" ? (

@@ -53,6 +53,26 @@ export class ChatHistoryService {
     );
   }
 
+  /** A tool call in the patient's history, or `undefined`. Throws 404 if the patient does not exist. */
+  findToolCall(patientId: string, toolCallId: string): ToolCall | undefined {
+    return this.list(patientId)
+      .flatMap((message) => message.toolCalls)
+      .find((call) => call.id === toolCallId);
+  }
+
+  /** Replaces a saved tool call (matched by id) in the patient's history. */
+  updateToolCall(patientId: string, updated: ToolCall): void {
+    const message = this.list(patientId).find((m) => m.toolCalls.some((c) => c.id === updated.id));
+    if (!message) return;
+    this.database.db
+      .update(chatMessages)
+      .set({
+        toolCalls: message.toolCalls.map((call) => (call.id === updated.id ? updated : call)),
+      })
+      .where(eq(chatMessages.id, message.id))
+      .run();
+  }
+
   /** Saves a message to the patient's history. Throws 404 if the patient does not exist. */
   append(patientId: string, message: NewChatMessage): ChatMessage {
     this.patients.get(patientId);
