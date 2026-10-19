@@ -112,6 +112,31 @@ describe("OpenRouterLlmClient", () => {
     ]);
   });
 
+  it("reports cached input tokens and the cost when OpenRouter includes them", async () => {
+    respond = (res) =>
+      sse(res, [
+        chunk({ content: "Ok" }, "stop"),
+        {
+          ...usageChunk,
+          usage: {
+            ...usageChunk.usage,
+            prompt_tokens_details: { cached_tokens: 100 },
+            cost: 0.0042,
+          },
+        },
+      ]);
+
+    const events = await collect(
+      createClient().stream({ messages: [{ role: "user", content: "Hi" }] }),
+    );
+
+    expect(events.at(-1)).toEqual({
+      type: "finish",
+      reason: "stop",
+      usage: { inputTokens: 120, outputTokens: 8, cachedInputTokens: 100, costUsd: 0.0042 },
+    });
+  });
+
   it("sends the model, limits, messages and tools in OpenRouter's format", async () => {
     await collect(
       createClient().stream({

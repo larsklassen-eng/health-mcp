@@ -443,3 +443,53 @@ describe("chat with tools", () => {
     expect((await history()).map((m) => m.role)).toEqual(["user"]);
   });
 });
+
+describe("usage", () => {
+  it("reports the tokens and cost of all of an answer's model calls in message_end", async () => {
+    mcp.offer("get_lab_results");
+    llm
+      .enqueue([
+        {
+          type: "tool_call",
+          call: { id: "t1", name: "get_lab_results", arguments: "{}" },
+        },
+        {
+          type: "finish",
+          reason: "tool_calls",
+          usage: { inputTokens: 1000, outputTokens: 20, costUsd: 0.01 },
+        },
+      ])
+      .enqueue([
+        { type: "text_delta", delta: "Labs are fine." },
+        {
+          type: "finish",
+          reason: "stop",
+          usage: { inputTokens: 1500, outputTokens: 30, cachedInputTokens: 900, costUsd: 0.02 },
+        },
+      ]);
+
+    const events = await sendChat("Labs?");
+
+    const end = events.at(-1);
+    expect(end?.type === "message_end" && end.usage).toEqual({
+      modelCalls: 2,
+      inputTokens: 2500,
+      outputTokens: 50,
+      cachedInputTokens: 900,
+      costUsd: expect.closeTo(0.03, 10),
+    });
+  });
+
+  it("counts model calls even when the provider reports no usage", async () => {
+    llm.replyWithText("Hi.");
+
+    const events = await sendChat("Hi");
+
+    expect(events.at(-1)).toMatchObject({
+      type: "message_end",
+      usage: { modelCalls: 1, inputTokens: 0, outputTokens: 0 },
+    });
+    const end = events.at(-1);
+    expect(end?.type === "message_end" && end.usage).not.toHaveProperty("costUsd");
+  });
+});

@@ -1,4 +1,4 @@
-import { McpToolNameSchema } from "@health-mcp/shared";
+import { ChatUsageSchema, McpToolNameSchema } from "@health-mcp/shared";
 import { z } from "zod";
 
 /** A tool call a good answer makes. `args` must match the call's input (strings ignore case). */
@@ -43,6 +43,8 @@ export const TranscriptSchema = z.object({
     }),
   ),
   stopReason: z.string().optional(),
+  /** Tokens and cost of the answer, from `message_end`. */
+  usage: ChatUsageSchema.optional(),
   /** Set when the stream reported an error or ended without an answer. */
   error: z.string().optional(),
 });
@@ -55,6 +57,7 @@ export const EvalResultSchema = z.object({
   toolCalls: z.array(z.string()),
   failures: z.array(z.string()),
   durationMs: z.number().nonnegative().optional(),
+  usage: ChatUsageSchema.optional(),
   answer: z.string().optional(),
 });
 

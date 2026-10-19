@@ -90,9 +90,13 @@ export class OpenRouterLlmClient extends LlmClient {
       for await (const chunk of response as AsyncIterable<ChatStreamChunk>) {
         if (chunk.error) throw new LlmError(chunk.error.message, { status: chunk.error.code });
         if (chunk.usage) {
+          const { promptTokens, completionTokens, promptTokensDetails, cost } = chunk.usage;
+          const cachedInputTokens = promptTokensDetails?.cachedTokens;
           usage = {
-            inputTokens: chunk.usage.promptTokens,
-            outputTokens: chunk.usage.completionTokens,
+            inputTokens: promptTokens,
+            outputTokens: completionTokens,
+            ...(cachedInputTokens != null && { cachedInputTokens }),
+            ...(cost != null && { costUsd: cost }),
           };
         }
         for (const choice of chunk.choices) {

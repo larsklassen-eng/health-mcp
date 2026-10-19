@@ -16,6 +16,7 @@ import { type EvalCase, EvalCaseSchema, type EvalResult, type Transcript } from 
 import { grade } from "./grade.js";
 import { startStack } from "./stack.js";
 import { parseChatStream } from "./transcript.js";
+import { formatUsage, sumUsage } from "./usage.js";
 
 /*
  * Runs the agent eval cases against the real stack: apps/api and
@@ -64,13 +65,19 @@ async function runCase(apiUrl: string, bundle: PatientImportBundle, evalCase: Ev
   const durationMs = Math.round(performance.now() - started);
 
   await call(`${apiUrl}${API_ROUTES.patient(patientId)}`, { method: "DELETE" });
-  return { ...grade(evalCase, transcript), durationMs, answer: transcript.answer };
+  return {
+    ...grade(evalCase, transcript),
+    durationMs,
+    ...(transcript.usage && { usage: transcript.usage }),
+    answer: transcript.answer,
+  };
 }
 
 function printResult(result: EvalResult) {
   const seconds = ((result.durationMs ?? 0) / 1000).toFixed(1);
   const tools = result.toolCalls.length > 0 ? result.toolCalls.join(", ") : "no tools";
   console.log(`${result.passed ? "✓" : "✗"} ${result.caseId} (${seconds}s; ${tools})`);
+  console.log(`    ${formatUsage(result.usage)}`);
   for (const failure of result.failures) console.log(`    ${failure}`);
 }
 
@@ -106,7 +113,8 @@ async function main(): Promise<number> {
   connection.close();
 
   const model = process.env.OPENROUTER_MODEL ?? "the api's default model";
-  console.log(`Running ${selected.length} eval cases with ${model}. Each case calls the model.\n`);
+  const count = `${selected.length} eval case${selected.length === 1 ? "" : "s"}`;
+  console.log(`Running ${count} with ${model}. Each case calls the model.\n`);
 
   const stack = await startStack(databasePath);
   const results: EvalResult[] = [];
@@ -124,13 +132,13 @@ async function main(): Promise<number> {
   }
 
   const passed = results.filter((r) => r.passed).length;
+  const usage = sumUsage(results.map((r) => r.usage));
   mkdirSync(RESULTS_DIR, { recursive: true });
   const report = path.join(RESULTS_DIR, `${new Date().toISOString().replaceAll(":", "-")}.json`);
-  writeFileSync(
-    report,
-    `${JSON.stringify({ model, passed, total: results.length, results }, null, 2)}\n`,
-  );
-  console.log(`\n${passed}/${results.length} passed. Report: ${path.relative(REPO_ROOT, report)}`);
+  const summary = { model, passed, total: results.length, usage, results };
+  writeFileSync(report, `${JSON.stringify(summary, null, 2)}\n`);
+  console.log(`\n${passed}/${results.length} passed. Total: ${formatUsage(usage)}.`);
+  console.log(`Report: ${path.relative(REPO_ROOT, report)}`);
   return passed === results.length ? 0 : 1;
 }
 

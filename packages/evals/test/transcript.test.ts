@@ -16,7 +16,12 @@ describe("parseChatStream", () => {
       { type: "tool_call_result", toolCallId: "t2", output: "Patient not found.", isError: true },
       { type: "tool_call_result", toolCallId: "t1", output: { results: [] }, isError: false },
       { type: "text_delta", delta: "No results." },
-      { type: "message_end", messageId: "a1", stopReason: "stop" },
+      {
+        type: "message_end",
+        messageId: "a1",
+        stopReason: "stop",
+        usage: { modelCalls: 2, inputTokens: 900, outputTokens: 40, costUsd: 0.012 },
+      },
     );
 
     expect(parseChatStream(body)).toEqual({
@@ -26,6 +31,7 @@ describe("parseChatStream", () => {
         { name: "get_medications", input: {}, isError: true },
       ],
       stopReason: "stop",
+      usage: { modelCalls: 2, inputTokens: 900, outputTokens: 40, costUsd: 0.012 },
     });
   });
 

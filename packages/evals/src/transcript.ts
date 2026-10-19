@@ -27,6 +27,7 @@ export function parseChatStream(body: string): Transcript {
       case "message_end":
         ended = true;
         if (event.stopReason !== undefined) transcript.stopReason = event.stopReason;
+        if (event.usage !== undefined) transcript.usage = event.usage;
         break;
       case "error":
         transcript.error = event.message;

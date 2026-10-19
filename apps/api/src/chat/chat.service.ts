@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import type { ChatMessage, ChatStreamEvent, ToolCall } from "@health-mcp/shared";
+import type { ChatMessage, ChatStreamEvent, ChatUsage, ToolCall } from "@health-mcp/shared";
 import { Inject, Injectable, Logger } from "@nestjs/common";
 
 import { ENV } from "../config/config.module.js";
@@ -87,6 +87,7 @@ export class ChatService {
 
     let answer = "";
     let stopReason: string | undefined;
+    let usage: ChatUsage | undefined;
     const toolCalls: ToolCall[] = [];
     try {
       for await (const event of this.agent.run(patientId, messages, signal)) {
@@ -119,6 +120,7 @@ export class ChatService {
           }
           case "finish":
             stopReason = event.reason;
+            usage = event.usage;
         }
       }
     } catch (error) {
@@ -137,6 +139,18 @@ export class ChatService {
       content: answer,
       toolCalls,
     });
-    yield { type: "message_end", messageId, ...(stopReason && { stopReason }) };
+    if (usage) {
+      const cost = usage.costUsd === undefined ? "" : `, $${usage.costUsd.toFixed(4)}`;
+      this.logger.log(
+        `Answer used ${usage.modelCalls} model calls, ${usage.inputTokens} input and ` +
+          `${usage.outputTokens} output tokens${cost}`,
+      );
+    }
+    yield {
+      type: "message_end",
+      messageId,
+      ...(stopReason && { stopReason }),
+      ...(usage && { usage }),
+    };
   }
 }

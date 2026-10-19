@@ -126,7 +126,7 @@ The cases are in `packages/evals/src/cases.ts`. Grading is deterministic, with n
 - text the answer must mention (case-insensitive; a list means any one of them), and text it must not mention, such as values the patient does not have;
 - that the model finished normally (not an error or the tool-round limit).
 
-Each run prints ✓/✗ per case with the reasons and writes a JSON report with the answers to `eval-results/` (git-ignored). The exit code is 1 if any case fails. CI does not run evals; `yarn test` checks the grader, the stream parsing, and that every expected value really is in the fixture. To try the runner without model calls, point `OPENROUTER_BASE_URL` at a local fake server.
+Each run prints ✓/✗ per case with the reasons and the case's model calls, tokens and cost, then the totals. It writes a JSON report with the answers, each case's `usage` and the run's total to `eval-results/` (git-ignored). The exit code is 1 if any case fails. CI does not run evals; `yarn test` checks the grader, the stream parsing, and that every expected value really is in the fixture. To try the runner without model calls, point `OPENROUTER_BASE_URL` at a local fake server.
 
 ### Continuous integration
 
@@ -229,11 +229,12 @@ data: {"type":"tool_call_start","toolCallId":"call_1","name":"get_patient_profil
 data: {"type":"tool_call_result","toolCallId":"call_1","output":{"surgeryDate":"2026-09-01",…},"isError":false}
 data: {"type":"text_delta","delta":"Surgery was on "}
 data: {"type":"text_delta","delta":"2026-09-01."}
-data: {"type":"message_end","messageId":"…","stopReason":"stop"}
+data: {"type":"message_end","messageId":"…","stopReason":"stop","usage":{"modelCalls":2,"inputTokens":4310,"outputTokens":95,"costUsd":0.0239}}
 ```
 
 - Invalid input (`400`) and unknown patients (`404`) are normal JSON errors, returned before the stream starts.
 - The question is saved first; the answer is saved under `messageId` only when it completes.
+- `message_end.usage` has the answer's model calls, tokens and cost in USD, summed over all tool rounds. Cached tokens and cost are included when OpenRouter reports them. The api also logs these totals.
 - If the model fails, the stream ends with `{"type":"error","message":"…"}` (details are logged on the server, not sent) and no partial answer is saved.
 - If the client disconnects, the model request is cancelled and nothing more is saved.
 - The model gets a system prompt with the patient's profile (`apps/api/src/chat/system-prompt.ts`), then the text of the patient's recent chat history: the newest whole messages within `CHAT_HISTORY_MAX_CHARS` (40,000 characters by default), starting with a question. When older messages are left out, the system prompt says so. The saved history keeps every message. Tool results from earlier answers are not resent; the model calls the tools again when it needs the data.

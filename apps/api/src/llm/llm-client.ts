@@ -31,6 +31,10 @@ export interface LlmRequest {
 export interface LlmUsage {
   inputTokens: number;
   outputTokens: number;
+  /** Input tokens served from the provider's prompt cache, when reported. */
+  cachedInputTokens?: number;
+  /** Cost of the request in USD, when the provider reports it. */
+  costUsd?: number;
 }
 
 /** `stop` and `tool_calls` are the normal endings; `length` means the output hit the token limit. */

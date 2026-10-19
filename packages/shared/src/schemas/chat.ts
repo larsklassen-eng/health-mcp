@@ -46,6 +46,18 @@ export const ChatHistoryResponseSchema = z.object({
   messages: z.array(ChatMessageSchema),
 });
 
+/** Tokens and cost of one answer, summed over all of its model calls. */
+export const ChatUsageSchema = z.object({
+  /** Model requests made for the answer (one per round of tool calls, plus the final one). */
+  modelCalls: z.int().nonnegative(),
+  inputTokens: z.int().nonnegative(),
+  outputTokens: z.int().nonnegative(),
+  /** Input tokens read from the provider's prompt cache, when it reports them. */
+  cachedInputTokens: z.int().nonnegative().optional(),
+  /** Cost in USD as reported by OpenRouter, when it reports it. */
+  costUsd: z.number().nonnegative().optional(),
+});
+
 /**
  * Events streamed over SSE from `POST /patients/:id/chat`.
  * Each SSE `data:` line is one JSON-encoded event.
@@ -71,11 +83,13 @@ export const ChatStreamEventSchema = z.discriminatedUnion("type", [
     type: z.literal("message_end"),
     messageId: IdSchema,
     stopReason: z.string().optional(),
+    usage: ChatUsageSchema.optional(),
   }),
   z.object({ type: z.literal("error"), message: z.string() }),
 ]);
 
 export type ChatRole = z.infer<typeof ChatRoleSchema>;
+export type ChatUsage = z.infer<typeof ChatUsageSchema>;
 export type ToolCallConfirmation = z.infer<typeof ToolCallConfirmationSchema>;
 export type ToolCall = z.infer<typeof ToolCallSchema>;
 export type ToolCallDecisionRequest = z.infer<typeof ToolCallDecisionRequestSchema>;

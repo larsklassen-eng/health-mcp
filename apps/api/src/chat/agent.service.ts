@@ -5,6 +5,7 @@ import {
   MCP_TOOLS,
   type McpToolArgs,
   type McpToolName,
+  type ChatUsage,
   McpToolNameSchema,
   requiresConfirmation,
 } from "@health-mcp/shared";
@@ -16,6 +17,7 @@ import {
   type LlmMessage,
   type LlmToolCall,
   type LlmToolDefinition,
+  type LlmUsage,
 } from "../llm/llm-client.js";
 import { McpClient, type McpToolResult } from "../mcp/mcp-client.js";
 
@@ -37,12 +39,27 @@ export type AgentEvent =
       /** The tool did not run: it changes data, so the clinician must confirm it first. */
       confirmation?: "pending";
     }
-  | { type: "finish"; reason: string };
+  | { type: "finish"; reason: string; usage: ChatUsage };
 
 /** Tool definition sent to the model: the shared description and the JSON Schema of the model's arguments (no `patient_id`). */
 export function toolDefinition(name: McpToolName): LlmToolDefinition {
   const { $schema: _, ...parameters } = z.toJSONSchema(MCP_TOOLS[name].args, { io: "input" });
   return { name, description: MCP_TOOLS[name].description, parameters };
+}
+
+/** Adds one model call's usage to the answer's total. */
+function addUsage(total: ChatUsage, usage: LlmUsage | undefined): ChatUsage {
+  const sum = (a: number | undefined, b: number | undefined) =>
+    a === undefined && b === undefined ? undefined : (a ?? 0) + (b ?? 0);
+  const cachedInputTokens = sum(total.cachedInputTokens, usage?.cachedInputTokens);
+  const costUsd = sum(total.costUsd, usage?.costUsd);
+  return {
+    modelCalls: total.modelCalls + 1,
+    inputTokens: total.inputTokens + (usage?.inputTokens ?? 0),
+    outputTokens: total.outputTokens + (usage?.outputTokens ?? 0),
+    ...(cachedInputTokens !== undefined && { cachedInputTokens }),
+    ...(costUsd !== undefined && { costUsd }),
+  };
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -103,6 +120,7 @@ export class AgentService {
     const definitions = tools.map(toolDefinition);
     const conversation = [...messages];
     let wroteText = false;
+    let usage: ChatUsage = { modelCalls: 0, inputTokens: 0, outputTokens: 0 };
 
     for (let round = 1; ; round++) {
       let text = "";
@@ -123,16 +141,17 @@ export class AgentService {
           calls.push(event.call);
         } else {
           reason = event.reason;
+          usage = addUsage(usage, event.usage);
         }
       }
 
       if (calls.length === 0) {
-        yield { type: "finish", reason };
+        yield { type: "finish", reason, usage };
         return;
       }
       if (round > MAX_TOOL_ROUNDS) {
         this.logger.warn(`Stopped after ${MAX_TOOL_ROUNDS} tool rounds for patient ${patientId}`);
-        yield { type: "finish", reason: TOOL_LIMIT_STOP_REASON };
+        yield { type: "finish", reason: TOOL_LIMIT_STOP_REASON, usage };
         return;
       }
 
