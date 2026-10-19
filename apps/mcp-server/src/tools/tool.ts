@@ -7,7 +7,10 @@ import {
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 
-/** An expected failure (e.g. unknown patient). Its message is returned to the model as the tool result. */
+/**
+ * An expected failure (e.g. unknown patient). Its message is returned to the
+ * model as the tool result.
+ */
 export class ToolError extends Error {
   constructor(message: string) {
     super(message);

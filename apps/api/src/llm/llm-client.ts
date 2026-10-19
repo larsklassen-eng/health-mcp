@@ -37,7 +37,10 @@ export interface LlmUsage {
   costUsd?: number;
 }
 
-/** `stop` and `tool_calls` are the normal endings; `length` means the output hit the token limit. */
+/**
+ * `stop` and `tool_calls` are the normal endings; `length` means the output
+ * hit the token limit.
+ */
 export type LlmFinishReason =
   "stop" | "tool_calls" | "length" | "content_filter" | "error" | (string & {});
 

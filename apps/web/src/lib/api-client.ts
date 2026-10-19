@@ -73,7 +73,10 @@ async function request<T>(
   return schema.parse(body);
 }
 
-/** Resolves to `null` when the api says the patient does not exist (404, or 400 for a malformed id). */
+/**
+ * Resolves to `null` when the api says the patient does not exist (404, or 400
+ * for a malformed id).
+ */
 async function orNullIfMissing<T>(promise: Promise<T>): Promise<T | null> {
   try {
     return await promise;

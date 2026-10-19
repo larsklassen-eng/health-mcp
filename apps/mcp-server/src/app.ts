@@ -21,7 +21,10 @@ const jsonRpcError = (res: Response, status: number, message: string) =>
 
 const digest = (value: string) => createHash("sha256").update(value).digest();
 
-/** Rejects requests without the shared secret. Hashing first gives equal-length buffers for a constant-time compare. */
+/**
+ * Rejects requests without the shared secret. Hashing first gives equal-length
+ * buffers for a constant-time compare.
+ */
 function requireBearerToken(token: string): RequestHandler {
   const expected = digest(token);
   return (req, res, next) => {
@@ -58,7 +61,8 @@ export function createApp({ db, authToken, ...serverOptions }: AppOptions): Expr
       void server.close();
     });
     try {
-      // The SDK's optional callbacks are typed `?: () => void`, which `exactOptionalPropertyTypes` rejects.
+      // The SDK's optional callbacks are typed `?: () => void`, which
+      // `exactOptionalPropertyTypes` rejects.
       await server.connect(transport as Transport);
       await transport.handleRequest(req, res, req.body);
     } catch (error) {

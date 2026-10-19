@@ -8,7 +8,10 @@ import { McpClient, type McpToolResult } from "./mcp-client.js";
 
 export interface HttpMcpClientOptions {
   url: string;
-  /** Shared secret sent as a bearer token. Without it, every call fails with {@link McpUnavailableError}. */
+  /**
+   * Shared secret sent as a bearer token. Without it, every call fails with
+   * {@link McpUnavailableError}.
+   */
   authToken: string | undefined;
   /** Per-request timeout in milliseconds. */
   timeoutMs?: number;
@@ -93,7 +96,8 @@ export class HttpMcpClient extends McpClient {
       const transport = new StreamableHTTPClientTransport(new URL(url), {
         requestInit: { headers: { Authorization: `Bearer ${authToken}` } },
       });
-      // The SDK's optional callbacks are typed `?: () => void`, which `exactOptionalPropertyTypes` rejects.
+      // The SDK's optional callbacks are typed `?: () => void`, which
+      // `exactOptionalPropertyTypes` rejects.
       await client.connect(transport as Transport, { timeout: this.timeoutMs });
       return client;
     })().catch((cause: unknown) => {

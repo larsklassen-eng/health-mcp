@@ -9,7 +9,10 @@ import {
 } from "@nestjs/common";
 import type { Response } from "express";
 
-/** Turns every error into the shared {@link ApiError} body, and hides internals of unexpected errors. */
+/**
+ * Turns every error into the shared {@link ApiError} body, and hides internals
+ * of unexpected errors.
+ */
 @Catch()
 export class ApiExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(ApiExceptionFilter.name);

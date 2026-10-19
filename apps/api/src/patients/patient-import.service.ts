@@ -12,7 +12,10 @@ import { ConflictException, Injectable } from "@nestjs/common";
 import { isUniqueViolation } from "../common/sqlite-errors.js";
 import { DatabaseService } from "../database/database.service.js";
 
-/** Stored timestamps must be UTC (`...Z`) so text order matches time order; imports may carry offsets. */
+/**
+ * Stored timestamps must be UTC (`...Z`) so text order matches time order;
+ * imports may carry offsets.
+ */
 const toUtc = (timestamp: string): string => new Date(timestamp).toISOString();
 const toUtcOptional = (timestamp: string | undefined): string | undefined =>
   timestamp === undefined ? undefined : toUtc(timestamp);

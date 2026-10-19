@@ -18,7 +18,10 @@ export interface OpenRouterLlmClientOptions {
   apiKey: string | undefined;
   /** OpenRouter model slug, e.g. `anthropic/claude-opus-5.5`. */
   model: string;
-  /** Output token cap per turn. OpenRouter checks the account can pay for this many tokens up front. */
+  /**
+   * Output token cap per turn. OpenRouter checks the account can pay for this
+   * many tokens up front.
+   */
   maxTokens: number;
   /**
    * Only use providers with zero data retention. Requests fail if the model has
@@ -136,7 +139,8 @@ export class OpenRouterLlmClient extends LlmClient {
     if (error.status !== 404 || !this.zeroDataRetention) return error;
     return new LlmError(
       `${error.message}. OPENROUTER_ZDR=true only allows zero-data-retention providers; ` +
-        `check that ${this.model} has one (https://openrouter.ai/docs/features/zdr) or set OPENROUTER_ZDR=false.`,
+        `check that ${this.model} has one (https://openrouter.ai/docs/features/zdr) ` +
+        "or set OPENROUTER_ZDR=false.",
       { status: error.status, cause: error },
     );
   }

@@ -142,7 +142,7 @@ describe("HttpMcpClient", () => {
     );
   });
 
-  it("fails with McpUnavailableError when the server is down, and connects once it is back", async () => {
+  it("fails with McpUnavailableError while the server is down, then reconnects", async () => {
     const { port } = http.address() as AddressInfo;
     http.closeAllConnections();
     await new Promise((resolve) => http.close(resolve));

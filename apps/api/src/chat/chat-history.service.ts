@@ -46,14 +46,18 @@ export class ChatHistoryService {
         .select()
         .from(chatMessages)
         .where(eq(chatMessages.patientId, patientId))
-        // createdAt has millisecond precision; rowid keeps insertion order for messages saved in the same millisecond.
+        // createdAt has millisecond precision; rowid keeps insertion order for
+        // messages saved in the same millisecond.
         .orderBy(asc(chatMessages.createdAt), asc(sql`rowid`))
         .all()
         .map(toChatMessage)
     );
   }
 
-  /** A tool call in the patient's history, or `undefined`. Throws 404 if the patient does not exist. */
+  /**
+   * A tool call in the patient's history, or `undefined`.
+   * Throws 404 if the patient does not exist.
+   */
   findToolCall(patientId: string, toolCallId: string): ToolCall | undefined {
     return this.list(patientId)
       .flatMap((message) => message.toolCalls)

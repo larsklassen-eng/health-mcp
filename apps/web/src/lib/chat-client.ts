@@ -25,7 +25,10 @@ const SEND_ERRORS: Record<number, string> = {
 };
 export const GENERIC_SEND_ERROR = "The message could not be sent. Please try again.";
 
-/** Sends a message and returns the answer's events. Throws `ChatSendError` if the answer never starts. */
+/**
+ * Sends a message and returns the answer's events. Throws `ChatSendError` if
+ * the answer never starts.
+ */
 export async function sendChatMessage(
   patientId: string,
   message: string,

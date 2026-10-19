@@ -36,7 +36,10 @@ export const SendChatMessageRequestSchema = z.object({
   message: z.string().trim().min(1).max(8000),
 });
 
-/** Body of `POST /patients/:id/chat/tool-calls/:toolCallId/decision`. Returns the updated `ToolCall`. */
+/**
+ * Body of `POST /patients/:id/chat/tool-calls/:toolCallId/decision`.
+ * Returns the updated `ToolCall`.
+ */
 export const ToolCallDecisionRequestSchema = z.object({
   decision: z.enum(["confirm", "reject"]),
 });

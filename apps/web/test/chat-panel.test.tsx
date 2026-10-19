@@ -15,7 +15,10 @@ afterEach(() => fetchMock.mockReset());
 const sse = (event: ChatStreamEvent) =>
   new TextEncoder().encode(`data: ${JSON.stringify(event)}\n\n`);
 
-/** A streamed response the test controls: push events, then close. It errors like fetch does when aborted. */
+/**
+ * A streamed response the test controls: push events, then close. It errors
+ * like fetch does when aborted.
+ */
 function controlledStream() {
   let controller!: ReadableStreamDefaultController<Uint8Array>;
   const body = new ReadableStream<Uint8Array>({ start: (c) => void (controller = c) });
@@ -171,7 +174,7 @@ describe("ChatPanel", () => {
     expect(answer.querySelector(".tool-call.done")).toHaveTextContent("test name: Hemoglobin");
   });
 
-  it("lets the clinician save an entry the assistant proposed, once the answer is done", async () => {
+  it("lets the clinician save a proposed entry once the answer is done", async () => {
     const stream = controlledStream();
     const call = { id: "t1", name: "log_symptom", input: { name: "Headache", severity: 4 } };
     decideToolCallAction.mockResolvedValueOnce({

@@ -54,7 +54,8 @@ describe("get_patient_profile", () => {
       diagnosis: "Synthetic meningioma",
       surgeryDate: "2026-09-01",
     });
-    expect(JSON.parse(text(result)!)).not.toHaveProperty("notes"); // null columns are omitted, as in the api
+    // Null columns are omitted, as in the api.
+    expect(JSON.parse(text(result)!)).not.toHaveProperty("notes");
   });
 
   it("only returns the requested patient", async () => {
@@ -87,7 +88,9 @@ describe("get_patient_profile", () => {
   it("returns a generic tool error and logs the cause when the database fails", async () => {
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
     server.db.$client.exec(
-      "DROP TABLE recovery_milestones; DROP TABLE lab_results; DROP TABLE vital_signs; DROP TABLE medications; DROP TABLE symptoms; DROP TABLE chat_messages; DROP TABLE patients",
+      "DROP TABLE recovery_milestones; DROP TABLE lab_results; DROP TABLE vital_signs; " +
+        "DROP TABLE medications; DROP TABLE symptoms; DROP TABLE chat_messages; " +
+        "DROP TABLE patients",
     );
 
     const result = await call({ patient_id: "p1" });

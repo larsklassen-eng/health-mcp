@@ -21,7 +21,10 @@ import {
 } from "../llm/llm-client.js";
 import { McpClient, type McpToolResult } from "../mcp/mcp-client.js";
 
-/** Most rounds of tool calls in one answer; a model still asking for tools after that is stopped. */
+/**
+ * Most rounds of tool calls in one answer;
+ * a model still asking for tools after that is stopped.
+ */
 export const MAX_TOOL_ROUNDS = 8;
 
 /** Stop reason reported when {@link MAX_TOOL_ROUNDS} is reached. */
@@ -41,7 +44,10 @@ export type AgentEvent =
     }
   | { type: "finish"; reason: string; usage: ChatUsage };
 
-/** Tool definition sent to the model: the shared description and the JSON Schema of the model's arguments (no `patient_id`). */
+/**
+ * Tool definition sent to the model: the shared description and the JSON Schema
+ * of the model's arguments (no `patient_id`).
+ */
 export function toolDefinition(name: McpToolName): LlmToolDefinition {
   const { $schema: _, ...parameters } = z.toJSONSchema(MCP_TOOLS[name].args, { io: "input" });
   return { name, description: MCP_TOOLS[name].description, parameters };
@@ -132,7 +138,8 @@ export class AgentService {
         signal,
       )) {
         if (event.type === "text_delta") {
-          // Text from different rounds ("Let me check…", then the answer) reads as separate paragraphs.
+          // Text from different rounds ("Let me check…", then the answer) reads as
+          // separate paragraphs.
           if (!text && wroteText) yield { type: "text_delta", delta: "\n\n" };
           text += event.delta;
           wroteText = true;
@@ -157,15 +164,18 @@ export class AgentService {
 
       conversation.push({ role: "assistant", content: text, toolCalls: calls });
       for (const call of calls) {
-        // Provider ids go back to the model unchanged; events and history need a valid, non-empty id.
+        // Provider ids go back to the model unchanged; events and history need a
+        // valid, non-empty id.
         const id = IdSchema.safeParse(call.id).success ? call.id : randomUUID();
         const prepared = this.prepare(call.name, call.arguments, tools);
-        // The input shown and saved is what the tool actually received; `patient_id` is never part of it.
+        // The input shown and saved is what the tool actually received;
+        // `patient_id` is never part of it.
         yield { type: "tool_call_start", id, name: call.name, input: prepared.input };
 
         let result: McpToolResult & { confirmation?: "pending" };
         if ("error" in prepared) result = toolError(prepared.error);
-        // Tools that change data never run on the model's request alone; see ToolCallDecisionService.
+        // Tools that change data never run on the model's request alone;
+        // see ToolCallDecisionService.
         else if (requiresConfirmation(prepared.tool))
           result = { output: AWAITING_CONFIRMATION, isError: false, confirmation: "pending" };
         else result = await this.callTool(patientId, prepared.tool, prepared.input, signal);
@@ -227,7 +237,8 @@ export class AgentService {
         signal,
       );
       this.logger.log(
-        `Tool ${tool} ${result.isError ? "returned an error" : "succeeded"} in ${Math.round(performance.now() - started)} ms`,
+        `Tool ${tool} ${result.isError ? "returned an error" : "succeeded"} ` +
+          `in ${Math.round(performance.now() - started)} ms`,
       );
       return result;
     } catch (error) {

@@ -105,7 +105,7 @@ describe(`POST ${API_ROUTES.patientChat(":id")}`, () => {
     expect(start?.type === "message_start" && start.messageId).toBe(messages[1]?.id);
   });
 
-  it("sends a patient-specific system prompt, the history and the new message, without tools", async () => {
+  it("sends the patient's system prompt, the history and the new message, no tools", async () => {
     llm.replyWithText("First answer.").replyWithText("Second answer.");
 
     await sendChat(patient.id, { message: "First question" });
@@ -213,7 +213,7 @@ describe(`POST ${API_ROUTES.patientChat(":id")}`, () => {
       expect(llm.requests).toHaveLength(0);
     });
 
-    it("returns 404 for an unknown patient without calling the model or saving anything", async () => {
+    it("returns 404 for an unknown patient without calling the model or saving", async () => {
       const { status, isStream, json } = await sendChat("does-not-exist", { message: "Hi" });
 
       expect(status).toBe(404);

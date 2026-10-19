@@ -205,7 +205,7 @@ describe("OpenRouterLlmClient", () => {
     expect(requests[0]?.body.provider).toEqual({ data_collection: "deny", zdr: true });
   });
 
-  it("still excludes data-collecting providers when zero data retention is turned off", async () => {
+  it("excludes data-collecting providers even with zero data retention off", async () => {
     await collect(
       createClient({ zeroDataRetention: false }).stream({
         messages: [{ role: "user", content: "Hi" }],
@@ -347,7 +347,8 @@ describe("OpenRouterLlmClient", () => {
   });
 
   it("stops with an aborted LlmError when the caller aborts", async () => {
-    respond = (res) => sse(res, [chunk({ content: "Still thinking" })], { end: false }); // server never finishes
+    // The server never finishes the stream.
+    respond = (res) => sse(res, [chunk({ content: "Still thinking" })], { end: false });
     const controller = new AbortController();
 
     const error = await (async () => {

@@ -22,7 +22,8 @@ describe("readChatStream", () => {
   it("parses several events from one chunk", async () => {
     const events = await collect(
       streamOf(
-        'data: {"type":"message_start","messageId":"m1"}\n\ndata: {"type":"text_delta","delta":"Hi"}\n\n',
+        'data: {"type":"message_start","messageId":"m1"}\n\n' +
+          'data: {"type":"text_delta","delta":"Hi"}\n\n',
       ),
     );
     expect(events).toEqual([
@@ -45,7 +46,7 @@ describe("readChatStream", () => {
     expect(events).toEqual([{ type: "text_delta", delta: "10 µg" }]);
   });
 
-  it("accepts CRLF line endings, ignores comments and reads a final event without a blank line", async () => {
+  it("accepts CRLF, ignores comments and reads a final event without a blank line", async () => {
     const events = await collect(
       streamOf(': keep-alive\r\n\r\ndata: {"type":"error","message":"x"}'),
     );

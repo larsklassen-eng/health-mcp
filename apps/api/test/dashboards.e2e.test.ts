@@ -158,7 +158,7 @@ describe("GET /dashboards/overview", () => {
     ]);
   });
 
-  it("uses the newest of labs, vitals, symptoms and achieved milestones as last activity", async () => {
+  it("takes last activity from labs, vitals, symptoms and achieved milestones", async () => {
     const id = insertPatient();
     lab(id, "Sodium", daysAgo(4));
     vital(id, "heart_rate", 70, daysAgo(3));
@@ -206,7 +206,7 @@ describe("GET /dashboards/patients/:id", () => {
     });
   });
 
-  it("returns the latest reading and a trend per vital type, in the shared type order", async () => {
+  it("returns the latest reading and a trend per vital type, in shared order", async () => {
     const id = insertPatient();
     vital(id, "weight", 70, "2026-10-01T08:00:00.000Z");
     vital(id, "heart_rate", 80, "2026-10-01T08:00:00.000Z");

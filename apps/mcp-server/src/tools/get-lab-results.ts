@@ -30,7 +30,8 @@ export const getLabResults =
       );
       conditions.push(sql`lower(${labResults.testName}) in (${names})`);
     }
-    // Stored times are UTC ISO strings, so `since` is converted to the same form before comparing text.
+    // Stored times are UTC ISO strings, so `since` is converted to the same form
+    // before comparing text.
     if (since !== undefined)
       conditions.push(gte(labResults.collectedAt, new Date(since).toISOString()));
 

@@ -1,6 +1,9 @@
 import { z } from "zod";
 
-/** Environment variables read by apps/api. The repo-root `.env` is loaded at startup (`src/load-env.ts`). */
+/**
+ * Environment variables read by apps/api. The repo-root `.env` is loaded at
+ * startup (`src/load-env.ts`).
+ */
 export const EnvSchema = z.object({
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
   PORT: z.coerce.number().int().min(1).max(65535).default(3001),
@@ -12,7 +15,8 @@ export const EnvSchema = z.object({
   OPENROUTER_API_KEY: z
     .string()
     .optional()
-    .transform((value) => value?.trim() || undefined), // `OPENROUTER_API_KEY=` in .env means "not set"
+    // `OPENROUTER_API_KEY=` in .env means "not set".
+    .transform((value) => value?.trim() || undefined),
   /** OpenRouter model slug used for chat. */
   OPENROUTER_MODEL: z.string().min(1).default("anthropic/claude-opus-5.5"),
   /**
@@ -24,7 +28,7 @@ export const EnvSchema = z.object({
   OPENROUTER_PROMPT_CACHING: z.stringbool().default(true),
   /** Override the OpenRouter API base URL, e.g. a local fake server for a dry run of the evals. */
   OPENROUTER_BASE_URL: z.url().optional(),
-  /** apps/mcp-server endpoint. Only loopback URLs make sense: the server listens on localhost only. */
+  /** apps/mcp-server endpoint. Only loopback URLs make sense: the server listens on localhost. */
   MCP_URL: z.url().default("http://127.0.0.1:3002/mcp"),
   /**
    * Shared secret for apps/mcp-server (same value as in its config). Without it,
@@ -34,7 +38,10 @@ export const EnvSchema = z.object({
     .string()
     .optional()
     .transform((value) => value?.trim() || undefined),
-  /** Output token cap per model turn. OpenRouter reserves credit for this many tokens on every request. */
+  /**
+   * Output token cap per model turn. OpenRouter reserves credit for this many
+   * tokens on every request.
+   */
   LLM_MAX_TOKENS: z.coerce.number().int().min(256).max(128_000).default(16_000),
   /**
    * Characters of earlier chat messages sent with each question (about 4 per token).

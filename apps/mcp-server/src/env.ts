@@ -1,6 +1,9 @@
 import { z } from "zod";
 
-/** Environment variables read by apps/mcp-server. The repo-root `.env` is loaded at startup (`src/load-env.ts`). */
+/**
+ * Environment variables read by apps/mcp-server. The repo-root `.env` is
+ * loaded at startup (`src/load-env.ts`).
+ */
 export const EnvSchema = z.object({
   /**
    * Only loopback addresses are allowed: the server trusts the `patient_id` it
@@ -9,7 +12,8 @@ export const EnvSchema = z.object({
   MCP_HOST: z.enum(["127.0.0.1", "localhost", "::1"]).default("127.0.0.1"),
   MCP_PORT: z.coerce.number().int().min(1).max(65535).default(3002),
   /**
-   * Shared secret apps/api sends as `Authorization: Bearer <token>`. Generate with `openssl rand -hex 32`.
+   * Shared secret apps/api sends as `Authorization: Bearer <token>`.
+   * Generate with `openssl rand -hex 32`.
    * Without it the server still starts (so `yarn dev` works) but rejects every request.
    */
   MCP_AUTH_TOKEN: z

@@ -52,8 +52,8 @@ export function ImportPatientsForm({ action }: Props) {
           <ul>
             {state.result.imported.map(({ patientId, mrn, records }) => (
               <li key={patientId}>
-                <Link href={`/patients/${encodeURIComponent(patientId)}`}>{mrn}</Link> ({records}{" "}
-                {records === 1 ? "record" : "records"})
+                <Link href={`/patients/${encodeURIComponent(patientId)}`}>{mrn}</Link> (
+                {records === 1 ? "1 record" : `${records} records`})
               </li>
             ))}
           </ul>

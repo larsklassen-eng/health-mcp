@@ -34,7 +34,10 @@ export interface VitalsTrendOutput {
   since: string;
   /** Every reading, oldest first; omitted when `daily` is used. */
   readings?: VitalReading[];
-  /** One entry per UTC day, oldest first; used instead of `readings` above {@link MAX_RAW_POINTS} readings. */
+  /**
+   * One entry per UTC day, oldest first; used instead of `readings` above
+   * {@link MAX_RAW_POINTS} readings.
+   */
   daily?: DailyVitals[];
   summary: {
     count: number;

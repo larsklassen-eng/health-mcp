@@ -140,7 +140,9 @@ function Vitals({ latest, trends }: { latest: VitalSign[]; trends: VitalTrend[] 
 }
 
 function referenceRange({ referenceLow: low, referenceHigh: high }: LabResult): string {
-  if (low !== undefined && high !== undefined) return `${formatNumber(low)}–${formatNumber(high)}`;
+  if (low !== undefined && high !== undefined) {
+    return `${formatNumber(low)}–${formatNumber(high)}`;
+  }
   if (low !== undefined) return `≥ ${formatNumber(low)}`;
   if (high !== undefined) return `≤ ${formatNumber(high)}`;
   return "—";

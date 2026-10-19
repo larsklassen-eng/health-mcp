@@ -27,7 +27,8 @@ export function Sparkline({ points, unit }: Pick<VitalTrend, "points" | "unit">)
   const coordinates = points.map((p, i) => `${x(times[i]!).toFixed(1)},${y(p.value).toFixed(1)}`);
 
   const label =
-    `${points.length} readings from ${formatDate(first.recordedAt)} to ${formatDate(last.recordedAt)}, ` +
+    `${points.length} readings ` +
+    `from ${formatDate(first.recordedAt)} to ${formatDate(last.recordedAt)}, ` +
     `between ${formatNumber(minValue)} and ${formatNumber(maxValue)} ${unit}`;
 
   return (

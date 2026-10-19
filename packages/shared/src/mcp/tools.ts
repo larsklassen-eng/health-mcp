@@ -30,7 +30,8 @@ export const MCP_TOOLS = {
   },
   get_lab_results: {
     description:
-      "Get the current patient's lab results, newest first. Optionally filter by test names or date.",
+      "Get the current patient's lab results, newest first. " +
+      "Optionally filter by test names or date.",
     args: z.object({
       test_names: z
         .array(z.string().min(1).max(200))
@@ -64,7 +65,8 @@ export const MCP_TOOLS = {
   },
   log_symptom: {
     description:
-      "Record a symptom for the current patient. Only use when the clinician asks to log or record it. " +
+      "Record a symptom for the current patient. " +
+      "Only use when the clinician asks to log or record it. " +
       "Nothing is saved until the clinician confirms it in the chat.",
     args: z.object({
       name: z.string().min(1).max(200).describe("Symptom name, e.g. 'headache'."),
@@ -104,7 +106,8 @@ export type McpToolInput<T extends McpToolName> = McpToolArgs<T> &
 
 /** Schema for the full input of a tool, as validated by apps/mcp-server. */
 export function mcpToolInputSchema<T extends McpToolName>(name: T): z.ZodType<McpToolInput<T>> {
-  // TypeScript cannot follow `extend` through the generic index, so the result type is stated explicitly.
+  // TypeScript cannot follow `extend` through the generic index, so the result
+  // type is stated explicitly.
   return MCP_TOOLS[name].args.extend(PatientIdArgSchema.shape) as unknown as z.ZodType<
     McpToolInput<T>
   >;

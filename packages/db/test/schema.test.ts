@@ -51,11 +51,14 @@ describe("patients", () => {
   it.each([
     [
       "sex",
-      "insert into patients (id, mrn, first_name, last_name, date_of_birth, sex, diagnosis) values ('x', 'M', 'a', 'b', '1990-01-01', 'robot', 'd')",
+      "insert into patients (id, mrn, first_name, last_name, date_of_birth, sex, diagnosis) " +
+        "values ('x', 'M', 'a', 'b', '1990-01-01', 'robot', 'd')",
     ],
     [
       "status",
-      "insert into patients (id, mrn, first_name, last_name, date_of_birth, sex, status, diagnosis) values ('x', 'M', 'a', 'b', '1990-01-01', 'male', 'archived', 'd')",
+      "insert into patients " +
+        "(id, mrn, first_name, last_name, date_of_birth, sex, status, diagnosis) " +
+        "values ('x', 'M', 'a', 'b', '1990-01-01', 'male', 'archived', 'd')",
     ],
   ])("rejects an invalid %s even from raw SQL", (_column, statement) => {
     expect(sqliteErrorCode(() => connection.db.$client.prepare(statement).run())).toBe(
@@ -195,7 +198,8 @@ describe("chat_messages", () => {
     const code = sqliteErrorCode(() =>
       connection.db.$client
         .prepare(
-          "insert into chat_messages (id, patient_id, role, content) values ('m1', ?, 'system', 'x')",
+          "insert into chat_messages (id, patient_id, role, content) " +
+            "values ('m1', ?, 'system', 'x')",
         )
         .run(patient.id),
     );

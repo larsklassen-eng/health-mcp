@@ -9,7 +9,8 @@ export async function* readChatStream(
   body: ReadableStream<Uint8Array>,
 ): AsyncGenerator<ChatStreamEvent> {
   const reader = body.getReader();
-  const decoder = new TextDecoder(); // `stream: true` keeps multi-byte characters split across chunks intact
+  // `stream: true` (below) keeps multi-byte characters split across chunks intact.
+  const decoder = new TextDecoder();
   let buffer = "";
   try {
     while (true) {

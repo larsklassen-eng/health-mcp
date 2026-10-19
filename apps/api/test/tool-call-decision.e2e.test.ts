@@ -191,7 +191,8 @@ describe("tools that need the clinician's confirmation", () => {
 
     const assistant = llm.requests[2]!.messages.filter((m) => m.role === "assistant").at(-1);
     expect(assistant?.content).toBe(
-      'Please confirm the headache entry.\n\n[The clinician confirmed and saved: log_symptom {"name":"Headache","severity":4}]',
+      "Please confirm the headache entry.\n\n" +
+        '[The clinician confirmed and saved: log_symptom {"name":"Headache","severity":4}]',
     );
   });
 

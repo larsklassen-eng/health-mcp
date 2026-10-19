@@ -72,7 +72,7 @@ const toolMessage = (index: number, toolCallId: string) =>
   );
 
 describe("chat with tools", () => {
-  it("offers the MCP server's tools with the shared descriptions and without patient_id", async () => {
+  it("offers the MCP server's tools with shared descriptions, without patient_id", async () => {
     mcp.offer("get_patient_profile").offer("get_lab_results");
     llm.replyWithText("Hi.");
 
@@ -101,7 +101,7 @@ describe("chat with tools", () => {
     expect(llm.requests[0]!.tools!.map((t) => t.name)).toEqual(["get_patient_profile"]);
   });
 
-  it("runs a tool for the chat's patient, returns the result to the model and streams both", async () => {
+  it("runs a tool for the chat's patient and streams the call and its result", async () => {
     mcp.offer("get_patient_profile", (_args, patientId) => ({
       output: { id: patientId, diagnosis: "Synthetic meningioma" },
       isError: false,

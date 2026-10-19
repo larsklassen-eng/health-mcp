@@ -45,7 +45,10 @@ export class PatientsController {
     return this.patients.create(input);
   }
 
-  /** `POST /patients/import`: see `PatientImportFileSchema` in @health-mcp/shared for the file format. */
+  /**
+   * `POST /patients/import`. The file format is `PatientImportFileSchema` in
+   * @health-mcp/shared.
+   */
   @Post("import")
   import(
     @Body({ schema: PatientImportFileSchema }) file: ParsedPatientImportFile,

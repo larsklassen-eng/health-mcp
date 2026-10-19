@@ -34,7 +34,8 @@ describe("migrateDb", () => {
     const connection = createTestDb();
     const tables = connection.db.$client
       .prepare(
-        "select name from sqlite_master where type = 'table' and name not like 'sqlite_%' order by name",
+        "select name from sqlite_master " +
+          "where type = 'table' and name not like 'sqlite_%' order by name",
       )
       .all()
       .map((row) => (row as { name: string }).name);
