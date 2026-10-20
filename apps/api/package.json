@@ -5,12 +5,12 @@
   "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "dev": "tsc -p tsconfig.json && (tsc -p tsconfig.json --watch --preserveWatchOutput & node --watch-path=dist dist/main.js)",
+    "dev": "tsc && (tsc --watch --preserveWatchOutput & node --watch-path=dist dist/main.js)",
     "start": "node dist/main.js",
     "typecheck": "tsc -p tsconfig.test.json",
     "clean": "rm -rf dist",
     "test": "vitest run",
-    "imaging:synthetic": "node dist/cli/write-synthetic-dicom.js"
+    "imaging:synthetic": "turbo run build && node dist/cli/write-synthetic-dicom.js"
   },
   "dependencies": {
     "@health-mcp/db": "workspace:*",

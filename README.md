@@ -16,7 +16,7 @@ The editable source is [`docs/architecture.svg`](docs/architecture.svg).
 |---|---|---|
 | `apps/web` | Next.js | **Patients**: list, create, import fake data. **Patient chat** (`/patients/:id/chat`): streams tokens and tool-call cards. **Dashboards**: an overview of all patients and a per-patient view. Talks only to `apps/api`. |
 | `apps/api` | NestJS | REST endpoints for patients and dashboards. `POST /patients/:id/chat` streams the agent's reply over SSE. Runs the agent loop, calls the LLM through OpenRouter, and calls MCP tools. |
-| `apps/mcp-server` | MCP TypeScript SDK | Standalone MCP server exposing patient-scoped health tools (labs, vitals, medications, symptoms, recovery milestones). |
+| `apps/mcp-server` | MCP TypeScript SDK | Standalone MCP server exposing patient-scoped health tools (labs, vitals, medications, symptoms, recovery milestones, imaging reports). |
 | `packages/shared` | Zod | Schemas and inferred types shared by every app (API contracts, tool inputs). |
 | `packages/db` | SQLite + Drizzle ORM | Database schema, migrations and client used by `apps/api` and `apps/mcp-server`. Stores patients, health records and chat history per patient. |
 | `packages/evals` | Zod + TypeScript | Agent eval cases on the synthetic patients, a deterministic grader, and `yarn eval` to run them against the real stack. |

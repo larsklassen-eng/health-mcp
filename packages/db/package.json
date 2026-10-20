@@ -14,8 +14,8 @@
     "dev": "tsc -p tsconfig.json --watch --preserveWatchOutput",
     "typecheck": "tsc -p tsconfig.test.json",
     "clean": "rm -rf dist",
-    "db:generate": "drizzle-kit generate",
-    "db:migrate": "node dist/migrate.js",
+    "db:generate": "turbo run build && drizzle-kit generate",
+    "db:migrate": "turbo run build && node dist/migrate.js",
     "db:studio": "drizzle-kit studio",
     "test": "vitest run"
   },

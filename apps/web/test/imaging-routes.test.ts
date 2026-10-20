@@ -1,8 +1,8 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { GET } from "@/app/patients/[id]/imaging/[studyId]/series/[seriesId]/images/[position]/route";
 import { POST } from "@/app/patients/[id]/imaging/dicom/route";
+import { proxyImage } from "@/lib/image-proxy";
 
 const fetchMock = vi.fn<typeof fetch>();
 vi.stubGlobal("fetch", fetchMock);
@@ -41,10 +41,8 @@ describe("POST /patients/[id]/imaging/dicom", () => {
   });
 });
 
-describe("GET image", () => {
-  const params = (position: string) => ({
-    params: Promise.resolve({ id: "p1", studyId: "s1", seriesId: "r1", position }),
-  });
+describe("proxyImage", () => {
+  const params = (position: string) => ({ id: "p1", studyId: "s1", seriesId: "r1", position });
 
   it("forwards the PNG with its cache header", async () => {
     fetchMock.mockResolvedValueOnce(
@@ -53,7 +51,7 @@ describe("GET image", () => {
       }),
     );
 
-    const response = await GET(new Request("http://web.test/x"), params("7"));
+    const response = await proxyImage(params("7"));
 
     expect(fetchMock.mock.calls[0]![0]).toBe(
       "http://api.test/patients/p1/imaging/s1/series/r1/images/7",
@@ -64,10 +62,10 @@ describe("GET image", () => {
   });
 
   it("returns 404 for a position that is not a number, and passes on api errors", async () => {
-    expect((await GET(new Request("http://web.test/x"), params("../../x"))).status).toBe(404);
+    expect((await proxyImage(params("../../x"))).status).toBe(404);
     expect(fetchMock).not.toHaveBeenCalled();
 
     fetchMock.mockResolvedValueOnce(new Response(null, { status: 404 }));
-    expect((await GET(new Request("http://web.test/x"), params("99"))).status).toBe(404);
+    expect((await proxyImage(params("99"))).status).toBe(404);
   });
 });

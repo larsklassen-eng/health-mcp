@@ -1,7 +1,7 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 
 import type { HealthDb } from "@health-mcp/db";
-import { localhostHostValidation } from "@modelcontextprotocol/sdk/server/middleware/hostHeaderValidation.js";
+import * as hostHeader from "@modelcontextprotocol/sdk/server/middleware/hostHeaderValidation.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import express, { type Express, type RequestHandler, type Response } from "express";
@@ -44,7 +44,7 @@ function requireBearerToken(token: string): RequestHandler {
 export function createApp({ db, authToken, ...serverOptions }: AppOptions): Express {
   const app = express();
   app.disable("x-powered-by");
-  app.use(localhostHostValidation());
+  app.use(hostHeader.localhostHostValidation());
 
   app.get("/health", (_req, res) => {
     res.json({ status: "ok" });

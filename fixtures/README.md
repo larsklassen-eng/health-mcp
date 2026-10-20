@@ -21,3 +21,7 @@ None of it describes a real person. Names, dates of birth and record numbers (`F
 | FAKE-GBM-0008 | Aisha Rahman, 46, F | Glioblastoma | Adjuvant temozolomide; cycle 4 delayed for low platelets |
 
 Each patient has 2–4 imaging studies (MRI, CT and chest X-ray) with invented radiology reports; every report starts with "Synthetic report for testing". The studies have no images: the import file only carries reports. The same history is summarized in `notes`.
+
+## Changing the fixture
+
+The file is maintained by hand: there is no generator to rerun. When you edit it, keep everything invented, start new notes and reports with the "Synthetic…" sentence, and run `yarn test`. `packages/shared/test/synthetic-fixture.test.ts` checks that the file is a valid import, that record numbers start with `FAKE-`, that notes and reports are marked synthetic, that nothing is dated before a patient's birth and that lab flags match their reference ranges. The eval tests also check that every value an eval case expects is in the file.

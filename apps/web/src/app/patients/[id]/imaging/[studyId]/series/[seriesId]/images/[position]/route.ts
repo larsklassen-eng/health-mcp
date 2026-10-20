@@ -1,32 +1,9 @@
-import { API_ROUTES } from "@health-mcp/shared";
+import { type ImageParams, proxyImage } from "@/lib/image-proxy";
 
-import { apiUrl } from "@/lib/api-client";
-
-/** Forwards one PNG slice from the api, so the browser never needs the api's URL. */
+/** One PNG slice of a study's series (see `proxyImage`). */
 export async function GET(
   _request: Request,
-  {
-    params,
-  }: { params: Promise<{ id: string; studyId: string; seriesId: string; position: string }> },
+  { params }: { params: Promise<ImageParams> },
 ): Promise<Response> {
-  const { id, studyId, seriesId, position } = await params;
-  const index = Number(position);
-  if (!Number.isInteger(index) || index < 0) return new Response(null, { status: 404 });
-
-  let upstream: Response;
-  try {
-    upstream = await fetch(`${apiUrl()}${API_ROUTES.imagingImage(id, studyId, seriesId, index)}`, {
-      cache: "no-store",
-    });
-  } catch {
-    return new Response(null, { status: 503 });
-  }
-  if (!upstream.ok || !upstream.body) return new Response(null, { status: upstream.status });
-
-  return new Response(upstream.body, {
-    headers: {
-      "Content-Type": "image/png",
-      "Cache-Control": upstream.headers.get("cache-control") ?? "private, max-age=3600",
-    },
-  });
+  return proxyImage(await params);
 }
