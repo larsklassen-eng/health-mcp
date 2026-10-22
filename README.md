@@ -10,6 +10,8 @@ An AI health-recovery assistant. Clinicians manage patients, review dashboards, 
 
 The editable source is [`docs/architecture.svg`](docs/architecture.svg).
 
+Proposed next step, for learning: two ways to add RAG with a vector database, compared in [`docs/rag-options.md`](docs/rag-options.md).
+
 ### Components
 
 | Workspace | Tech | Responsibility |
@@ -56,6 +58,9 @@ fixtures/
 docs/
   architecture.png    Architecture diagram
   architecture.svg    Diagram source
+  rag-option-a.*      RAG proposal A: patient records in SQLite (sqlite-vec)
+  rag-option-b.*      RAG proposal B: knowledge base in Qdrant
+  rag-options.md      Comparison and plan for both
 ```
 
 ## Status

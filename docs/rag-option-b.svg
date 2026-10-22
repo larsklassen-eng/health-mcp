@@ -1,0 +1,197 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="960" viewBox="0 0 1280 960" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
+    </marker>
+    <marker id="arrow-rag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#c026d3"/>
+    </marker>
+    <style>
+      .title { font-size: 22px; font-weight: 700; fill: #0f172a; }
+      .sub { font-size: 13px; fill: #475569; }
+      .h { font-size: 15px; font-weight: 700; fill: #0f172a; }
+      .t { font-size: 12.5px; fill: #334155; }
+      .s { font-size: 11px; fill: #475569; }
+      .lbl { font-size: 11.5px; fill: #0f172a; font-weight: 600; }
+      .lbl-rag { font-size: 11.5px; fill: #a21caf; font-weight: 700; }
+      .s-rag { font-size: 11px; fill: #86198f; }
+      .new { fill: #fdf4ff; stroke: #c026d3; stroke-width: 1.6; stroke-dasharray: 6 4; }
+      .pill { fill: #c026d3; }
+      .pill-text { font-size: 9.5px; font-weight: 700; fill: #ffffff; letter-spacing: 0.04em; }
+      .edge { stroke: #334155; stroke-width: 1.6; fill: none; marker-end: url(#arrow); }
+      .rag { stroke: #c026d3; stroke-width: 1.8; fill: none; marker-end: url(#arrow-rag); }
+    </style>
+  </defs>
+
+  <rect width="1280" height="960" fill="#ffffff"/>
+  <text x="40" y="44" class="title">RAG option B: a medical knowledge base in Qdrant, retrieved before every answer</text>
+  <text x="40" y="68" class="sub">Public reference texts are embedded once into a separate vector database. For every question the api fetches the best passages and the answer cites them.</text>
+
+  <!-- User -->
+  <rect x="40" y="110" width="160" height="70" rx="10" fill="#f1f5f9" stroke="#64748b" stroke-width="1.5"/>
+  <text x="120" y="141" text-anchor="middle" class="h">User</text>
+  <text x="120" y="160" text-anchor="middle" class="t">(clinician, browser)</text>
+
+  <!-- Knowledge sources -->
+  <rect x="40" y="740" width="168" height="150" rx="10" class="new"/>
+  <text x="54" y="764" class="h">Reference texts</text>
+  <text x="54" y="785" class="s-rag">public-domain or openly</text>
+  <text x="54" y="800" class="s-rag">licensed, e.g. openFDA</text>
+  <text x="54" y="815" class="s-rag">drug labels, patient-</text>
+  <text x="54" y="830" class="s-rag">education guides</text>
+  <text x="54" y="852" class="s">check each source's license;</text>
+  <text x="54" y="867" class="s">no patient data</text>
+
+  <!-- Monorepo boundary -->
+  <rect x="225" y="86" width="790" height="840" rx="14" fill="#fafafa" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="8 6"/>
+  <text x="243" y="106" class="lbl">health-mcp monorepo (+ docker-compose.yml for Qdrant)</text>
+
+  <!-- apps/web -->
+  <rect x="240" y="118" width="420" height="92" rx="10" fill="#e0f2fe" stroke="#0284c7" stroke-width="1.5"/>
+  <text x="256" y="142" class="h">apps/web: Next.js</text>
+  <text x="256" y="162" class="t">Patients · Chat · Dashboards · Imaging (unchanged)</text>
+  <text x="256" y="182" class="s-rag">+ answers show citations [1]–[5] and a Sources list</text>
+  <text x="256" y="197" class="s-rag">   linking to the original reference text</text>
+
+  <!-- apps/api -->
+  <rect x="240" y="250" width="760" height="210" rx="10" fill="#ecfdf5" stroke="#059669" stroke-width="1.5"/>
+  <text x="256" y="272" class="h">apps/api: NestJS</text>
+
+  <rect x="260" y="285" width="140" height="54" rx="8" fill="#ffffff" stroke="#059669"/>
+  <text x="330" y="307" text-anchor="middle" class="lbl">ChatController</text>
+  <text x="330" y="325" text-anchor="middle" class="s">POST /chat → SSE</text>
+
+  <rect x="420" y="285" width="220" height="158" rx="8" class="new"/>
+  <rect x="586" y="291" width="44" height="16" rx="8" class="pill"/>
+  <text x="608" y="302.5" text-anchor="middle" class="pill-text">NEW</text>
+  <text x="434" y="305" class="lbl">RetrievalService</text>
+  <text x="434" y="326" class="s-rag">R1 embed the question</text>
+  <text x="434" y="344" class="s-rag">R2 hybrid search in Qdrant:</text>
+  <text x="434" y="359" class="s-rag">   dense + BM25 keywords, top 20</text>
+  <text x="434" y="377" class="s-rag">R3 rerank, keep the best 5</text>
+  <text x="434" y="395" class="s-rag">R4 add them to the prompt as</text>
+  <text x="434" y="410" class="s-rag">   &lt;reference_documents&gt; with ids</text>
+  <text x="434" y="430" class="s">skips retrieval for small talk</text>
+
+  <rect x="660" y="285" width="150" height="54" rx="8" fill="#ffffff" stroke="#059669"/>
+  <text x="735" y="307" text-anchor="middle" class="lbl">AgentService</text>
+  <text x="735" y="325" text-anchor="middle" class="s">+ cite [n] instructions</text>
+
+  <rect x="830" y="285" width="150" height="54" rx="8" fill="#ffffff" stroke="#059669"/>
+  <text x="905" y="307" text-anchor="middle" class="lbl">LlmClient</text>
+  <text x="905" y="325" text-anchor="middle" class="s">OpenRouter, ZDR only</text>
+
+  <rect x="660" y="362" width="150" height="54" rx="8" fill="#ffffff" stroke="#059669"/>
+  <text x="735" y="384" text-anchor="middle" class="lbl">McpClient</text>
+  <text x="735" y="402" text-anchor="middle" class="s">patient tools (unchanged)</text>
+
+  <!-- Qdrant -->
+  <path d="M260,532 a150,18 0 0,0 300,0 v136 a150,18 0 0,1 -300,0 z" class="new"/>
+  <ellipse cx="410" cy="532" rx="150" ry="18" fill="#fae8ff" stroke="#c026d3" stroke-width="1.6" stroke-dasharray="6 4"/>
+  <rect x="496" y="556" width="44" height="16" rx="8" class="pill"/>
+  <text x="518" y="567.5" text-anchor="middle" class="pill-text">NEW</text>
+  <text x="410" y="574" text-anchor="middle" class="h">Qdrant (Docker, :6333)</text>
+  <text x="410" y="595" text-anchor="middle" class="s-rag">collection medical_kb</text>
+  <text x="410" y="611" text-anchor="middle" class="s-rag">dense vectors (1024) + sparse BM25</text>
+  <text x="410" y="627" text-anchor="middle" class="s-rag">payload: source, title, section, url, license</text>
+  <text x="410" y="647" text-anchor="middle" class="s">no patient data is stored here</text>
+
+  <!-- apps/mcp-server (unchanged) -->
+  <rect x="610" y="540" width="200" height="110" rx="10" fill="#fff7ed" stroke="#ea580c" stroke-width="1.5"/>
+  <text x="624" y="564" class="h">apps/mcp-server</text>
+  <text x="624" y="585" class="t">7 patient tools</text>
+  <text x="624" y="603" class="s">unchanged; the model can</text>
+  <text x="624" y="618" class="s">still look up this patient's</text>
+  <text x="624" y="633" class="s">records next to the sources</text>
+
+  <!-- SQLite (unchanged) -->
+  <path d="M840,552 a75,14 0 0,0 150,0 v100 a75,14 0 0,1 -150,0 z" fill="#fefce8" stroke="#ca8a04" stroke-width="1.5"/>
+  <ellipse cx="915" cy="552" rx="75" ry="14" fill="#fef9c3" stroke="#ca8a04" stroke-width="1.5"/>
+  <text x="915" y="592" text-anchor="middle" class="h">SQLite</text>
+  <text x="915" y="611" text-anchor="middle" class="s">patient records</text>
+  <text x="915" y="626" text-anchor="middle" class="s">(unchanged)</text>
+
+  <!-- apps/ingest -->
+  <rect x="240" y="730" width="360" height="176" rx="10" class="new"/>
+  <rect x="546" y="737" width="44" height="16" rx="8" class="pill"/>
+  <text x="568" y="748.5" text-anchor="middle" class="pill-text">NEW</text>
+  <text x="256" y="754" class="h">apps/ingest: CLI (yarn kb:ingest)</text>
+  <text x="256" y="776" class="s-rag">K1 load the reference texts (HTML, JSON, PDF)</text>
+  <text x="256" y="794" class="s-rag">K2 clean them, split by heading (~500 tokens,</text>
+  <text x="256" y="809" class="s-rag">   with the title and section kept on each chunk)</text>
+  <text x="256" y="827" class="s-rag">K3 embed in batches</text>
+  <text x="256" y="845" class="s-rag">K4 upsert into Qdrant with the source metadata</text>
+  <text x="256" y="868" class="s">re-runs only re-embed changed chunks</text>
+  <text x="256" y="883" class="s">(a content hash per chunk)</text>
+
+  <!-- packages note -->
+  <text x="640" y="700" class="s">packages/shared: + Citation and KB chunk schemas</text>
+  <text x="640" y="716" class="s">packages/evals: + retrieval and citation cases</text>
+
+  <!-- External -->
+  <text x="1040" y="106" class="lbl">External</text>
+  <rect x="1040" y="275" width="210" height="64" rx="10" fill="#f1f5f9" stroke="#64748b" stroke-width="1.5"/>
+  <text x="1145" y="300" text-anchor="middle" class="h">OpenRouter API</text>
+  <text x="1145" y="320" text-anchor="middle" class="s">zero-data-retention providers</text>
+  <rect x="1040" y="360" width="210" height="56" rx="10" fill="#fdf2f8" stroke="#db2777" stroke-width="1.5"/>
+  <text x="1145" y="384" text-anchor="middle" class="h">Anthropic Claude</text>
+  <text x="1145" y="403" text-anchor="middle" class="s">answers with citations</text>
+  <rect x="1040" y="440" width="210" height="80" rx="10" class="new"/>
+  <rect x="1196" y="446" width="44" height="16" rx="8" class="pill"/>
+  <text x="1218" y="457.5" text-anchor="middle" class="pill-text">NEW</text>
+  <text x="1054" y="463" class="h">Voyage AI</text>
+  <text x="1054" y="484" class="s-rag">embeddings: voyage-3.5</text>
+  <text x="1054" y="500" class="s-rag">reranking: rerank-2.5</text>
+
+  <!-- Edges: chat path -->
+  <path d="M200,145 L238,145" class="edge"/>
+  <path d="M395,210 L395,283" class="edge"/>
+  <text x="403" y="236" class="lbl">1 chat question</text>
+  <path d="M400,312 L418,312" class="rag"/>
+  <path d="M640,312 L658,312" class="rag"/>
+  <path d="M810,312 L828,312" class="edge"/>
+  <path d="M980,307 L1038,307" class="edge"/>
+  <text x="986" y="298" class="lbl">2</text>
+  <path d="M1145,339 L1145,358" class="edge"/>
+  <path d="M735,339 L735,360" class="edge"/>
+  <path d="M735,416 L735,538" class="edge"/>
+  <path d="M810,595 L838,595" class="edge"/>
+
+  <!-- Edges: retrieval (R) -->
+  <path d="M500,443 L500,512" class="rag"/>
+  <text x="508" y="490" class="lbl-rag">R2</text>
+  <path d="M600,443 V488 H1038" class="rag"/>
+  <text x="850" y="505" class="lbl-rag">R1, R3 embed and rerank</text>
+
+  <!-- Edges: ingest (K) -->
+  <path d="M208,815 L238,815" class="rag"/>
+  <text x="212" y="808" class="lbl-rag">K1</text>
+  <path d="M410,730 L410,688" class="rag"/>
+  <text x="418" y="716" class="lbl-rag">K4</text>
+  <path d="M600,815 H1025 V505 H1038" class="rag"/>
+  <text x="790" y="808" class="lbl-rag">K3 embed in batches</text>
+
+  <!-- Legend -->
+  <rect x="1035" y="545" width="230" height="365" rx="10" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="1049" y="569" class="lbl">Ingest (once, then on demand)</text>
+  <text x="1049" y="589" class="s">K1 read the reference texts</text>
+  <text x="1049" y="606" class="s">K2 split them into chunks</text>
+  <text x="1049" y="623" class="s">K3 embed the chunks (Voyage)</text>
+  <text x="1049" y="640" class="s">K4 store vectors + metadata</text>
+
+  <text x="1049" y="670" class="lbl">Every question</text>
+  <text x="1049" y="690" class="s">1 web → api, as today</text>
+  <text x="1049" y="707" class="s">R1 embed the question (Voyage)</text>
+  <text x="1049" y="724" class="s">R2 hybrid search in Qdrant</text>
+  <text x="1049" y="741" class="s">R3 rerank (Voyage), keep 5</text>
+  <text x="1049" y="758" class="s">R4 passages go into the prompt</text>
+  <text x="1049" y="775" class="s">2 the model answers citing [n],</text>
+  <text x="1063" y="789" class="s">and can still use patient tools</text>
+
+  <rect x="1049" y="805" width="34" height="20" rx="5" class="new"/>
+  <text x="1092" y="819" class="s">new component</text>
+  <path d="M1049,842 L1089,842" class="rag"/>
+  <text x="1096" y="846" class="s">new data flow</text>
+  <text x="1049" y="874" class="s">The question text goes to Voyage;</text>
+  <text x="1049" y="888" class="s">patient records are never embedded.</text>
+</svg>

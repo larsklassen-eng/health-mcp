@@ -1,0 +1,183 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="960" viewBox="0 0 1280 960" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
+    </marker>
+    <marker id="arrow-rag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#c026d3"/>
+    </marker>
+    <style>
+      .title { font-size: 22px; font-weight: 700; fill: #0f172a; }
+      .sub { font-size: 13px; fill: #475569; }
+      .h { font-size: 15px; font-weight: 700; fill: #0f172a; }
+      .t { font-size: 12.5px; fill: #334155; }
+      .s { font-size: 11px; fill: #475569; }
+      .lbl { font-size: 11.5px; fill: #0f172a; font-weight: 600; }
+      .lbl-rag { font-size: 11.5px; fill: #a21caf; font-weight: 700; }
+      .s-rag { font-size: 11px; fill: #86198f; }
+      .new { fill: #fdf4ff; stroke: #c026d3; stroke-width: 1.6; stroke-dasharray: 6 4; }
+      .pill { fill: #c026d3; }
+      .pill-text { font-size: 9.5px; font-weight: 700; fill: #ffffff; letter-spacing: 0.04em; }
+      .edge { stroke: #334155; stroke-width: 1.6; fill: none; marker-end: url(#arrow); }
+      .rag { stroke: #c026d3; stroke-width: 1.8; fill: none; marker-end: url(#arrow-rag); }
+    </style>
+  </defs>
+
+  <rect width="1280" height="960" fill="#ffffff"/>
+  <text x="40" y="44" class="title">RAG option A: patient records in SQLite (sqlite-vec), searched through an MCP tool</text>
+  <text x="40" y="68" class="sub">Each patient's own free text is embedded on this machine and stored next to the data. The model decides when to search; results are limited to the open patient.</text>
+
+  <!-- User -->
+  <rect x="40" y="110" width="160" height="70" rx="10" fill="#f1f5f9" stroke="#64748b" stroke-width="1.5"/>
+  <text x="120" y="141" text-anchor="middle" class="h">User</text>
+  <text x="120" y="160" text-anchor="middle" class="t">(clinician, browser)</text>
+
+  <!-- Monorepo boundary -->
+  <rect x="225" y="86" width="790" height="840" rx="14" fill="#fafafa" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="8 6"/>
+  <text x="243" y="106" class="lbl">health-mcp monorepo</text>
+
+  <!-- apps/web -->
+  <rect x="240" y="118" width="420" height="92" rx="10" fill="#e0f2fe" stroke="#0284c7" stroke-width="1.5"/>
+  <text x="256" y="142" class="h">apps/web: Next.js</text>
+  <text x="256" y="162" class="t">Patients · Chat · Dashboards · Imaging (unchanged)</text>
+  <text x="256" y="182" class="s-rag">+ the chat's search card lists the passages used,</text>
+  <text x="256" y="197" class="s-rag">   each linking to its report, note or chat message</text>
+
+  <!-- apps/api -->
+  <rect x="240" y="250" width="760" height="262" rx="10" fill="#ecfdf5" stroke="#059669" stroke-width="1.5"/>
+  <text x="256" y="272" class="h">apps/api: NestJS</text>
+
+  <rect x="260" y="285" width="170" height="54" rx="8" fill="#ffffff" stroke="#059669"/>
+  <text x="345" y="307" text-anchor="middle" class="lbl">ChatController</text>
+  <text x="345" y="325" text-anchor="middle" class="s">POST /chat → SSE</text>
+
+  <rect x="450" y="285" width="190" height="54" rx="8" fill="#ffffff" stroke="#059669"/>
+  <text x="545" y="307" text-anchor="middle" class="lbl">AgentService</text>
+  <text x="545" y="325" text-anchor="middle" class="s">tool loop (unchanged)</text>
+
+  <rect x="660" y="285" width="170" height="54" rx="8" fill="#ffffff" stroke="#059669"/>
+  <text x="745" y="307" text-anchor="middle" class="lbl">LlmClient</text>
+  <text x="745" y="325" text-anchor="middle" class="s">OpenRouter, ZDR only</text>
+
+  <rect x="450" y="362" width="190" height="54" rx="8" fill="#ffffff" stroke="#059669"/>
+  <text x="545" y="384" text-anchor="middle" class="lbl">McpClient</text>
+  <text x="545" y="402" text-anchor="middle" class="s">sets patient_id on every call</text>
+
+  <rect x="660" y="362" width="320" height="54" rx="8" fill="#ffffff" stroke="#059669"/>
+  <text x="820" y="384" text-anchor="middle" class="lbl">Record writes (existing)</text>
+  <text x="820" y="402" text-anchor="middle" class="s">import · report edit · DICOM study · confirmed symptom · chat</text>
+
+  <rect x="660" y="438" width="320" height="62" rx="8" class="new"/>
+  <rect x="926" y="444" width="44" height="16" rx="8" class="pill"/>
+  <text x="948" y="455.5" text-anchor="middle" class="pill-text">NEW</text>
+  <text x="676" y="458" class="lbl">IndexingService</text>
+  <text x="676" y="476" class="s-rag">chunks and embeds every saved text in the same</text>
+  <text x="676" y="491" class="s-rag">transaction; re-indexes on edit, deletes with the record</text>
+
+  <!-- packages -->
+  <rect x="240" y="548" width="140" height="62" rx="10" fill="#f5f3ff" stroke="#7c3aed" stroke-width="1.5"/>
+  <text x="254" y="572" class="h">packages/shared</text>
+  <text x="254" y="592" class="s">+ search tool contract</text>
+
+  <rect x="395" y="548" width="135" height="62" rx="10" fill="#f5f3ff" stroke="#7c3aed" stroke-width="1.5"/>
+  <text x="409" y="572" class="h">packages/db</text>
+  <text x="409" y="592" class="s">+ chunk tables</text>
+
+  <rect x="660" y="540" width="320" height="122" rx="10" class="new"/>
+  <rect x="926" y="547" width="44" height="16" rx="8" class="pill"/>
+  <text x="948" y="558.5" text-anchor="middle" class="pill-text">NEW</text>
+  <text x="676" y="563" class="h">packages/rag</text>
+  <text x="676" y="584" class="s-rag">chunk: by section or paragraph, ~800 characters</text>
+  <text x="676" y="601" class="s-rag">embed: bge-small-en-v1.5 via transformers.js,</text>
+  <text x="676" y="616" class="s-rag">   runs on this machine (384 dimensions)</text>
+  <text x="676" y="633" class="s-rag">search: vector nearest neighbours + FTS5</text>
+  <text x="676" y="648" class="s-rag">   keyword match, merged by rank (RRF)</text>
+
+  <!-- apps/mcp-server -->
+  <rect x="240" y="700" width="410" height="200" rx="10" fill="#fff7ed" stroke="#ea580c" stroke-width="1.5"/>
+  <text x="256" y="725" class="h">apps/mcp-server: MCP SDK</text>
+  <text x="256" y="746" class="t">7 existing tools (profile, labs, vitals, medications,</text>
+  <text x="256" y="764" class="t">milestones, imaging reports, log_symptom)</text>
+  <rect x="254" y="778" width="382" height="78" rx="8" class="new"/>
+  <rect x="582" y="784" width="44" height="16" rx="8" class="pill"/>
+  <text x="604" y="795.5" text-anchor="middle" class="pill-text">NEW</text>
+  <text x="268" y="798" class="lbl">search_patient_records(query, sources?, k = 5)</text>
+  <text x="268" y="817" class="s-rag">embeds the query locally, searches only this patient's</text>
+  <text x="268" y="833" class="s-rag">chunks, returns passages with source, date and link</text>
+  <text x="268" y="849" class="s-rag">"no relevant passages" when nothing scores high enough</text>
+  <text x="256" y="884" class="s">patient_id still comes from the api, never the model</text>
+
+  <!-- SQLite -->
+  <path d="M690,722 a150,18 0 0,0 300,0 v158 a150,18 0 0,1 -300,0 z" fill="#fefce8" stroke="#ca8a04" stroke-width="1.5"/>
+  <ellipse cx="840" cy="722" rx="150" ry="18" fill="#fef9c3" stroke="#ca8a04" stroke-width="1.5"/>
+  <text x="840" y="762" text-anchor="middle" class="h">SQLite: data/health.db</text>
+  <text x="840" y="781" text-anchor="middle" class="s">existing tables: patients, labs, vitals, imaging, chat…</text>
+  <text x="840" y="806" text-anchor="middle" class="lbl-rag">new:</text>
+  <text x="840" y="824" text-anchor="middle" class="s-rag">record_chunks (patient_id, source, date, text)</text>
+  <text x="840" y="841" text-anchor="middle" class="s-rag">vec_chunks: sqlite-vec vec0, float[384]</text>
+  <text x="840" y="858" text-anchor="middle" class="s-rag">chunks_fts: FTS5 keyword index</text>
+
+  <!-- External -->
+  <text x="1040" y="106" class="lbl">External</text>
+  <rect x="1040" y="275" width="210" height="64" rx="10" fill="#f1f5f9" stroke="#64748b" stroke-width="1.5"/>
+  <text x="1145" y="300" text-anchor="middle" class="h">OpenRouter API</text>
+  <text x="1145" y="320" text-anchor="middle" class="s">zero-data-retention providers</text>
+  <rect x="1040" y="360" width="210" height="56" rx="10" fill="#fdf2f8" stroke="#db2777" stroke-width="1.5"/>
+  <text x="1145" y="384" text-anchor="middle" class="h">Anthropic Claude</text>
+  <text x="1145" y="403" text-anchor="middle" class="s">no embedding calls leave the app</text>
+
+  <!-- Edges: existing chat path -->
+  <path d="M200,145 L238,145" class="edge"/>
+  <path d="M410,210 L410,283" class="edge"/>
+  <text x="418" y="236" class="lbl">1 chat question</text>
+  <path d="M430,312 L448,312" class="edge"/>
+  <path d="M640,312 L658,312" class="edge"/>
+  <path d="M830,307 L1038,307" class="edge"/>
+  <text x="838" y="298" class="lbl">2</text>
+  <path d="M1145,339 L1145,358" class="edge"/>
+
+  <!-- Edges: question path (Q) -->
+  <path d="M545,339 L545,360" class="rag"/>
+  <text x="553" y="355" class="lbl-rag">Q1</text>
+  <path d="M545,416 L545,698" class="rag"/>
+  <text x="553" y="532" class="lbl-rag">Q2 MCP: search_patient_records</text>
+  <path d="M628,698 V600 H658" class="rag"/>
+  <text x="604" y="652" class="lbl-rag">Q3</text>
+  <path d="M650,800 L688,800" class="edge"/>
+
+  <!-- Edges: indexing path (I) -->
+  <path d="M820,416 L820,436" class="rag"/>
+  <text x="828" y="431" class="lbl-rag">I1</text>
+  <path d="M820,500 L820,538" class="rag"/>
+  <text x="828" y="524" class="lbl-rag">I2</text>
+  <path d="M900,662 L900,700" class="rag"/>
+  <text x="908" y="686" class="lbl-rag">I3 / Q4</text>
+
+  <!-- Legend -->
+  <rect x="1035" y="440" width="230" height="460" rx="10" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="1049" y="464" class="lbl">Indexing (when text is saved)</text>
+  <text x="1049" y="486" class="s">I1 a report, note, confirmed symptom</text>
+  <text x="1063" y="500" class="s">or chat message is saved</text>
+  <text x="1049" y="520" class="s">I2 IndexingService splits it into</text>
+  <text x="1063" y="534" class="s">chunks and embeds them locally</text>
+  <text x="1049" y="554" class="s">I3 chunks and vectors are stored with</text>
+  <text x="1063" y="568" class="s">the patient_id, in one transaction</text>
+
+  <text x="1049" y="600" class="lbl">Question</text>
+  <text x="1049" y="622" class="s">1, 2 as today: web → api → model</text>
+  <text x="1049" y="642" class="s">Q1 the model asks for</text>
+  <text x="1063" y="656" class="s">search_patient_records</text>
+  <text x="1049" y="676" class="s">Q2 api adds patient_id, calls MCP</text>
+  <text x="1049" y="696" class="s">Q3 the query is embedded locally</text>
+  <text x="1049" y="716" class="s">Q4 vector + keyword search, only</text>
+  <text x="1063" y="730" class="s">this patient's chunks; top 5 go</text>
+  <text x="1063" y="744" class="s">back to the model, which cites them</text>
+
+  <rect x="1049" y="770" width="34" height="20" rx="5" class="new"/>
+  <text x="1092" y="784" class="s">new component</text>
+  <path d="M1049,812 L1089,812" class="rag"/>
+  <text x="1096" y="816" class="s">new data flow</text>
+  <text x="1049" y="846" class="s">No new service and no external</text>
+  <text x="1049" y="860" class="s">embedding API: patient text never</text>
+  <text x="1049" y="874" class="s">leaves the machine for retrieval.</text>
+</svg>
