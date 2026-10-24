@@ -680,6 +680,18 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@health-mcp/rag@workspace:packages/rag":
+  version: 0.0.0-use.local
+  resolution: "@health-mcp/rag@workspace:packages/rag"
+  dependencies:
+    "@health-mcp/shared": "workspace:*"
+    "@types/node": "npm:^24.0.0"
+    typescript: "npm:^7.0.2"
+    vite: "npm:^8.3.4"
+    vitest: "npm:^5.0.0"
+  languageName: unknown
+  linkType: soft
+
 "@health-mcp/shared@workspace:*, @health-mcp/shared@workspace:packages/shared":
   version: 0.0.0-use.local
   resolution: "@health-mcp/shared@workspace:packages/shared"

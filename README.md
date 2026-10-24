@@ -21,6 +21,7 @@ In progress on this branch, for learning: RAG over each patient's records, with 
 | `apps/mcp-server` | MCP TypeScript SDK | Standalone MCP server exposing patient-scoped health tools (labs, vitals, medications, symptoms, recovery milestones, imaging reports). |
 | `packages/shared` | Zod | Schemas and inferred types shared by every app (API contracts, tool inputs). |
 | `packages/db` | SQLite + Drizzle ORM | Database schema, migrations and client used by `apps/api` and `apps/mcp-server`. Stores patients, health records and chat history per patient. |
+| `packages/rag` | TypeScript | RAG building blocks (in progress): splitting patient text into chunks for search. See [docs/rag.md](docs/rag.md). |
 | `packages/evals` | Zod + TypeScript | Agent eval cases on the synthetic patients, a deterministic grader, and `yarn eval` to run them against the real stack. |
 
 ### Chat flow (per patient)
@@ -52,6 +53,7 @@ apps/
 packages/
   shared/             Zod schemas + types (API, chat, MCP tools, import)
   db/                 SQLite schema, client and migrations (drizzle/)
+  rag/                Chunking (and, next, embedding and search) for RAG
   evals/              Agent eval cases, grader and runner (`yarn eval`)
 fixtures/
   synthetic-patients.json  8 invented patients in the import format

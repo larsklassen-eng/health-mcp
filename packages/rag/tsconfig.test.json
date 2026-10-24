@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "noEmit": true,
+    // Node typings for tests only (they read the fixture file).
+    "types": ["node"]
+  },
+  "include": ["src", "test"]
+}

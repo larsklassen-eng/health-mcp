@@ -30,7 +30,7 @@ Chunking real records, local embeddings, metadata filtering for multi-tenant iso
 Small steps, one commit each, with tests.
 
 1. ✅ **Database:** `record_chunks`, the `vec_chunks` vector table (partitioned by patient) and the `chunks_fts` keyword index, kept in sync by triggers. `createDb` loads sqlite-vec.
-2. **`packages/rag`, chunker:** split reports, notes and chat messages into chunks.
+2. ✅ **`packages/rag`, chunker:** split reports, notes, symptoms and the clinician's chat messages into chunks of about 800 characters (paragraph, then sentence, then word boundaries), overlapping by whole sentences, each starting with a title line such as "Imaging report: MRI brain (2026-08-18)". The assistant's own answers are not indexed.
 3. **`packages/rag`, local embedder:** `bge-small-en-v1.5` via transformers.js, model downloaded once into `data/models/`.
 4. **`packages/rag`, search:** vector and keyword search for one patient, merged by rank, with a minimum score so it can answer "nothing relevant".
 5. **Indexing:** an `IndexingService` in the api, called wherever text is saved, and `yarn rag:reindex` to rebuild everything (also after changing the model or chunk size).
