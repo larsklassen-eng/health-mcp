@@ -38,18 +38,23 @@ describe("migrateDb", () => {
           "where type = 'table' and name not like 'sqlite_%' order by name",
       )
       .all()
-      .map((row) => (row as { name: string }).name);
+      .map((row) => (row as { name: string }).name)
+      // Virtual tables keep their data in internal tables (chunks_fts_data, vec_chunks_rowids…).
+      .filter((name) => !/^(chunks_fts|vec_chunks)_/.test(name));
 
     expect(tables).toEqual([
       "__drizzle_migrations",
       "chat_messages",
+      "chunks_fts",
       "imaging_series",
       "imaging_studies",
       "lab_results",
       "medications",
       "patients",
+      "record_chunks",
       "recovery_milestones",
       "symptoms",
+      "vec_chunks",
       "vital_signs",
     ]);
     connection.close();

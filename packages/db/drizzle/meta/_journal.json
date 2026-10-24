@@ -15,6 +15,20 @@
       "when": 1792413663416,
       "tag": "0001_imaging",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1792849561461,
+      "tag": "0002_record_chunks",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1792849561956,
+      "tag": "0003_search_indexes",
+      "breakpoints": true
     }
   ]
 }

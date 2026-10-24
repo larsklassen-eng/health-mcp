@@ -2,6 +2,7 @@ import { mkdirSync } from "node:fs";
 import path from "node:path";
 
 import Database from "better-sqlite3";
+import * as sqliteVec from "sqlite-vec";
 import { type BetterSQLite3Database, drizzle } from "drizzle-orm/better-sqlite3";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 
@@ -39,6 +40,8 @@ export function createDb(options: CreateDbOptions = {}): DbConnection {
   sqlite.pragma("busy_timeout = 5000");
   // SQLite ignores foreign keys (and ON DELETE CASCADE) unless enabled per connection.
   sqlite.pragma("foreign_keys = ON");
+  // Vector search (`vec_chunks`); also needed to delete rows that have embeddings.
+  sqliteVec.load(sqlite);
 
   return {
     db: drizzle({ client: sqlite, schema }),

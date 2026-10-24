@@ -30,6 +30,7 @@
   "dependencies": {
     "@health-mcp/shared": "workspace:*",
     "better-sqlite3": "^13.0.3",
-    "drizzle-orm": "^0.45.3"
+    "drizzle-orm": "^0.45.3",
+    "sqlite-vec": "^0.1.9"
   }
 }

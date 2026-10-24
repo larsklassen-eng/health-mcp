@@ -10,6 +10,12 @@ export const DEFAULT_DATABASE_PATH = "data/health.db";
 /** Relative to the repo root: the PNG slices of uploaded imaging studies. */
 export const DEFAULT_IMAGING_DIR = "data/imaging";
 
+/**
+ * Size of the embedding vectors in `vec_chunks`. It is fixed by the migration
+ * that creates the table, so changing the embedding model needs a new one.
+ */
+export const EMBEDDING_DIMENSIONS = 384;
+
 /** Drizzle migrations generated from `src/schema.ts`, shipped with this package. */
 export const MIGRATIONS_FOLDER = fileURLToPath(new URL("../drizzle", import.meta.url));
 

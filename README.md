@@ -99,6 +99,8 @@ Store timestamps as UTC ISO strings ending in `Z` (convert offsets before writin
 
 After pulling a commit that adds a migration, run `yarn db:migrate`: the api does not migrate on startup.
 
+**Search tables (RAG option A, in progress):** `record_chunks` holds searchable pieces of each patient's free text. Their embeddings are in `vec_chunks`, a [sqlite-vec](https://github.com/asg017/sqlite-vec) vector table partitioned by patient, and their words in `chunks_fts`, an FTS5 keyword index. Both are created by a hand-written migration (`drizzle/0003_search_indexes.sql`), and triggers remove a chunk's vector and words when the chunk or its patient is deleted. `createDb` loads sqlite-vec on every connection. A tool without the extension (such as the `sqlite3` command line) can read the database but cannot delete patients that have chunks.
+
 ### Imaging
 
 A study (MRI, CT, X-ray…) has a date, a description, an impression and a full report, and its series. Studies get in two ways:

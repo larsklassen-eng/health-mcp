@@ -15,6 +15,7 @@ import { randomUUID } from "node:crypto";
 
 import {
   ChatRoleSchema,
+  ChunkSourceTypeSchema,
   ImagingSourceSchema,
   LabFlagSchema,
   MedicationStatusSchema,
@@ -243,6 +244,39 @@ export const chatMessages = sqliteTable(
   ],
 );
 
+// ------------------------------------------------------------ search chunks
+
+/**
+ * Searchable pieces of a patient's free text (RAG option A). Each chunk's
+ * embedding lives in the `vec_chunks` vector table and its words in the
+ * `chunks_fts` keyword index, both keyed by `id` and created in a hand-written
+ * migration (drizzle cannot describe virtual tables). Triggers remove both when
+ * a chunk is deleted, including through ON DELETE CASCADE.
+ */
+export const recordChunks = sqliteTable(
+  "record_chunks",
+  {
+    // An integer key, because vector and keyword rows are addressed by rowid.
+    // AUTOINCREMENT never reuses a deleted chunk's id.
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    patientId: patientId(),
+    sourceType: text("source_type", { enum: values(ChunkSourceTypeSchema) }).notNull(),
+    /** Id of the source row (imaging study, symptom, chat message, or the patient for notes). */
+    sourceId: text("source_id").notNull(),
+    /** Date of the source, `YYYY-MM-DD` or a UTC timestamp, shown with search results. */
+    sourceDate: text("source_date").notNull(),
+    /** Position of the chunk within its source, from 0. */
+    chunkIndex: integer("chunk_index").notNull(),
+    text: text("text").notNull(),
+    createdAt: text("created_at").notNull().default(nowUtc),
+  },
+  (t) => [
+    check("record_chunks_source_type_check", oneOf(t.sourceType, ChunkSourceTypeSchema.options)),
+    uniqueIndex("record_chunks_source_uidx").on(t.sourceType, t.sourceId, t.chunkIndex),
+    index("record_chunks_patient_idx").on(t.patientId),
+  ],
+);
+
 // ---------------------------------------------------------------- row types
 
 export type PatientRow = typeof patients.$inferSelect;
@@ -260,5 +294,7 @@ export type NewRecoveryMilestoneRow = typeof recoveryMilestones.$inferInsert;
 export type ImagingStudyRow = typeof imagingStudies.$inferSelect;
 export type NewImagingStudyRow = typeof imagingStudies.$inferInsert;
 export type ImagingSeriesRow = typeof imagingSeries.$inferSelect;
+export type RecordChunkRow = typeof recordChunks.$inferSelect;
+export type NewRecordChunkRow = typeof recordChunks.$inferInsert;
 export type ChatMessageRow = typeof chatMessages.$inferSelect;
 export type NewChatMessageRow = typeof chatMessages.$inferInsert;
