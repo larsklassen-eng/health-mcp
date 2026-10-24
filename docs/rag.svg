@@ -24,7 +24,7 @@
   </defs>
 
   <rect width="1280" height="960" fill="#ffffff"/>
-  <text x="40" y="44" class="title">RAG option A: patient records in SQLite (sqlite-vec), searched through an MCP tool</text>
+  <text x="40" y="44" class="title">RAG: patient records in SQLite (sqlite-vec), searched through an MCP tool</text>
   <text x="40" y="68" class="sub">Each patient's own free text is embedded on this machine and stored next to the data. The model decides when to search; results are limited to the open patient.</text>
 
   <!-- User -->

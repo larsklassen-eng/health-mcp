@@ -10,7 +10,7 @@ An AI health-recovery assistant. Clinicians manage patients, review dashboards, 
 
 The editable source is [`docs/architecture.svg`](docs/architecture.svg).
 
-Proposed next step, for learning: two ways to add RAG with a vector database, compared in [`docs/rag-options.md`](docs/rag-options.md).
+In progress on this branch, for learning: RAG over each patient's records, with a vector index in SQLite. See [`docs/rag.md`](docs/rag.md) for the design and the plan.
 
 ### Components
 
@@ -58,9 +58,8 @@ fixtures/
 docs/
   architecture.png    Architecture diagram
   architecture.svg    Diagram source
-  rag-option-a.*      RAG proposal A: patient records in SQLite (sqlite-vec)
-  rag-option-b.*      RAG proposal B: knowledge base in Qdrant
-  rag-options.md      Comparison and plan for both
+  rag.md              RAG design and plan
+  rag.png, rag.svg    RAG architecture diagram and its source
 ```
 
 ## Status
@@ -99,7 +98,7 @@ Store timestamps as UTC ISO strings ending in `Z` (convert offsets before writin
 
 After pulling a commit that adds a migration, run `yarn db:migrate`: the api does not migrate on startup.
 
-**Search tables (RAG option A, in progress):** `record_chunks` holds searchable pieces of each patient's free text. Their embeddings are in `vec_chunks`, a [sqlite-vec](https://github.com/asg017/sqlite-vec) vector table partitioned by patient, and their words in `chunks_fts`, an FTS5 keyword index. Both are created by a hand-written migration (`drizzle/0003_search_indexes.sql`), and triggers remove a chunk's vector and words when the chunk or its patient is deleted. `createDb` loads sqlite-vec on every connection. A tool without the extension (such as the `sqlite3` command line) can read the database but cannot delete patients that have chunks.
+**Search tables (RAG, in progress):** `record_chunks` holds searchable pieces of each patient's free text. Their embeddings are in `vec_chunks`, a [sqlite-vec](https://github.com/asg017/sqlite-vec) vector table partitioned by patient, and their words in `chunks_fts`, an FTS5 keyword index. Both are created by a hand-written migration (`drizzle/0003_search_indexes.sql`), and triggers remove a chunk's vector and words when the chunk or its patient is deleted. `createDb` loads sqlite-vec on every connection. A tool without the extension (such as the `sqlite3` command line) can read the database but cannot delete patients that have chunks.
 
 ### Imaging
 

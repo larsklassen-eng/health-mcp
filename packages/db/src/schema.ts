@@ -247,7 +247,7 @@ export const chatMessages = sqliteTable(
 // ------------------------------------------------------------ search chunks
 
 /**
- * Searchable pieces of a patient's free text (RAG option A). Each chunk's
+ * Searchable pieces of a patient's free text (RAG). Each chunk's
  * embedding lives in the `vec_chunks` vector table and its words in the
  * `chunks_fts` keyword index, both keyed by `id` and created in a hand-written
  * migration (drizzle cannot describe virtual tables). Triggers remove both when

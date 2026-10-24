@@ -1,4 +1,4 @@
--- Search indexes for record_chunks (RAG option A). Hand-written: drizzle
+-- Search indexes for record_chunks (RAG). Hand-written: drizzle
 -- cannot describe virtual tables. Needs the sqlite-vec extension, which
 -- createDb() loads on every connection.
 
