@@ -14,10 +14,13 @@
     "dev": "tsc -p tsconfig.json --watch --preserveWatchOutput",
     "typecheck": "tsc -p tsconfig.test.json",
     "clean": "rm -rf dist",
-    "test": "vitest run"
+    "test": "vitest run",
+    "rag:model": "turbo run build && node dist/cli/download-model.js"
   },
   "dependencies": {
-    "@health-mcp/shared": "workspace:*"
+    "@health-mcp/db": "workspace:*",
+    "@health-mcp/shared": "workspace:*",
+    "@huggingface/transformers": "^4.3.1"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

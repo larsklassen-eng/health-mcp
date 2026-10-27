@@ -31,8 +31,8 @@ Small steps, one commit each, with tests.
 
 1. ✅ **Database:** `record_chunks`, the `vec_chunks` vector table (partitioned by patient) and the `chunks_fts` keyword index, kept in sync by triggers. `createDb` loads sqlite-vec.
 2. ✅ **`packages/rag`, chunker:** split reports, notes, symptoms and the clinician's chat messages into chunks of about 800 characters (paragraph, then sentence, then word boundaries), overlapping by whole sentences, each starting with a title line such as "Imaging report: MRI brain (2026-08-18)". The assistant's own answers are not indexed.
-3. **`packages/rag`, local embedder:** `bge-small-en-v1.5` via transformers.js, model downloaded once into `data/models/`.
-4. **`packages/rag`, search:** vector and keyword search for one patient, merged by rank, with a minimum score so it can answer "nothing relevant".
+3. ✅ **`packages/rag`, local embedder:** `LocalEmbedder` runs `bge-small-en-v1.5` (quantized, 34 MB) with transformers.js on the CPU; queries get BGE's search instruction, documents do not. `yarn rag:model` downloads the model once into `data/models/` (git-ignored); after that it works offline. A `HashingEmbedder` stands in for the model in tests.
+4. ✅ **`packages/rag`, index and search:** `indexSource` replaces one record's chunks and vectors in a single transaction (or removes them). `searchPatientChunks` runs vector search (30 nearest, within the patient's partition) and FTS5 keyword search (common words dropped), merges them with reciprocal rank fusion and returns the top 5 with their similarity. Vector-only matches need a cosine similarity of at least 0.57: on the synthetic patients, off-topic questions reached at most 0.561 and the weakest real match 0.587.
 5. **Indexing:** an `IndexingService` in the api, called wherever text is saved, and `yarn rag:reindex` to rebuild everything (also after changing the model or chunk size).
 6. **MCP tool:** `search_patient_records` in the shared contract and the MCP server.
 7. **Web:** the chat's search card shows each passage with a link to its source.
@@ -42,3 +42,4 @@ Small steps, one commit each, with tests.
 
 - **Embedding model:** the vector size (384) is fixed by the migration; a model with another size needs a new one. Check current model names before building; `bge-small-en-v1.5` is a starting point.
 - **Chunk size and overlap:** start with about 800 characters and tune them with the evals.
+- **Relevance:** similarity scores of related medical topics overlap (asking about dizziness scores 0.66 against "trouble concentrating"), so the model judges relevance from the returned passages. A reranker model (a cross-encoder such as `bge-reranker-base`) would score relevance more sharply, at the cost of a second model.

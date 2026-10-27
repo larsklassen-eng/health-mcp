@@ -21,7 +21,7 @@ In progress on this branch, for learning: RAG over each patient's records, with 
 | `apps/mcp-server` | MCP TypeScript SDK | Standalone MCP server exposing patient-scoped health tools (labs, vitals, medications, symptoms, recovery milestones, imaging reports). |
 | `packages/shared` | Zod | Schemas and inferred types shared by every app (API contracts, tool inputs). |
 | `packages/db` | SQLite + Drizzle ORM | Database schema, migrations and client used by `apps/api` and `apps/mcp-server`. Stores patients, health records and chat history per patient. |
-| `packages/rag` | TypeScript | RAG building blocks (in progress): splitting patient text into chunks for search. See [docs/rag.md](docs/rag.md). |
+| `packages/rag` | TypeScript, transformers.js | RAG building blocks (in progress): splitting patient text into chunks, embedding them with a local model, storing them and hybrid search (vector + keyword) per patient. See [docs/rag.md](docs/rag.md). |
 | `packages/evals` | Zod + TypeScript | Agent eval cases on the synthetic patients, a deterministic grader, and `yarn eval` to run them against the real stack. |
 
 ### Chat flow (per patient)
@@ -53,7 +53,7 @@ apps/
 packages/
   shared/             Zod schemas + types (API, chat, MCP tools, import)
   db/                 SQLite schema, client and migrations (drizzle/)
-  rag/                Chunking (and, next, embedding and search) for RAG
+  rag/                Chunking, local embeddings, index and search for RAG
   evals/              Agent eval cases, grader and runner (`yarn eval`)
 fixtures/
   synthetic-patients.json  8 invented patients in the import format
@@ -79,6 +79,7 @@ yarn typecheck   # type-check all packages, including tests
 yarn test        # run all tests
 yarn format      # format code with Prettier (yarn format:check only checks)
 yarn db:migrate  # create data/health.db (if needed) and apply migrations
+yarn rag:model   # download the local embedding model (34 MB) into data/models, once
 yarn imaging:synthetic  # write data/synthetic-mri.zip, a phantom MRI study to try the DICOM upload
 yarn dev         # watch-build packages, run apps/api on :3001, apps/mcp-server on :3002 and apps/web on http://localhost:3000
 ```
@@ -161,6 +162,7 @@ Each run prints ✓/✗ per case with the reasons and the case's model calls, to
 | Variable | Used by | Default |
 |---|---|---|
 | `DATABASE_PATH` | `packages/db`, `apps/api`, `apps/mcp-server` | `data/health.db` |
+| `RAG_MODEL_DIR` | `packages/rag` | `data/models`; where the embedding model is downloaded (relative to the repo root) |
 | `IMAGING_DIR` | `apps/api` | `data/imaging`; where the PNG slices of uploaded studies are stored (relative to the repo root) |
 | `PORT` | `apps/api` | `3001` |
 | `API_URL` | `apps/web` (server side only) | `http://localhost:3001` |
