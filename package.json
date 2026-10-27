@@ -20,7 +20,8 @@
     "db:generate": "yarn workspace @health-mcp/db db:generate",
     "db:migrate": "yarn workspace @health-mcp/db db:migrate",
     "imaging:synthetic": "yarn workspace @health-mcp/api imaging:synthetic",
-    "rag:model": "yarn workspace @health-mcp/rag rag:model"
+    "rag:model": "yarn workspace @health-mcp/rag rag:model",
+    "rag:reindex": "yarn workspace @health-mcp/rag rag:reindex"
   },
   "devDependencies": {
     "prettier": "^3.9.10",

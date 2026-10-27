@@ -15,6 +15,8 @@ export default defineConfig({
     // MCP server, even if these variables are set in the developer's shell.
     env: {
       DATABASE_PATH: ":memory:",
+      // Indexing uses a word-hashing stand-in, never the real embedding model.
+      RAG_EMBEDDER: "hashing",
       // Uploaded images go to a temporary folder, never to data/imaging.
       IMAGING_DIR: path.join(tmpdir(), "health-mcp-api-tests", "imaging"),
       OPENROUTER_API_KEY: "",

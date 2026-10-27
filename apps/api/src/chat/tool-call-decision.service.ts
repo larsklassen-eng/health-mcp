@@ -15,6 +15,7 @@ import {
 } from "@nestjs/common";
 
 import { McpClient } from "../mcp/mcp-client.js";
+import { IndexingService } from "../rag/indexing.service.js";
 import { ChatHistoryService } from "./chat-history.service.js";
 
 /**
@@ -31,6 +32,7 @@ export class ToolCallDecisionService {
   constructor(
     private readonly history: ChatHistoryService,
     private readonly mcp: McpClient,
+    private readonly indexing: IndexingService,
   ) {}
 
   async decide(
@@ -48,7 +50,13 @@ export class ToolCallDecisionService {
     this.inProgress.add(call.id);
     try {
       const output = await this.run(patientId, call);
-      return this.save({ ...call, output, isError: false, confirmation: "confirmed" }, patientId);
+      const saved = this.save(
+        { ...call, output, isError: false, confirmation: "confirmed" },
+        patientId,
+      );
+      // The MCP server saved a record (e.g. a symptom); make it searchable.
+      await this.indexing.syncPatient(patientId);
+      return saved;
     } finally {
       this.inProgress.delete(call.id);
     }

@@ -9,11 +9,13 @@ import { ImagingModule } from "./imaging/imaging.module.js";
 import { LlmModule } from "./llm/llm.module.js";
 import { McpModule } from "./mcp/mcp.module.js";
 import { PatientsModule } from "./patients/patients.module.js";
+import { RagModule } from "./rag/rag.module.js";
 
 @Module({
   imports: [
     ConfigModule,
     DatabaseModule,
+    RagModule,
     LlmModule,
     McpModule,
     HealthModule,

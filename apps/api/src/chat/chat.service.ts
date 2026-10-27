@@ -6,6 +6,7 @@ import { Inject, Injectable, Logger } from "@nestjs/common";
 import { ENV } from "../config/config.module.js";
 import type { Env } from "../config/env.js";
 import { LlmClient, type LlmMessage } from "../llm/llm-client.js";
+import { IndexingService } from "../rag/indexing.service.js";
 import { PatientsService } from "../patients/patients.service.js";
 import { AgentService } from "./agent.service.js";
 import { ChatHistoryService } from "./chat-history.service.js";
@@ -47,6 +48,7 @@ export class ChatService {
     private readonly agent: AgentService,
     private readonly llm: LlmClient,
     @Inject(ENV) private readonly env: Env,
+    private readonly indexing: IndexingService,
   ) {}
 
   /**
@@ -83,6 +85,8 @@ export class ChatService {
     messages: LlmMessage[],
     signal: AbortSignal,
   ): AsyncIterable<ChatStreamEvent> {
+    // The question is searchable from now on (the clinician's own words).
+    await this.indexing.syncPatient(patientId);
     const messageId = randomUUID();
     yield { type: "message_start", messageId };
 

@@ -23,6 +23,7 @@ import {
   Post,
 } from "@nestjs/common";
 
+import { IndexingService } from "../rag/indexing.service.js";
 import { PatientImportService } from "./patient-import.service.js";
 import { PatientsService } from "./patients.service.js";
 
@@ -33,6 +34,7 @@ export class PatientsController {
   constructor(
     private readonly patients: PatientsService,
     private readonly importer: PatientImportService,
+    private readonly indexing: IndexingService,
   ) {}
 
   @Get()
@@ -41,8 +43,12 @@ export class PatientsController {
   }
 
   @Post()
-  create(@Body({ schema: CreatePatientInputSchema }) input: CreatePatientInput): Patient {
-    return this.patients.create(input);
+  async create(
+    @Body({ schema: CreatePatientInputSchema }) input: CreatePatientInput,
+  ): Promise<Patient> {
+    const patient = this.patients.create(input);
+    await this.indexing.syncPatient(patient.id);
+    return patient;
   }
 
   /**
@@ -50,10 +56,12 @@ export class PatientsController {
    * @health-mcp/shared.
    */
   @Post("import")
-  import(
+  async import(
     @Body({ schema: PatientImportFileSchema }) file: ParsedPatientImportFile,
-  ): PatientImportResult {
-    return this.importer.import(file);
+  ): Promise<PatientImportResult> {
+    const result = this.importer.import(file);
+    for (const { patientId } of result.imported) await this.indexing.syncPatient(patientId);
+    return result;
   }
 
   @Get(":id")
@@ -62,11 +70,13 @@ export class PatientsController {
   }
 
   @Patch(":id")
-  update(
+  async update(
     @Param("id", idParam) id: string,
     @Body({ schema: UpdatePatientInputSchema }) input: UpdatePatientInput,
-  ): Patient {
-    return this.patients.update(id, input);
+  ): Promise<Patient> {
+    const patient = this.patients.update(id, input);
+    await this.indexing.syncPatient(id);
+    return patient;
   }
 
   @Delete(":id")

@@ -29,6 +29,11 @@ export const EnvSchema = z.object({
    * Providers that collect data for training are always excluded, whatever this is set to.
    */
   OPENROUTER_ZDR: z.stringbool().default(true),
+  /**
+   * Embedding model for the search index (RAG): `local` runs bge-small on this
+   * machine, `hashing` is a word-hashing stand-in for tests, `off` disables indexing.
+   */
+  RAG_EMBEDDER: z.enum(["local", "hashing", "off"]).default("local"),
   /** Let the provider cache prompts for a few minutes, so repeated input costs less. */
   OPENROUTER_PROMPT_CACHING: z.stringbool().default(true),
   /** Override the OpenRouter API base URL, e.g. a local fake server for a dry run of the evals. */

@@ -33,6 +33,7 @@ import {
 } from "@nestjs/common";
 import type { Request, Response } from "express";
 
+import { IndexingService } from "../rag/indexing.service.js";
 import { DicomImportService } from "./dicom-import.service.js";
 import { ImagingService } from "./imaging.service.js";
 
@@ -66,6 +67,7 @@ export class ImagingController {
   constructor(
     private readonly imaging: ImagingService,
     private readonly dicom: DicomImportService,
+    private readonly indexing: IndexingService,
   ) {}
 
   @Get(":id/imaging")
@@ -110,12 +112,14 @@ export class ImagingController {
   }
 
   @Patch(":id/imaging/:studyId")
-  update(
+  async update(
     @Param("id", idParam) patientId: string,
     @Param("studyId", idParam) studyId: string,
     @Body({ schema: UpdateImagingStudyInputSchema }) input: UpdateImagingStudyInput,
-  ): ImagingStudy {
-    return this.imaging.update(patientId, studyId, input);
+  ): Promise<ImagingStudy> {
+    const study = this.imaging.update(patientId, studyId, input);
+    await this.indexing.syncPatient(patientId);
+    return study;
   }
 
   @Delete(":id/imaging/:studyId")
@@ -125,6 +129,7 @@ export class ImagingController {
     @Param("studyId", idParam) studyId: string,
   ): Promise<void> {
     await this.imaging.remove(patientId, studyId);
+    await this.indexing.syncPatient(patientId);
   }
 
   /** One slice as PNG. Slices never change, so browsers may cache them. */
