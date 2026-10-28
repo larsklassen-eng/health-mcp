@@ -32,3 +32,10 @@ eval-results/
 
 # OS
 .DS_Store
+
+# terraform: local working files and state (state lives in S3)
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log

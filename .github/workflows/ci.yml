@@ -45,3 +45,26 @@ jobs:
 
       - name: Test
         run: yarn test
+
+  terraform:
+    name: Terraform format and validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_wrapper: false
+
+      - name: Check formatting
+        run: terraform fmt -check -recursive
+
+      # No AWS access in CI: the backend and the data sources are not used.
+      - name: Validate
+        run: |
+          terraform init -backend=false -input=false
+          terraform validate

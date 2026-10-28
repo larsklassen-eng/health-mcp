@@ -1,0 +1,11 @@
+# Remote state for the sandbox account, encrypted with the account's KMS key.
+# S3 locks the state itself (use_lockfile), so no DynamoDB table is needed.
+bucket       = "health-mcp-tfstate-g0rf1s"
+key          = "health-mcp/sandbox.tfstate"
+region       = "us-east-1"
+encrypt      = true
+kms_key_id   = "4f0d501b-3074-4ecf-81a8-1aa5e0dde4de"
+use_lockfile = true
+assume_role = {
+  role_arn = "arn:aws:iam::986608278121:role/health-mcp-deployer"
+}

@@ -55,6 +55,7 @@ packages/
   db/                 SQLite schema, client and migrations (drizzle/)
   rag/                Chunking, local embeddings, index and search for RAG
   evals/              Agent eval cases, grader and runner (`yarn eval`)
+infra/                Terraform for the AWS sandbox account (see infra/README.md)
 fixtures/
   synthetic-patients.json  8 invented patients in the import format
 docs/
@@ -156,7 +157,7 @@ Each run prints ✓/✗ per case with the reasons and the case's model calls, to
 
 ### Continuous integration
 
-`.github/workflows/ci.yml` runs on every push to `main` (and manually from the Actions tab): install with a locked `yarn.lock`, check formatting, build, type-check, test. There are no pull requests in this repo, so a red run means `main` is broken.
+`.github/workflows/ci.yml` runs on every push to `main` (and manually from the Actions tab): install with a locked `yarn.lock`, check formatting, build, type-check, test. A second job checks the Terraform in `infra/` (`terraform fmt -check`, `terraform validate`), without AWS access. There are no pull requests in this repo, so a red run means `main` is broken.
 
 ### Environment variables
 
