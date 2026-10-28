@@ -35,13 +35,14 @@ describe("formatToolInput", () => {
 
 describe("ChatToolCalls", () => {
   it("renders nothing without tool calls", () => {
-    const { container } = render(<ChatToolCalls calls={[]} />);
+    const { container } = render(<ChatToolCalls patientId="p1" calls={[]} />);
     expect(container).toBeEmptyDOMElement();
   });
 
   it("shows each call collapsed, with its label, arguments and status", async () => {
     render(
       <ChatToolCalls
+        patientId="p1"
         calls={[
           labCall,
           {
@@ -72,6 +73,7 @@ describe("ChatToolCalls", () => {
   it("marks running and failed calls", () => {
     render(
       <ChatToolCalls
+        patientId="p1"
         calls={[
           {
             id: "t1",
@@ -103,6 +105,7 @@ describe("ChatToolCalls", () => {
   it("shows unknown tools by name and shortens long results", () => {
     render(
       <ChatToolCalls
+        patientId="p1"
         calls={[
           {
             id: "t1",
@@ -132,7 +135,7 @@ describe("ChatToolCalls", () => {
 
     it("asks to save or discard, showing what will be saved", async () => {
       const onDecide = vi.fn().mockResolvedValue(undefined);
-      render(<ChatToolCalls calls={[pending]} onDecide={onDecide} />);
+      render(<ChatToolCalls patientId="p1" calls={[pending]} onDecide={onDecide} />);
 
       const item = screen.getByRole("listitem");
       expect(item).toHaveClass("pending");
@@ -150,7 +153,7 @@ describe("ChatToolCalls", () => {
       const onDecide = vi
         .fn()
         .mockResolvedValue("The MCP server is not reachable. Nothing was saved.");
-      render(<ChatToolCalls calls={[pending]} onDecide={onDecide} />);
+      render(<ChatToolCalls patientId="p1" calls={[pending]} onDecide={onDecide} />);
 
       await userEvent.setup().click(screen.getByRole("button", { name: "Discard" }));
 
@@ -161,19 +164,20 @@ describe("ChatToolCalls", () => {
 
     it("disables the buttons while the answer streams, and hides them without a handler", () => {
       const { unmount } = render(
-        <ChatToolCalls calls={[pending]} onDecide={vi.fn()} decisionsDisabled />,
+        <ChatToolCalls patientId="p1" calls={[pending]} onDecide={vi.fn()} decisionsDisabled />,
       );
       expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
       expect(screen.getByRole("button", { name: "Discard" })).toBeDisabled();
       unmount();
 
-      render(<ChatToolCalls calls={[pending]} />);
+      render(<ChatToolCalls patientId="p1" calls={[pending]} />);
       expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
     });
 
     it("shows saved and discarded entries without buttons", () => {
       render(
         <ChatToolCalls
+          patientId="p1"
           calls={[
             {
               ...pending,

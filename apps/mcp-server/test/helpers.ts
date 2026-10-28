@@ -17,6 +17,7 @@ import type {
   RecoveryMilestoneInput,
   VitalSignInput,
 } from "@health-mcp/shared";
+import { HashingEmbedder } from "@health-mcp/rag";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
@@ -39,10 +40,13 @@ export interface TestServer {
 export async function startTestServer(options: McpServerOptions = {}): Promise<TestServer> {
   const connection = createDb({ path: ":memory:" });
   migrateDb(connection.db);
-  const server = createApp({ db: connection.db, authToken: TEST_TOKEN, ...options }).listen(
-    0,
-    "127.0.0.1",
-  );
+  // Search uses the word-hashing stand-in unless a test passes another embedder (or null).
+  const server = createApp({
+    db: connection.db,
+    authToken: TEST_TOKEN,
+    embedder: new HashingEmbedder(),
+    ...options,
+  }).listen(0, "127.0.0.1");
   await new Promise((resolve) => server.once("listening", resolve));
   const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
   const clients: Client[] = [];

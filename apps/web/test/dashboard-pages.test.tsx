@@ -263,6 +263,11 @@ describe("/patients/[id]/dashboard", () => {
       "Levetiracetam 500 mg, twice daily (oral)",
     );
     expect(section("Recent symptoms")).toHaveTextContent("Headache severity 3/10");
+    // Passages from the chat's record search link to it.
+    expect(within(section("Recent symptoms")).getByRole("listitem")).toHaveAttribute(
+      "id",
+      "symptom-s1",
+    );
     const [walk, drive] = within(section("Recovery milestones")).getAllByRole("listitem");
     expect(walk).toHaveTextContent("Achieved Sep 10, 2026");
     expect(drive).toHaveTextContent("No target date");

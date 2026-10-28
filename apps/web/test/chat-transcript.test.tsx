@@ -28,6 +28,8 @@ describe("ChatTranscript", () => {
 
     const [userItem, assistantItem] = screen.getAllByRole("listitem");
     expect(userItem).toHaveClass("user");
+    // Passages from the chat's record search link to earlier messages.
+    expect(userItem).toHaveAttribute("id", "message-m0");
     expect(within(userItem!).getByText("You")).toBeInTheDocument();
     expect(within(assistantItem!).getByText("Assistant")).toBeInTheDocument();
     const time = within(assistantItem!).getByText("Oct 1, 2026, 10:30 PM UTC");

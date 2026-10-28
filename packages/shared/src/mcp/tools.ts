@@ -7,6 +7,7 @@ import {
   VitalTypeSchema,
 } from "../schemas/health-records.js";
 import { ModalitySchema } from "../schemas/imaging.js";
+import { ChunkSourceTypeSchema } from "../schemas/record-chunks.js";
 
 /*
  * MCP tool contracts.
@@ -92,6 +93,28 @@ export const MCP_TOOLS = {
         "DICOM modality code: 'MR' (MRI), 'CT', 'CR' or 'DX' (X-ray), 'US'. Omit for all.",
       ),
       limit: z.int().min(1).max(20).default(5).describe("Maximum number of studies."),
+    }),
+  },
+  search_patient_records: {
+    description:
+      "Search the current patient's free text by meaning and keywords: radiology reports, " +
+      "clinician notes, symptom notes and the clinician's earlier chat messages. Use it when " +
+      "the answer may only be written in text, e.g. whether something was mentioned before. " +
+      "Returns passages with their source and date; cite them. Passages can be loosely " +
+      "related, so check that each one answers the question. No results means nothing " +
+      "relevant was found.",
+    args: z.object({
+      query: z
+        .string()
+        .min(2)
+        .max(500)
+        .describe("What to look for, in plain words, e.g. 'dizziness' or 'residual tumor'."),
+      sources: z
+        .array(ChunkSourceTypeSchema)
+        .min(1)
+        .optional()
+        .describe("Only these kinds of text. Omit to search all of them."),
+      limit: z.int().min(1).max(10).default(5).describe("Maximum number of passages."),
     }),
   },
 } as const;

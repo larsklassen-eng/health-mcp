@@ -29,6 +29,12 @@ export const EnvSchema = z.object({
         )
         .optional(),
     ),
+  /**
+   * Embedding model for `search_patient_records`: `local` runs bge-small on
+   * this machine, `hashing` is a word-hashing stand-in for tests, `off`
+   * leaves the tool out. Must match the model that built the index.
+   */
+  RAG_EMBEDDER: z.enum(["local", "hashing", "off"]).default("local"),
   /** SQLite file; relative paths resolve from the repo root (see @health-mcp/db). */
   DATABASE_PATH: z.string().min(1).optional(),
 });

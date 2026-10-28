@@ -3,6 +3,7 @@ import "./load-env.js";
 import { randomBytes } from "node:crypto";
 
 import { createDb, resolveDatabasePath } from "@health-mcp/db";
+import { HashingEmbedder, LocalEmbedder } from "@health-mcp/rag";
 
 import { createApp, MCP_PATH } from "./app.js";
 import { loadEnv } from "./env.js";
@@ -20,7 +21,13 @@ if (!authToken) {
       "Generate one with `openssl rand -hex 32` and add it to .env.",
   );
 }
-const app = createApp({ db: connection.db, authToken });
+const embedder =
+  env.RAG_EMBEDDER === "local"
+    ? new LocalEmbedder()
+    : env.RAG_EMBEDDER === "hashing"
+      ? new HashingEmbedder()
+      : null;
+const app = createApp({ db: connection.db, authToken, embedder });
 
 const server = app.listen(env.MCP_PORT, env.MCP_HOST, () => {
   console.log(

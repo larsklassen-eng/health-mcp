@@ -1,5 +1,7 @@
 import type { ChatMessage } from "@health-mcp/shared";
 
+import { messageAnchor } from "@/lib/anchors";
+
 import { ChatMarkdown } from "./chat-markdown";
 import { ChatToolCalls } from "./chat-tool-calls";
 import type { DecideToolCall } from "./tool-call-confirmation";
@@ -34,7 +36,11 @@ export function ChatTranscript({ messages, runningToolCalls, onDecide, decisions
   return (
     <ol className="chat" aria-label="Chat messages">
       {messages.map((message) => (
-        <li key={message.id} className={`chat-message ${message.role}`}>
+        <li
+          key={message.id}
+          id={messageAnchor(message.id)}
+          className={`chat-message ${message.role}`}
+        >
           <div className="chat-meta">
             <strong>{ROLE_LABELS[message.role]}</strong>{" "}
             <time dateTime={message.createdAt}>
@@ -43,6 +49,7 @@ export function ChatTranscript({ messages, runningToolCalls, onDecide, decisions
           </div>
           {message.role === "assistant" && (
             <ChatToolCalls
+              patientId={message.patientId}
               calls={message.toolCalls}
               {...(runningToolCalls && { running: runningToolCalls })}
               {...(onDecide && { onDecide })}

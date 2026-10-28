@@ -10,6 +10,7 @@ import type {
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { symptomAnchor } from "@/lib/anchors";
 import { api, ApiUnavailableError } from "@/lib/api-client";
 import {
   formatDate,
@@ -212,7 +213,7 @@ function Symptoms({ symptoms }: { symptoms: Symptom[] }) {
   return (
     <ul className="record-list card">
       {symptoms.map((symptom) => (
-        <li key={symptom.id}>
+        <li key={symptom.id} id={symptomAnchor(symptom.id)}>
           <strong>{symptom.name}</strong>{" "}
           <span className="muted">severity {symptom.severity}/10</span>
           {symptom.notes && <div>{symptom.notes}</div>}

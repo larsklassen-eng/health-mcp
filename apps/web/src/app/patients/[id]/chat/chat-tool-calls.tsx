@@ -1,5 +1,6 @@
-import type { McpToolName, ToolCall } from "@health-mcp/shared";
+import { type McpToolName, RecordSearchOutputSchema, type ToolCall } from "@health-mcp/shared";
 
+import { RecordSearchResults } from "./record-search-results";
 import { type DecideToolCall, ToolCallConfirmation } from "./tool-call-confirmation";
 
 const TOOL_LABELS: Record<McpToolName, string> = {
@@ -10,6 +11,7 @@ const TOOL_LABELS: Record<McpToolName, string> = {
   log_symptom: "Log symptom",
   get_recovery_milestones: "Recovery milestones",
   get_imaging_studies: "Imaging studies",
+  search_patient_records: "Record search",
 };
 
 /** Results can be large (up to 100 lab results); the card shows the start. */
@@ -61,7 +63,18 @@ function statusOf(call: ToolCall, running: ReadonlySet<string> | undefined): Sta
   return call.confirmation ?? "done";
 }
 
+/** The result of a call, with record searches shown as passages linked to their sources. */
+function ToolCallOutput({ call, patientId }: { call: ToolCall; patientId: string }) {
+  if (call.name === "search_patient_records" && !call.isError) {
+    const search = RecordSearchOutputSchema.safeParse(call.output);
+    if (search.success) return <RecordSearchResults patientId={patientId} output={search.data} />;
+  }
+  return <pre className="tool-call-output">{formatOutput(call.output)}</pre>;
+}
+
 interface Props {
+  /** For links to the records a result came from. */
+  patientId: string;
   calls: ToolCall[];
   /** Calls still waiting for their result. */
   running?: ReadonlySet<string>;
@@ -72,7 +85,7 @@ interface Props {
 }
 
 /** What the assistant did for an answer: one collapsible card per tool call. */
-export function ChatToolCalls({ calls, running, onDecide, decisionsDisabled }: Props) {
+export function ChatToolCalls({ patientId, calls, running, onDecide, decisionsDisabled }: Props) {
   if (calls.length === 0) return null;
 
   return (
@@ -93,7 +106,7 @@ export function ChatToolCalls({ calls, running, onDecide, decisionsDisabled }: P
               ) : status === "pending" || status === "rejected" ? (
                 <p className="muted tool-call-output">Nothing was saved.</p>
               ) : (
-                <pre className="tool-call-output">{formatOutput(call.output)}</pre>
+                <ToolCallOutput call={call} patientId={patientId} />
               )}
             </details>
             {status === "pending" && onDecide && (

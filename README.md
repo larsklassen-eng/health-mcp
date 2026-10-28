@@ -163,7 +163,7 @@ Each run prints ✓/✗ per case with the reasons and the case's model calls, to
 | Variable | Used by | Default |
 |---|---|---|
 | `DATABASE_PATH` | `packages/db`, `apps/api`, `apps/mcp-server` | `data/health.db` |
-| `RAG_EMBEDDER` | `apps/api` | `local`; embedding model for the search index: `local` (bge-small on this machine), `hashing` (word-hashing stand-in, used by the tests) or `off` |
+| `RAG_EMBEDDER` | `apps/api`, `apps/mcp-server` | `local`; embedding model for the search index and for search queries (both must use the same one): `local` (bge-small on this machine), `hashing` (word-hashing stand-in, used by the tests) or `off` |
 | `RAG_MODEL_DIR` | `packages/rag` | `data/models`; where the embedding model is downloaded (relative to the repo root) |
 | `IMAGING_DIR` | `apps/api` | `data/imaging`; where the PNG slices of uploaded studies are stored (relative to the repo root) |
 | `PORT` | `apps/api` | `3001` |
@@ -202,6 +202,7 @@ Serves the patient-scoped health tools over [MCP](https://modelcontextprotocol.i
 | `get_medications` | Done: `status` is `active` (default), `stopped` or `all`. Active before stopped, then the most recently started first, as `{ medications }` |
 | `get_recovery_milestones` | Done: optional `status` (`pending`, `achieved`, `missed`). By target date, earliest first, undated last, as `{ milestones, counts }`; `counts` has every status, whatever the filter |
 | `get_imaging_studies` | Done: newest first, with impression, report (first 4000 characters; `reportTruncated` when cut) and series; optional `modality` (`MR`, `CT`, `CR`…) and `limit` (default 5, max 20). Reports and details only, never the images |
+| `search_patient_records` | In progress (RAG, see [docs/rag.md](docs/rag.md)): hybrid search (meaning + keywords) over the patient's indexed free text: reports, notes, symptom notes and the clinician's chat messages. `query`, optional `sources` and `limit` (default 5, max 10); returns passages with source, date, title and similarity, or a note when nothing relevant is found. Offered only when `RAG_EMBEDDER` is not `off` |
 | `log_symptom` | Done: saves `name`, `severity` (0–10) and optional `notes`, recorded at the time it runs, and returns `{ symptom }`. apps/api only calls it after the clinician confirms (see [Confirming changes](#confirming-changes)) |
 
 Tool descriptions and input schemas come from `MCP_TOOLS` in `packages/shared`; each tool's input is the model's arguments plus `patient_id`, validated before the tool runs. Results are JSON text. An unknown patient or invalid input is returned as a tool error (`isError`) that the model can read; unexpected failures return a generic message and are logged.
@@ -225,7 +226,7 @@ The tools trust the `patient_id` they receive, so the server must only be reacha
 | `/patients/:id/dashboard` | One patient: latest vitals with a sparkline trend, the latest result of each lab (abnormal ones highlighted), active medications, recent symptoms, recovery milestones and imaging studies |
 | `/patients/:id/imaging/:studyId` | One study: a slice viewer (series tabs, slider, buttons, arrow keys, mouse wheel; starts at the middle slice), the report form (description, impression, report; empty fields are cleared) and Delete, after a confirmation |
 | `/patients/:id/imaging/upload` | Upload a zip of DICOM files with a progress bar; lists the studies found, what was already uploaded, skipped files and images in formats the viewer cannot show |
-| `/patients/:id/chat` | The patient's chat: history, a message box (Enter sends, Shift+Enter adds a line) and the answer streamed as it is written, with a Stop button. Answers are rendered as Markdown (bold, italics, lists, tables, code) with `react-markdown`; raw HTML is not rendered, images are never loaded (a model-written image URL could leak data), and links open in a new tab. Above each answer, a collapsible card per tool call shows the tool, its arguments, running/done/failed, and the result (first 4000 characters). An entry the assistant proposes (a symptom to log) shows Save and Discard buttons; the card then says Saved or Discarded |
+| `/patients/:id/chat` | The patient's chat: history, a message box (Enter sends, Shift+Enter adds a line) and the answer streamed as it is written, with a Stop button. Answers are rendered as Markdown (bold, italics, lists, tables, code) with `react-markdown`; raw HTML is not rendered, images are never loaded (a model-written image URL could leak data), and links open in a new tab. Above each answer, a collapsible card per tool call shows the tool, its arguments, running/done/failed, and the result (first 4000 characters). An entry the assistant proposes (a symptom to log) shows Save and Discard buttons; the card then says Saved or Discarded. A record search shows each passage found, linked to its source (imaging study, patient page, dashboard symptom or earlier message) |
 
 The web app only calls the api from the server (server components and server actions in `src/app/patients/actions.ts`, through `src/lib/api-client.ts`), so `API_URL` never reaches the browser. If the api is not running, the pages say so instead of failing.
 

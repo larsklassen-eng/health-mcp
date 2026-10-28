@@ -10,6 +10,7 @@ describe("loadEnv", () => {
       MCP_HOST: "127.0.0.1",
       MCP_PORT: 3002,
       MCP_AUTH_TOKEN: token,
+      RAG_EMBEDDER: "local",
     });
   });
 

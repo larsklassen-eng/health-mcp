@@ -394,6 +394,27 @@ tr:last-child td {
 pre.tool-call-output {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
+.record-passages {
+  list-style: none;
+  display: grid;
+  gap: 10px;
+}
+.record-passage-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  align-items: baseline;
+}
+.record-passages blockquote {
+  margin: 4px 0 0;
+  padding-left: 10px;
+  border-left: 3px solid var(--border);
+}
+/* A chat message or symptom opened from a search passage. */
+li:target {
+  outline: 2px solid #f0abfc;
+  outline-offset: 2px;
+}
 
 .header nav {
   display: flex;
