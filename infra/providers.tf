@@ -5,15 +5,16 @@ provider "aws" {
 
   assume_role {
     role_arn     = var.deployer_role_arn
-    session_name = "health-mcp-terraform"
+    session_name = "${var.project}-${terraform.workspace}-terraform"
   }
 
-  # Every resource gets the tags the sandbox account requires.
+  # Every resource gets the tags the sandbox account requires, and its deployment.
   default_tags {
     tags = {
-      project = var.project
-      owner   = var.owner
-      pillar  = var.pillar
+      project    = var.project
+      owner      = var.owner
+      pillar     = var.pillar
+      deployment = terraform.workspace
     }
   }
 }
