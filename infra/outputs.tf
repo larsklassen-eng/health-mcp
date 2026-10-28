@@ -1,3 +1,12 @@
+output "deployment" {
+  description = "The deployment (workspace), its branch and its resource name prefix."
+  value = {
+    name        = local.deployment
+    branch      = var.deployments[local.deployment]
+    name_prefix = local.name_prefix
+  }
+}
+
 output "vpc_cidr" {
   description = "CIDR block of the VPC."
   value       = data.aws_vpc.main.cidr_block

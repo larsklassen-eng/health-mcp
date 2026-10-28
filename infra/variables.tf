@@ -18,6 +18,14 @@ variable "pillar" {
   type        = string
 }
 
+variable "deployments" {
+  description = <<-EOT
+    The deployments, by name, with the branch each one is deployed from. The Terraform
+    workspace picks the deployment; each has its own state and resources.
+  EOT
+  type        = map(string)
+}
+
 variable "deployer_role_arn" {
   description = "IAM role Terraform assumes to create resources."
   type        = string
