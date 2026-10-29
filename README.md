@@ -107,7 +107,7 @@ docker compose down -v         # stop and delete the data
 | `mcp-server` | `mcp-server` | Shares the api container's network, so it still listens on `127.0.0.1` only: nothing but the api can reach it |
 | `web` | `web` | apps/web (Next.js standalone server) on http://localhost:3000; the only published port |
 
-The images keep the repo layout under `/app` and run as the unprivileged `node` user. The database and imaging files live in the `data` volume (`/app/data`), separate from `data/` on your machine, so start by importing `fixtures/synthetic-patients.json` on the Patients page. Compose reads only the values it needs from `.env` (`MCP_AUTH_TOKEN`, `OPENROUTER_API_KEY`, `OPENROUTER_MODEL`); `.env` itself never goes into an image (see `.dockerignore`).
+The images keep the repo layout under `/app` and run as the unprivileged `node` user. The api and MCP server images include the embedding model for search (downloaded once while building, in `/app/models`), and both use `RAG_EMBEDDER` from `.env` (default `local`), so they always match. The database and imaging files live in the `data` volume (`/app/data`), separate from `data/` on your machine, so start by importing `fixtures/synthetic-patients.json` on the Patients page. Compose reads only the values it needs from `.env` (`MCP_AUTH_TOKEN`, `OPENROUTER_API_KEY`, `OPENROUTER_MODEL`, `RAG_EMBEDDER`); `.env` itself never goes into an image (see `.dockerignore`).
 
 ### Database
 

@@ -27,6 +27,7 @@ COPY apps/mcp-server/package.json apps/mcp-server/
 COPY apps/web/package.json apps/web/
 COPY packages/db/package.json packages/db/
 COPY packages/evals/package.json packages/evals/
+COPY packages/rag/package.json packages/rag/
 COPY packages/shared/package.json packages/shared/
 RUN --mount=type=cache,target=/root/.yarn/berry/cache \
     node .yarn/releases/yarn-*.cjs install --immutable
@@ -35,6 +36,10 @@ RUN --mount=type=cache,target=/root/.yarn/berry/cache \
 FROM deps AS build
 COPY . .
 RUN node .yarn/releases/yarn-*.cjs build
+
+# --- The embedding model for search (RAG), downloaded once at build time -----
+FROM build AS model
+RUN RAG_MODEL_DIR=/app/models node packages/rag/dist/cli/download-model.js
 
 # --- Production dependencies of the api and the MCP server -------------------
 FROM deps AS server-deps
@@ -52,6 +57,12 @@ COPY --from=build /app/packages/shared/dist packages/shared/dist
 COPY packages/db/package.json packages/db/
 COPY packages/db/drizzle packages/db/drizzle
 COPY --from=build /app/packages/db/dist packages/db/dist
+COPY packages/rag/package.json packages/rag/
+COPY --from=build /app/packages/rag/dist packages/rag/dist
+# The api indexes and the MCP server searches with the same model, kept outside
+# the data volume so a new image brings its model along.
+COPY --from=model /app/models models
+ENV RAG_MODEL_DIR=/app/models
 # data/ (database, imaging) is a volume; the app runs as the unprivileged node user.
 RUN mkdir -p data && chown node:node data
 USER node

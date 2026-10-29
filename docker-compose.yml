@@ -23,6 +23,8 @@ services:
       OPENROUTER_MODEL: ${OPENROUTER_MODEL:-anthropic/claude-opus-5.5}
       MCP_AUTH_TOKEN: ${MCP_AUTH_TOKEN:?Set MCP_AUTH_TOKEN in .env (openssl rand -hex 32)}
       WEB_ORIGIN: http://localhost:3000
+      # Must match the MCP server's: the index and the queries use the same model.
+      RAG_EMBEDDER: ${RAG_EMBEDDER:-local}
     volumes: [data:/app/data]
     depends_on:
       migrate: { condition: service_completed_successfully }
@@ -45,6 +47,7 @@ services:
     network_mode: service:api
     environment:
       MCP_AUTH_TOKEN: ${MCP_AUTH_TOKEN:?Set MCP_AUTH_TOKEN in .env (openssl rand -hex 32)}
+      RAG_EMBEDDER: ${RAG_EMBEDDER:-local}
     volumes: [data:/app/data]
     depends_on:
       migrate: { condition: service_completed_successfully }
