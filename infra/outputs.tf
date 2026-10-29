@@ -27,3 +27,17 @@ output "public_subnets" {
     id => "${subnet.availability_zone} ${subnet.cidr_block}"
   }
 }
+
+output "image_repositories" {
+  description = "ECR repository URL of each app."
+  value       = { for service, repo in aws_ecr_repository.app : service => repo.repository_url }
+}
+
+output "parameters" {
+  description = "SSM parameters holding the deployment's secrets."
+  value = [
+    aws_ssm_parameter.mcp_auth_token.name,
+    aws_ssm_parameter.session_secret.name,
+    aws_ssm_parameter.openrouter_api_key.name,
+  ]
+}

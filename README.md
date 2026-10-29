@@ -214,7 +214,7 @@ It prints ✓/✗ per check with the expected passage's rank (failures list what
 
 ### Continuous integration
 
-`.github/workflows/ci.yml` runs on every push to `main` (and manually from the Actions tab): install with a locked `yarn.lock`, check formatting, build, type-check, test. A second job checks the Terraform in `infra/` (`terraform fmt -check`, `terraform validate`), without AWS access, and a third builds the three Docker images. `.github/workflows/infra.yml` plans the AWS sandbox deployment of `main` or `rag-option-a` when `infra/` changes on that branch (see [infra/README.md](infra/README.md)). There are no pull requests in this repo, so a red run means `main` is broken.
+`.github/workflows/ci.yml` runs on every push to `main` (and manually from the Actions tab): install with a locked `yarn.lock`, check formatting, build, type-check, test. A second job checks the Terraform in `infra/` (`terraform fmt -check`, `terraform validate`), without AWS access, and a third builds the three Docker images. `.github/workflows/deploy.yml` deploys `rag-option-a` to its AWS sandbox deployment on every push to this branch (see [infra/README.md](infra/README.md)). There are no pull requests in this repo, so a red run means `main` is broken.
 
 ### Environment variables
 

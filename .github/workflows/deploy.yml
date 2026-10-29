@@ -1,0 +1,137 @@
+name: Deploy
+
+# Deploys rag-option-a to its AWS sandbox deployment (Terraform workspace
+# `rag`): applies infra/, then builds the images for ARM (Graviton) and pushes
+# them to ECR. Only GitHub Actions in factoredai/health-mcp may use the
+# deployer role, so this runs here, not locally. main is not deployed yet.
+on:
+  push:
+    branches: [rag-option-a]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  # For the GitHub OIDC token the deployer role trusts.
+  id-token: write
+
+# One deploy at a time; Terraform also locks the state in S3.
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-1
+  DEPLOYER_ROLE_ARN: arn:aws:iam::986608278121:role/health-mcp-deployer
+  DEPLOYMENT: rag
+
+jobs:
+  infra:
+    name: Terraform apply (${{ github.ref_name }})
+    # Forks and personal copies cannot use the role.
+    if: github.repository == 'factoredai/health-mcp'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ env.DEPLOYER_ROLE_ARN }}
+          role-session-name: health-mcp-${{ env.DEPLOYMENT }}-infra-${{ github.run_id }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_wrapper: false
+
+      - name: Init
+        run: terraform init -input=false -backend-config=environments/sandbox.s3.tfbackend
+
+      - name: Select the workspace
+        run: terraform workspace select -or-create=true "$DEPLOYMENT"
+
+      - name: Plan
+        run: |
+          terraform plan -input=false -lock-timeout=5m -no-color -out=tfplan \
+            -var-file=environments/sandbox.tfvars | tee plan.txt
+          {
+            echo "### Terraform plan: \`$DEPLOYMENT\` deployment"
+            echo '```'
+            tail -n 40 plan.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Apply
+        run: terraform apply -input=false -lock-timeout=5m -no-color tfplan
+
+  images:
+    name: Build and push images (ARM)
+    needs: infra
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ env.DEPLOYER_ROLE_ARN }}
+          role-session-name: health-mcp-${{ env.DEPLOYMENT }}-images-${{ github.run_id }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Image names
+        run: echo "IMAGE=${{ steps.ecr.outputs.registry }}/health-mcp-$DEPLOYMENT" >> "$GITHUB_ENV"
+
+      # The server is ARM (Graviton); GitHub's runners are x86, so QEMU emulates ARM.
+      - uses: docker/setup-qemu-action@v4
+        with:
+          platforms: arm64
+
+      - uses: docker/setup-buildx-action@v4
+
+      # The three targets share one builder, so the dependency and build stages
+      # are built once per run; each target's cache (in GitHub's cache) speeds
+      # up the next deploy.
+      - name: api
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          target: api
+          platforms: linux/arm64
+          push: true
+          tags: |
+            ${{ env.IMAGE }}-api:${{ github.sha }}
+            ${{ env.IMAGE }}-api:latest
+          cache-from: type=gha,scope=${{ env.DEPLOYMENT }}-api
+          cache-to: type=gha,mode=max,scope=${{ env.DEPLOYMENT }}-api
+
+      - name: mcp-server
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          target: mcp-server
+          platforms: linux/arm64
+          push: true
+          tags: |
+            ${{ env.IMAGE }}-mcp-server:${{ github.sha }}
+            ${{ env.IMAGE }}-mcp-server:latest
+          cache-from: type=gha,scope=${{ env.DEPLOYMENT }}-mcp-server
+          cache-to: type=gha,mode=max,scope=${{ env.DEPLOYMENT }}-mcp-server
+
+      - name: web
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          target: web
+          platforms: linux/arm64
+          push: true
+          tags: |
+            ${{ env.IMAGE }}-web:${{ github.sha }}
+            ${{ env.IMAGE }}-web:latest
+          cache-from: type=gha,scope=${{ env.DEPLOYMENT }}-web
+          cache-to: type=gha,mode=max,scope=${{ env.DEPLOYMENT }}-web
