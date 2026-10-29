@@ -23,6 +23,13 @@ services:
       OPENROUTER_MODEL: ${OPENROUTER_MODEL:-anthropic/claude-opus-5.5}
       MCP_AUTH_TOKEN: ${MCP_AUTH_TOKEN:?Set MCP_AUTH_TOKEN in .env (openssl rand -hex 32)}
       WEB_ORIGIN: http://localhost:3000
+      # Sign-in is off locally unless .env turns it on (AUTH_MODE=google plus the
+      # Google client, SESSION_SECRET and AUTH_ALLOWED_EMAILS).
+      AUTH_MODE: ${AUTH_MODE:-off}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      SESSION_SECRET: ${SESSION_SECRET:-}
+      AUTH_ALLOWED_EMAILS: ${AUTH_ALLOWED_EMAILS:-}
     volumes: [data:/app/data]
     depends_on:
       migrate: { condition: service_completed_successfully }

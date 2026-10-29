@@ -1,5 +1,6 @@
 export * from "./api/routes.js";
 export * from "./mcp/tools.js";
+export * from "./schemas/auth.js";
 export * from "./schemas/chat.js";
 export * from "./schemas/common.js";
 export * from "./schemas/dashboard.js";

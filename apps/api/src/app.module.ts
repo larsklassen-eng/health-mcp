@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 
+import { AuthModule } from "./auth/auth.module.js";
 import { ChatModule } from "./chat/chat.module.js";
 import { ConfigModule } from "./config/config.module.js";
 import { DashboardsModule } from "./dashboards/dashboards.module.js";
@@ -14,6 +15,7 @@ import { PatientsModule } from "./patients/patients.module.js";
   imports: [
     ConfigModule,
     DatabaseModule,
+    AuthModule,
     LlmModule,
     McpModule,
     HealthModule,
