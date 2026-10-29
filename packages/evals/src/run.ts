@@ -14,7 +14,7 @@ import {
 import { CASES } from "./cases.js";
 import { type EvalCase, EvalCaseSchema, type EvalResult, type Transcript } from "./eval-case.js";
 import { grade } from "./grade.js";
-import { startStack } from "./stack.js";
+import { FIXTURE, missingEmbeddingModel, request, RESULTS_DIR, startStack } from "./stack.js";
 import { parseChatStream } from "./transcript.js";
 import { formatUsage, sumUsage } from "./usage.js";
 
@@ -24,20 +24,8 @@ import { formatUsage, sumUsage } from "./usage.js";
  * Every case costs real model calls. Usage: `yarn eval [--case <id>]...`.
  */
 
-const FIXTURE = path.join(REPO_ROOT, "fixtures/synthetic-patients.json");
-const RESULTS_DIR = path.join(REPO_ROOT, "eval-results");
 const CASE_TIMEOUT_MS = 180_000;
-
-async function call(url: string, init: RequestInit = {}): Promise<Response> {
-  const response = await fetch(url, {
-    ...init,
-    headers: { "Content-Type": "application/json" },
-    signal: AbortSignal.timeout(CASE_TIMEOUT_MS),
-  });
-  if (!response.ok)
-    throw new Error(`${init.method ?? "GET"} ${url}: ${response.status} ${await response.text()}`);
-  return response;
-}
+const call = (url: string, init: RequestInit = {}) => request(url, init, CASE_TIMEOUT_MS);
 
 async function runCase(apiUrl: string, bundle: PatientImportBundle, evalCase: EvalCase) {
   // A fresh copy of the patient per case, so no case sees another's chat.
@@ -101,6 +89,12 @@ async function main(): Promise<number> {
   loadEnvFile();
   if (!process.env.OPENROUTER_API_KEY?.trim()) {
     console.error("OPENROUTER_API_KEY is not set (in the environment or the root .env).");
+    return 2;
+  }
+
+  const missingModel = missingEmbeddingModel();
+  if (missingModel) {
+    console.error(missingModel);
     return 2;
   }
 

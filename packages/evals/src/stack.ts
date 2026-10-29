@@ -5,6 +5,12 @@ import { createServer } from "node:net";
 import path from "node:path";
 
 import { REPO_ROOT } from "@health-mcp/db";
+import { DEFAULT_EMBEDDING_MODEL, resolveModelDir } from "@health-mcp/rag";
+
+/** The synthetic patients the evals run on. */
+export const FIXTURE = path.join(REPO_ROOT, "fixtures/synthetic-patients.json");
+/** Where eval reports are written (git-ignored). */
+export const RESULTS_DIR = path.join(REPO_ROOT, "eval-results");
 
 const API_MAIN = path.join(REPO_ROOT, "apps/api/dist/main.js");
 const MCP_MAIN = path.join(REPO_ROOT, "apps/mcp-server/dist/main.js");
@@ -14,6 +20,33 @@ export interface Stack {
   /** Base URL of apps/api, e.g. `http://127.0.0.1:54321`. */
   apiUrl: string;
   close: () => Promise<void>;
+}
+
+/**
+ * The stack indexes and searches with the local embedding model, which is
+ * downloaded once with `yarn rag:model`; this says so before anything starts.
+ */
+export function missingEmbeddingModel(): string | undefined {
+  const dir = path.join(resolveModelDir(), DEFAULT_EMBEDDING_MODEL);
+  return existsSync(dir)
+    ? undefined
+    : `The embedding model is not in ${dir}. Run \`yarn rag:model\` once.`;
+}
+
+/** A JSON request to apps/api; throws with the response body when it fails. */
+export async function request(
+  url: string,
+  init: RequestInit = {},
+  timeoutMs = 60_000,
+): Promise<Response> {
+  const response = await fetch(url, {
+    ...init,
+    headers: { "Content-Type": "application/json" },
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+  if (!response.ok)
+    throw new Error(`${init.method ?? "GET"} ${url}: ${response.status} ${await response.text()}`);
+  return response;
 }
 
 /** A free loopback port, found by briefly listening on port 0. */
@@ -66,8 +99,9 @@ async function stop({ child }: Service): Promise<void> {
 
 /**
  * Starts apps/mcp-server and apps/api from their builds on free loopback
- * ports, both on `databasePath`, with a fresh MCP token. Every other setting
- * (the OpenRouter key and model) comes from the environment or the root `.env`.
+ * ports, both on `databasePath`, with a fresh MCP token and the local embedding
+ * model. Every other setting (the OpenRouter key and model) comes from the
+ * environment or the root `.env`.
  */
 export async function startStack(databasePath: string): Promise<Stack> {
   for (const main of [API_MAIN, MCP_MAIN])
@@ -80,12 +114,16 @@ export async function startStack(databasePath: string): Promise<Stack> {
     MCP_HOST: "127.0.0.1",
     MCP_PORT: String(mcpPort),
     MCP_AUTH_TOKEN: token,
+    RAG_EMBEDDER: "local",
   });
   const api = startService(API_MAIN, {
     DATABASE_PATH: databasePath,
     PORT: String(apiPort),
     MCP_URL: `http://127.0.0.1:${mcpPort}/mcp`,
     MCP_AUTH_TOKEN: token,
+    // The real embedding model, whatever .env says: the api indexes imported
+    // patients with it, and search_patient_records searches with it.
+    RAG_EMBEDDER: "local",
   });
 
   try {

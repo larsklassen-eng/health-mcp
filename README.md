@@ -22,7 +22,7 @@ In progress on this branch, for learning: RAG over each patient's records, with 
 | `packages/shared` | Zod | Schemas and inferred types shared by every app (API contracts, tool inputs). |
 | `packages/db` | SQLite + Drizzle ORM | Database schema, migrations and client used by `apps/api` and `apps/mcp-server`. Stores patients, health records and chat history per patient. |
 | `packages/rag` | TypeScript, transformers.js | RAG building blocks (in progress): splitting patient text into chunks, embedding them with a local model, storing them, keeping each patient's index in sync with their records, and hybrid search (vector + keyword) per patient. See [docs/rag.md](docs/rag.md). |
-| `packages/evals` | Zod + TypeScript | Agent eval cases on the synthetic patients, a deterministic grader, and `yarn eval` to run them against the real stack. |
+| `packages/evals` | Zod + TypeScript | Agent eval cases on the synthetic patients, a deterministic grader, and `yarn eval` to run them against the real stack; retrieval checks for the record search (`yarn eval:retrieval`, free). |
 
 ### Chat flow (per patient)
 
@@ -54,7 +54,7 @@ packages/
   shared/             Zod schemas + types (API, chat, MCP tools, import)
   db/                 SQLite schema, client and migrations (drizzle/)
   rag/                Chunking, local embeddings, index and search for RAG
-  evals/              Agent eval cases, grader and runner (`yarn eval`)
+  evals/              Agent eval cases, retrieval checks, graders and runners
 infra/                Terraform for the AWS sandbox account (see infra/README.md)
 fixtures/
   synthetic-patients.json  8 invented patients in the import format
@@ -67,7 +67,7 @@ docs/
 
 ## Status
 
-`packages/shared` holds the Zod schemas for patients, health records, the JSON import format, chat and its SSE stream events, dashboards, MCP tool inputs and API routes. `packages/db` has the SQLite schema (9 tables: patients, lab results, vital signs, medications, symptoms, recovery milestones, imaging studies, imaging series, chat messages), its migrations and a client. `packages/evals` has 15 agent eval cases and a runner (see [Evals](#evals)). `apps/api` has its NestJS foundation: validated config, the database connection, `GET /health`, Zod request validation and a consistent error format. It also has the patient endpoints (create, list, get, update, delete, import) and each patient's chat history. Chat works end to end with tools: `POST /patients/:id/chat` runs the agent loop (OpenRouter model, tools on the MCP server), streams the answer and tool events, and saves the conversation with its tool calls. Imaging studies come from the JSON import (with reports) or from a DICOM upload (a zip of a CD/DVD; see [Imaging](#imaging)). `GET /dashboards/overview` and `GET /dashboards/patients/:id` serve the dashboards (how each number is calculated is documented on the schemas in `packages/shared/src/schemas/dashboard.ts`). `apps/web` has the Patients pages: list, create, import a JSON file of fake data, a profile with an edit page (including delete, after a confirmation), and a chat per patient that streams the answer as it is written, with a card for each tool call (what was asked, and the result when expanded). It also has the dashboards: an overview of all patients (`/dashboard`) and one per patient (`/patients/:id/dashboard`), and imaging: a study page with a slice viewer and the editable report, and a DICOM upload page. `apps/mcp-server` serves seven tools (`get_patient_profile`, `get_lab_results`, `get_vitals_trend`, `get_medications`, `get_recovery_milestones`, `get_imaging_studies`, `log_symptom`) over MCP Streamable HTTP, on localhost only and behind a shared token. `log_symptom`, the only tool that writes, runs only after the clinician confirms it in the chat (see [Confirming changes](#confirming-changes)). Every workspace has tests, and CI runs on each push to `main`. `fixtures/synthetic-patients.json` has 8 invented patients to import (see [fixtures/README.md](fixtures/README.md)). Work is tracked in Linear (LKLA-1).
+`packages/shared` holds the Zod schemas for patients, health records, the JSON import format, chat and its SSE stream events, dashboards, MCP tool inputs and API routes. `packages/db` has the SQLite schema (9 tables: patients, lab results, vital signs, medications, symptoms, recovery milestones, imaging studies, imaging series, chat messages), its migrations and a client. `packages/evals` has 20 agent eval cases, 19 retrieval checks and their runners (see [Evals](#evals)). `apps/api` has its NestJS foundation: validated config, the database connection, `GET /health`, Zod request validation and a consistent error format. It also has the patient endpoints (create, list, get, update, delete, import) and each patient's chat history. Chat works end to end with tools: `POST /patients/:id/chat` runs the agent loop (OpenRouter model, tools on the MCP server), streams the answer and tool events, and saves the conversation with its tool calls. Imaging studies come from the JSON import (with reports) or from a DICOM upload (a zip of a CD/DVD; see [Imaging](#imaging)). `GET /dashboards/overview` and `GET /dashboards/patients/:id` serve the dashboards (how each number is calculated is documented on the schemas in `packages/shared/src/schemas/dashboard.ts`). `apps/web` has the Patients pages: list, create, import a JSON file of fake data, a profile with an edit page (including delete, after a confirmation), and a chat per patient that streams the answer as it is written, with a card for each tool call (what was asked, and the result when expanded). It also has the dashboards: an overview of all patients (`/dashboard`) and one per patient (`/patients/:id/dashboard`), and imaging: a study page with a slice viewer and the editable report, and a DICOM upload page. `apps/mcp-server` serves seven tools (`get_patient_profile`, `get_lab_results`, `get_vitals_trend`, `get_medications`, `get_recovery_milestones`, `get_imaging_studies`, `log_symptom`) over MCP Streamable HTTP, on localhost only and behind a shared token. `log_symptom`, the only tool that writes, runs only after the clinician confirms it in the chat (see [Confirming changes](#confirming-changes)). Every workspace has tests, and CI runs on each push to `main`. `fixtures/synthetic-patients.json` has 8 invented patients to import (see [fixtures/README.md](fixtures/README.md)). Work is tracked in Linear (LKLA-1).
 
 ## Getting started
 
@@ -154,6 +154,19 @@ The cases are in `packages/evals/src/cases.ts`. Grading is deterministic, with n
 - that the model finished normally (not an error or the tool-round limit).
 
 Each run prints ✓/✗ per case with the reasons and the case's model calls, tokens and cost, then the totals. It writes a JSON report with the answers, each case's tool calls with their arguments and `usage`, and the run's total to `eval-results/` (git-ignored). The exit code is 1 if any case fails. CI does not run evals; `yarn test` checks the grader, the stream parsing, and that every expected value really is in the fixture. To try the runner without model calls, point `OPENROUTER_BASE_URL` at a local fake server.
+
+Five agent cases (`search-*`) ask about things only written in symptom notes, which only `search_patient_records` returns. Both runners use the local embedding model, so run `yarn rag:model` once first.
+
+`yarn eval:retrieval` checks the record search alone, for free: it imports the synthetic patients into a temporary database through apps/api (which indexes them), then runs each check's query and looks for the expected passage (its source and a phrase from it) in the top 5. Two checks are off-topic questions that must return nothing. No LLM is called, and no API key is needed.
+
+```sh
+yarn eval:retrieval --list        # list the checks
+yarn eval:retrieval               # run all checks
+yarn eval:retrieval --verbose     # also print what each search returned
+yarn eval:retrieval --case vertigo
+```
+
+It prints ✓/✗ per check with the expected passage's rank (failures list what came back), then the hit rate (expected passages found in the top 5) and the mean reciprocal rank (1 when the expected passage is always first). The checks are in `packages/evals/src/retrieval-cases.ts`; the report goes to `eval-results/retrieval-*.json`.
 
 ### Continuous integration
 

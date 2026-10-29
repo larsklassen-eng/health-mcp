@@ -654,6 +654,7 @@ __metadata:
   resolution: "@health-mcp/evals@workspace:packages/evals"
   dependencies:
     "@health-mcp/db": "workspace:*"
+    "@health-mcp/rag": "workspace:*"
     "@health-mcp/shared": "workspace:*"
     "@types/node": "npm:^24.0.0"
     typescript: "npm:^7.0.2"

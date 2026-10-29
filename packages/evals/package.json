@@ -14,10 +14,12 @@
     "typecheck": "tsc -p tsconfig.test.json",
     "clean": "rm -rf dist",
     "test": "vitest run",
-    "eval": "node dist/run.js"
+    "eval": "node dist/run.js",
+    "eval:retrieval": "node dist/retrieval-run.js"
   },
   "dependencies": {
     "@health-mcp/db": "workspace:*",
+    "@health-mcp/rag": "workspace:*",
     "@health-mcp/shared": "workspace:*",
     "zod": "^4.6.5"
   },
