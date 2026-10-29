@@ -6,11 +6,9 @@ An AI health-recovery assistant. Clinicians manage patients, review dashboards, 
 
 ## Architecture
 
-![System architecture](docs/architecture.png)
+![RAG architecture](docs/rag.png)
 
-The editable source is [`docs/architecture.svg`](docs/architecture.svg).
-
-In progress on this branch, for learning: RAG over each patient's records, with a vector index in SQLite. See [`docs/rag.md`](docs/rag.md) for the design and the plan.
+This branch adds RAG over each patient's records, for learning: their free text is embedded on this machine, stored in a vector index in SQLite, and searched by the model through an MCP tool. New parts are dashed magenta; a green check marks what is built. The editable source is [`docs/rag.svg`](docs/rag.svg), and [`docs/rag.md`](docs/rag.md) has the design, the plan and the eval results. The architecture without RAG is in [`docs/architecture.png`](docs/architecture.png).
 
 ### Components
 
@@ -18,10 +16,10 @@ In progress on this branch, for learning: RAG over each patient's records, with 
 |---|---|---|
 | `apps/web` | Next.js | **Patients**: list, create, import fake data. **Patient chat** (`/patients/:id/chat`): streams tokens and tool-call cards. **Dashboards**: an overview of all patients and a per-patient view. Talks only to `apps/api`. |
 | `apps/api` | NestJS | REST endpoints for patients and dashboards. `POST /patients/:id/chat` streams the agent's reply over SSE. Runs the agent loop, calls the LLM through OpenRouter, and calls MCP tools. |
-| `apps/mcp-server` | MCP TypeScript SDK | Standalone MCP server exposing patient-scoped health tools (labs, vitals, medications, symptoms, recovery milestones, imaging reports). |
+| `apps/mcp-server` | MCP TypeScript SDK | Standalone MCP server exposing patient-scoped health tools (labs, vitals, medications, symptoms, recovery milestones, imaging reports) and a search over the patient's free text (`search_patient_records`). |
 | `packages/shared` | Zod | Schemas and inferred types shared by every app (API contracts, tool inputs). |
 | `packages/db` | SQLite + Drizzle ORM | Database schema, migrations and client used by `apps/api` and `apps/mcp-server`. Stores patients, health records and chat history per patient. |
-| `packages/rag` | TypeScript, transformers.js | RAG building blocks (in progress): splitting patient text into chunks, embedding them with a local model, storing them, keeping each patient's index in sync with their records, and hybrid search (vector + keyword) per patient. See [docs/rag.md](docs/rag.md). |
+| `packages/rag` | TypeScript, transformers.js | RAG building blocks: splitting patient text into chunks, embedding them with a local model, storing them, keeping each patient's index in sync with their records, and hybrid search (vector + keyword) per patient. See [docs/rag.md](docs/rag.md). |
 | `packages/evals` | Zod + TypeScript | Agent eval cases on the synthetic patients, a deterministic grader, and `yarn eval` to run them against the real stack; retrieval checks for the record search (`yarn eval:retrieval`, free). |
 
 ### Chat flow (per patient)
@@ -59,7 +57,7 @@ infra/                Terraform for the AWS sandbox account (see infra/README.md
 fixtures/
   synthetic-patients.json  8 invented patients in the import format
 docs/
-  architecture.png    Architecture diagram
+  architecture.png    Architecture diagram without RAG
   architecture.svg    Diagram source
   rag.md              RAG design and plan
   rag.png, rag.svg    RAG architecture diagram and its source
@@ -67,7 +65,7 @@ docs/
 
 ## Status
 
-`packages/shared` holds the Zod schemas for patients, health records, the JSON import format, chat and its SSE stream events, dashboards, MCP tool inputs and API routes. `packages/db` has the SQLite schema (9 tables: patients, lab results, vital signs, medications, symptoms, recovery milestones, imaging studies, imaging series, chat messages), its migrations and a client. `packages/evals` has 20 agent eval cases, 19 retrieval checks and their runners (see [Evals](#evals)). `apps/api` has its NestJS foundation: validated config, the database connection, `GET /health`, Zod request validation and a consistent error format. It also has the patient endpoints (create, list, get, update, delete, import) and each patient's chat history. Chat works end to end with tools: `POST /patients/:id/chat` runs the agent loop (OpenRouter model, tools on the MCP server), streams the answer and tool events, and saves the conversation with its tool calls. Imaging studies come from the JSON import (with reports) or from a DICOM upload (a zip of a CD/DVD; see [Imaging](#imaging)). `GET /dashboards/overview` and `GET /dashboards/patients/:id` serve the dashboards (how each number is calculated is documented on the schemas in `packages/shared/src/schemas/dashboard.ts`). `apps/web` has the Patients pages: list, create, import a JSON file of fake data, a profile with an edit page (including delete, after a confirmation), and a chat per patient that streams the answer as it is written, with a card for each tool call (what was asked, and the result when expanded). It also has the dashboards: an overview of all patients (`/dashboard`) and one per patient (`/patients/:id/dashboard`), and imaging: a study page with a slice viewer and the editable report, and a DICOM upload page. `apps/mcp-server` serves seven tools (`get_patient_profile`, `get_lab_results`, `get_vitals_trend`, `get_medications`, `get_recovery_milestones`, `get_imaging_studies`, `log_symptom`) over MCP Streamable HTTP, on localhost only and behind a shared token. `log_symptom`, the only tool that writes, runs only after the clinician confirms it in the chat (see [Confirming changes](#confirming-changes)). Every workspace has tests, and CI runs on each push to `main`. `fixtures/synthetic-patients.json` has 8 invented patients to import (see [fixtures/README.md](fixtures/README.md)). Work is tracked in Linear (LKLA-1).
+`packages/shared` holds the Zod schemas for patients, health records, the JSON import format, chat and its SSE stream events, dashboards, MCP tool inputs and API routes. `packages/db` has the SQLite schema (10 tables: patients, lab results, vital signs, medications, symptoms, recovery milestones, imaging studies, imaging series, chat messages, record chunks, plus the search indexes), its migrations and a client. `packages/rag` chunks, embeds and searches each patient's free text (see [`docs/rag.md`](docs/rag.md)). `packages/evals` has 20 agent eval cases, 19 retrieval checks and their runners (see [Evals](#evals)). `apps/api` has its NestJS foundation: validated config, the database connection, `GET /health`, Zod request validation and a consistent error format. It also has the patient endpoints (create, list, get, update, delete, import) and each patient's chat history. Chat works end to end with tools: `POST /patients/:id/chat` runs the agent loop (OpenRouter model, tools on the MCP server), streams the answer and tool events, and saves the conversation with its tool calls. Imaging studies come from the JSON import (with reports) or from a DICOM upload (a zip of a CD/DVD; see [Imaging](#imaging)). `GET /dashboards/overview` and `GET /dashboards/patients/:id` serve the dashboards (how each number is calculated is documented on the schemas in `packages/shared/src/schemas/dashboard.ts`). `apps/web` has the Patients pages: list, create, import a JSON file of fake data, a profile with an edit page (including delete, after a confirmation), and a chat per patient that streams the answer as it is written, with a card for each tool call (what was asked, and the result when expanded; a record search lists the passages found, linked to their sources). It also has the dashboards: an overview of all patients (`/dashboard`) and one per patient (`/patients/:id/dashboard`), and imaging: a study page with a slice viewer and the editable report, and a DICOM upload page. `apps/mcp-server` serves eight tools (`get_patient_profile`, `get_lab_results`, `get_vitals_trend`, `get_medications`, `get_recovery_milestones`, `get_imaging_studies`, `search_patient_records`, `log_symptom`) over MCP Streamable HTTP, on localhost only and behind a shared token. `log_symptom`, the only tool that writes, runs only after the clinician confirms it in the chat (see [Confirming changes](#confirming-changes)). Every workspace has tests, and CI runs on each push to `main`. `fixtures/synthetic-patients.json` has 8 invented patients to import (see [fixtures/README.md](fixtures/README.md)). Work is tracked in Linear (LKLA-1).
 
 ## Getting started
 
@@ -103,7 +101,7 @@ Store timestamps as UTC ISO strings ending in `Z` (convert offsets before writin
 
 After pulling a commit that adds a migration, run `yarn db:migrate`: the api does not migrate on startup.
 
-**Search tables (RAG, in progress):** `record_chunks` holds searchable pieces of each patient's free text. Their embeddings are in `vec_chunks`, a [sqlite-vec](https://github.com/asg017/sqlite-vec) vector table partitioned by patient, and their words in `chunks_fts`, an FTS5 keyword index. Both are created by a hand-written migration (`drizzle/0003_search_indexes.sql`), and triggers remove a chunk's vector and words when the chunk or its patient is deleted. `createDb` loads sqlite-vec on every connection. A tool without the extension (such as the `sqlite3` command line) can read the database but cannot delete patients that have chunks.
+**Search tables (RAG):** `record_chunks` holds searchable pieces of each patient's free text. Their embeddings are in `vec_chunks`, a [sqlite-vec](https://github.com/asg017/sqlite-vec) vector table partitioned by patient, and their words in `chunks_fts`, an FTS5 keyword index. Both are created by a hand-written migration (`drizzle/0003_search_indexes.sql`), and triggers remove a chunk's vector and words when the chunk or its patient is deleted. `createDb` loads sqlite-vec on every connection. A tool without the extension (such as the `sqlite3` command line) can read the database but cannot delete patients that have chunks.
 
 ### Imaging
 
@@ -216,7 +214,7 @@ Serves the patient-scoped health tools over [MCP](https://modelcontextprotocol.i
 | `get_medications` | Done: `status` is `active` (default), `stopped` or `all`. Active before stopped, then the most recently started first, as `{ medications }` |
 | `get_recovery_milestones` | Done: optional `status` (`pending`, `achieved`, `missed`). By target date, earliest first, undated last, as `{ milestones, counts }`; `counts` has every status, whatever the filter |
 | `get_imaging_studies` | Done: newest first, with impression, report (first 4000 characters; `reportTruncated` when cut) and series; optional `modality` (`MR`, `CT`, `CR`…) and `limit` (default 5, max 20). Reports and details only, never the images |
-| `search_patient_records` | In progress (RAG, see [docs/rag.md](docs/rag.md)): hybrid search (meaning + keywords) over the patient's indexed free text: reports, notes, symptom notes and the clinician's chat messages. `query`, optional `sources` and `limit` (default 5, max 10); returns passages with source, date, title and similarity, or a note when nothing relevant is found. Offered only when `RAG_EMBEDDER` is not `off` |
+| `search_patient_records` | RAG (see [docs/rag.md](docs/rag.md)): hybrid search (meaning + keywords) over the patient's indexed free text: reports, notes, symptom notes and the clinician's chat messages. `query`, optional `sources` and `limit` (default 5, max 10); returns passages with source, date, title and similarity, or a note when nothing relevant is found. Offered only when `RAG_EMBEDDER` is not `off` |
 | `log_symptom` | Done: saves `name`, `severity` (0–10) and optional `notes`, recorded at the time it runs, and returns `{ symptom }`. apps/api only calls it after the clinician confirms (see [Confirming changes](#confirming-changes)) |
 
 Tool descriptions and input schemas come from `MCP_TOOLS` in `packages/shared`; each tool's input is the model's arguments plus `patient_id`, validated before the tool runs. Results are JSON text. An unknown patient or invalid input is returned as a tool error (`isError`) that the model can read; unexpected failures return a generic message and are logged.
