@@ -1,0 +1,16 @@
+# Keep the build context small, and keep data, secrets and local builds out of images.
+.git
+**/node_modules
+**/dist
+**/.next
+**/.turbo
+**/*.tsbuildinfo
+.yarn/install-state.gz
+.yarn/cache
+data
+eval-results
+.env
+.env.*
+infra
+docs
+**/.DS_Store

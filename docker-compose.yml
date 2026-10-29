@@ -1,0 +1,65 @@
+# The whole app in containers, as it will run in AWS: `docker compose up --build`,
+# then open http://localhost:3000. Data lives in the `data` volume.
+#
+# Settings come from the repo-root .env (Compose reads it for the ${...} values
+# below): MCP_AUTH_TOKEN is required, OPENROUTER_API_KEY is needed for chat.
+name: health-mcp
+
+x-api-image: &api-image
+  build: { context: ., target: api }
+  image: health-mcp-api
+
+services:
+  # Creates or updates the database, then exits; the servers wait for it.
+  migrate:
+    <<: *api-image
+    command: ["node", "packages/db/dist/migrate.js"]
+    volumes: [data:/app/data]
+
+  api:
+    <<: *api-image
+    environment:
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-anthropic/claude-opus-5.5}
+      MCP_AUTH_TOKEN: ${MCP_AUTH_TOKEN:?Set MCP_AUTH_TOKEN in .env (openssl rand -hex 32)}
+      WEB_ORIGIN: http://localhost:3000
+    volumes: [data:/app/data]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://127.0.0.1:3001/health').then(r=>process.exit(+!r.ok),()=>process.exit(1))
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    restart: unless-stopped
+
+  # Shares the api container's network, so it keeps listening on 127.0.0.1
+  # only: nothing but the api can reach it, as on a single machine.
+  mcp-server:
+    build: { context: ., target: mcp-server }
+    image: health-mcp-mcp-server
+    network_mode: service:api
+    environment:
+      MCP_AUTH_TOKEN: ${MCP_AUTH_TOKEN:?Set MCP_AUTH_TOKEN in .env (openssl rand -hex 32)}
+    volumes: [data:/app/data]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      api: { condition: service_started }
+    restart: unless-stopped
+
+  web:
+    build: { context: ., target: web }
+    image: health-mcp-web
+    environment:
+      API_URL: http://api:3001
+    ports: ["3000:3000"]
+    depends_on:
+      api: { condition: service_healthy }
+    restart: unless-stopped
+
+volumes:
+  data:

@@ -54,6 +54,8 @@ packages/
   rag/                Chunking, local embeddings, index and search for RAG
   evals/              Agent eval cases, retrieval checks, graders and runners
 infra/                Terraform for the AWS sandbox account (see infra/README.md)
+Dockerfile            Images for api, mcp-server and web
+docker-compose.yml    Runs the whole app in containers
 fixtures/
   synthetic-patients.json  8 invented patients in the import format
 docs/
@@ -85,6 +87,27 @@ yarn dev         # watch-build packages, run apps/api on :3001, apps/mcp-server 
 ```
 
 Copy `.env.example` to `.env` to change settings; the defaults work without it. To give the chat its tools, set `MCP_AUTH_TOKEN` in `.env` (`openssl rand -hex 32`); apps/api and apps/mcp-server both read it. Without it the MCP server rejects every request and chat answers without tools.
+
+### Running with Docker
+
+The whole app also runs in containers, the way it will run in AWS. It needs Docker (or OrbStack) and `MCP_AUTH_TOKEN` in `.env`; `OPENROUTER_API_KEY` is needed for chat.
+
+```sh
+docker compose up --build -d   # build the images and start everything
+open http://localhost:3000
+docker compose logs -f api     # follow a service's logs
+docker compose down            # stop (data is kept in the `data` volume)
+docker compose down -v         # stop and delete the data
+```
+
+| Service | Image (`Dockerfile` target) | What it does |
+|---|---|---|
+| `migrate` | `api` | Creates or updates the database, then exits; the servers start after it |
+| `api` | `api` | apps/api on port 3001, reachable only by the other containers |
+| `mcp-server` | `mcp-server` | Shares the api container's network, so it still listens on `127.0.0.1` only: nothing but the api can reach it |
+| `web` | `web` | apps/web (Next.js standalone server) on http://localhost:3000; the only published port |
+
+The images keep the repo layout under `/app` and run as the unprivileged `node` user. The database and imaging files live in the `data` volume (`/app/data`), separate from `data/` on your machine, so start by importing `fixtures/synthetic-patients.json` on the Patients page. Compose reads only the values it needs from `.env` (`MCP_AUTH_TOKEN`, `OPENROUTER_API_KEY`, `OPENROUTER_MODEL`); `.env` itself never goes into an image (see `.dockerignore`).
 
 ### Database
 
@@ -168,7 +191,7 @@ It prints ✓/✗ per check with the expected passage's rank (failures list what
 
 ### Continuous integration
 
-`.github/workflows/ci.yml` runs on every push to `main` (and manually from the Actions tab): install with a locked `yarn.lock`, check formatting, build, type-check, test. A second job checks the Terraform in `infra/` (`terraform fmt -check`, `terraform validate`), without AWS access. `.github/workflows/infra.yml` plans the AWS sandbox deployment of `main` or `rag-option-a` when `infra/` changes on that branch (see [infra/README.md](infra/README.md)). There are no pull requests in this repo, so a red run means `main` is broken.
+`.github/workflows/ci.yml` runs on every push to `main` (and manually from the Actions tab): install with a locked `yarn.lock`, check formatting, build, type-check, test. A second job checks the Terraform in `infra/` (`terraform fmt -check`, `terraform validate`), without AWS access, and a third builds the three Docker images. `.github/workflows/infra.yml` plans the AWS sandbox deployment of `main` or `rag-option-a` when `infra/` changes on that branch (see [infra/README.md](infra/README.md)). There are no pull requests in this repo, so a red run means `main` is broken.
 
 ### Environment variables
 
