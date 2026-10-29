@@ -26,11 +26,6 @@ variable "deployments" {
   type        = map(string)
 }
 
-variable "deployer_role_arn" {
-  description = "IAM role Terraform assumes to create resources."
-  type        = string
-}
-
 variable "permissions_boundary_arn" {
   description = <<-EOT
     Permissions boundary every IAM role created here must use; the deployer role

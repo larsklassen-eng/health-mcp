@@ -22,7 +22,7 @@ Apply a deployment from its own branch, so the `rag` deployment runs the RAG cod
 | File | What it holds |
 |---|---|
 | `versions.tf` | Terraform and AWS provider versions; the S3 backend |
-| `providers.tf` | AWS provider: assumes the deployer role, tags every resource |
+| `providers.tf` | AWS provider: credentials from the environment, tags every resource |
 | `variables.tf` | Inputs: account settings, VPC and subnets |
 | `network.tf` | Looks up the existing VPC and subnets (they are not managed here); the deployment's name prefix |
 | `outputs.tf` | The deployment, the VPC's CIDR, and each subnet's availability zone and CIDR |
@@ -31,8 +31,10 @@ Apply a deployment from its own branch, so the `rag` deployment runs the RAG cod
 
 ## The sandbox account
 
-- **Deployer role:** `health-mcp-deployer`. Your own credentials only need to be allowed to assume
-  it; Terraform does the rest as that role, including reading and writing the state.
+- **Deployer role:** `health-mcp-deployer`. Only GitHub Actions in `factoredai/health-mcp` can
+  use it (its trust policy allows GitHub's OIDC tokens for that repo, any branch), so Terraform
+  runs there as that role, including reading and writing the state. Personal SSO roles cannot
+  assume it.
 - **Permissions boundary:** every IAM role created here must set
   `permissions_boundary = local.permissions_boundary`, or the deployer role cannot create it.
 - **Tags:** `project`, `owner`, `pillar` and `deployment` are added to every resource by the
@@ -44,25 +46,23 @@ The files hold identifiers only (account id, ARNs, resource ids), never credenti
 
 ## Usage
 
-Requires Terraform 1.10 or later (`brew install hashicorp/tap/terraform`) and AWS credentials
-that can assume the deployer role, for example an SSO profile:
+Terraform runs in GitHub Actions (`.github/workflows/infra.yml`), on every push to `main` or
+`rag-option-a` that changes `infra/` or the workflow, or by hand from the Actions tab
+("Infra" → "Run workflow", on the branch to plan). For the branch's deployment it:
+
+1. logs in as the deployer role with GitHub's OIDC token (no stored AWS keys);
+2. runs `terraform init` with `environments/sandbox.s3.tfbackend`;
+3. selects the deployment's workspace (`main` or `rag`), creating it on the first run;
+4. runs `terraform plan` and adds the end of the plan to the run's summary.
+
+It only plans; nothing is applied yet. It runs only in `factoredai/health-mcp`, so pushes to
+personal copies skip it.
+
+Locally, without AWS access, you can check the configuration (as the CI workflow does on every
+push to `main`):
 
 ```sh
-export AWS_PROFILE=<your sandbox profile>
 cd infra
-terraform init -backend-config=environments/sandbox.s3.tfbackend
-
-# Once per deployment:
-terraform workspace new main   # and: terraform workspace new rag
-
-# On the main branch:
-terraform workspace select main
-# On rag-option-a:
-terraform workspace select rag
-
-terraform plan -var-file=environments/sandbox.tfvars
-terraform apply -var-file=environments/sandbox.tfvars   # creates nothing yet, prints the outputs
+terraform fmt -check -recursive
+terraform init -backend=false && terraform validate
 ```
-
-CI checks formatting and validates the configuration without AWS access (`terraform init
--backend=false`). It never plans or applies.

@@ -1,0 +1,74 @@
+name: Infra
+
+# Plans the branch's deployment in the AWS sandbox: main → workspace main,
+# rag-option-a → workspace rag. Only GitHub Actions in factoredai/health-mcp
+# may use the deployer role, so Terraform runs here, not locally.
+# This workflow only plans; nothing is applied yet.
+on:
+  push:
+    branches: [main, rag-option-a]
+    paths: [infra/**, .github/workflows/infra.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  # For the GitHub OIDC token the deployer role trusts.
+  id-token: write
+
+# One run per deployment at a time; Terraform also locks the state in S3.
+concurrency:
+  group: infra-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-1
+  DEPLOYER_ROLE_ARN: arn:aws:iam::986608278121:role/health-mcp-deployer
+
+jobs:
+  plan:
+    name: Terraform plan (${{ github.ref_name }})
+    # Forks and personal copies cannot use the role.
+    if: github.repository == 'factoredai/health-mcp'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - name: Pick the branch's deployment
+        working-directory: .
+        run: |
+          case "$GITHUB_REF_NAME" in
+            main) echo "DEPLOYMENT=main" >> "$GITHUB_ENV" ;;
+            rag-option-a) echo "DEPLOYMENT=rag" >> "$GITHUB_ENV" ;;
+            *) echo "::error::Branch $GITHUB_REF_NAME has no deployment."; exit 1 ;;
+          esac
+
+      - uses: actions/checkout@v7
+
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ env.DEPLOYER_ROLE_ARN }}
+          role-session-name: health-mcp-${{ env.DEPLOYMENT }}-${{ github.run_id }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_wrapper: false
+
+      - name: Init
+        run: terraform init -input=false -backend-config=environments/sandbox.s3.tfbackend
+
+      - name: Select the workspace
+        run: terraform workspace select -or-create=true "$DEPLOYMENT"
+
+      - name: Plan
+        run: |
+          terraform plan -input=false -lock-timeout=5m -no-color \
+            -var-file=environments/sandbox.tfvars | tee plan.txt
+          {
+            echo "### Terraform plan: \`$DEPLOYMENT\` deployment"
+            echo '```'
+            tail -n 40 plan.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
