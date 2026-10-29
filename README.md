@@ -152,7 +152,7 @@ Each run prints ✓/✗ per case with the reasons and the case's model calls, to
 
 ### Continuous integration
 
-`.github/workflows/ci.yml` runs on every push to `main` (and manually from the Actions tab): install with a locked `yarn.lock`, check formatting, build, type-check, test. A second job checks the Terraform in `infra/` (`terraform fmt -check`, `terraform validate`), without AWS access. There are no pull requests in this repo, so a red run means `main` is broken.
+`.github/workflows/ci.yml` runs on every push to `main` (and manually from the Actions tab): install with a locked `yarn.lock`, check formatting, build, type-check, test. A second job checks the Terraform in `infra/` (`terraform fmt -check`, `terraform validate`), without AWS access. `.github/workflows/infra.yml` plans the AWS sandbox deployment of `main` or `rag-option-a` when `infra/` changes on that branch (see [infra/README.md](infra/README.md)). There are no pull requests in this repo, so a red run means `main` is broken.
 
 ### Environment variables
 

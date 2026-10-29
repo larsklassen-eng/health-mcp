@@ -1,12 +1,7 @@
-# Your own credentials only need to be allowed to assume the deployer role;
-# Terraform does everything else as that role.
+# Credentials come from the environment. Only GitHub Actions can use the
+# deployer role (see .github/workflows/infra.yml), so Terraform runs there.
 provider "aws" {
   region = var.region
-
-  assume_role {
-    role_arn     = var.deployer_role_arn
-    session_name = "${var.project}-${terraform.workspace}-terraform"
-  }
 
   # Every resource gets the tags the sandbox account requires, and its deployment.
   default_tags {

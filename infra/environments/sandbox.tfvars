@@ -7,7 +7,6 @@ deployments = {
   main = "main"
   rag  = "rag-option-a"
 }
-deployer_role_arn        = "arn:aws:iam::986608278121:role/health-mcp-deployer"
 permissions_boundary_arn = "arn:aws:iam::986608278121:policy/health-mcp-DeployerPolicy"
 
 vpc_id = "vpc-0a133342682857484"
