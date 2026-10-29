@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 
+import { AuthModule } from "./auth/auth.module.js";
 import { ChatModule } from "./chat/chat.module.js";
 import { ConfigModule } from "./config/config.module.js";
 import { DashboardsModule } from "./dashboards/dashboards.module.js";
@@ -16,6 +17,7 @@ import { RagModule } from "./rag/rag.module.js";
     ConfigModule,
     DatabaseModule,
     RagModule,
+    AuthModule,
     LlmModule,
     McpModule,
     HealthModule,

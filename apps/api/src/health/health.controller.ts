@@ -1,8 +1,10 @@
 import { API_ROUTES, type HealthCheckResponse } from "@health-mcp/shared";
 import { Controller, Get, ServiceUnavailableException } from "@nestjs/common";
 
+import { Public } from "../auth/public.decorator.js";
 import { DatabaseService } from "../database/database.service.js";
 
+@Public()
 @Controller()
 export class HealthController {
   constructor(private readonly database: DatabaseService) {}
