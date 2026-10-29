@@ -1,22 +1,20 @@
 import { cookies } from "next/headers";
 
 /*
- * Sign-in cookies. The api signs every value; this app only keeps them,
- * HTTP-only so page scripts cannot read them, and sends the session to the
- * api as `Authorization: Bearer <session>` (see `api-client.ts`).
+ * Sign-in cookies. The api signs the session; this app only keeps it,
+ * HTTP-only so page scripts cannot read it, and sends it to the api as
+ * `Authorization: Bearer <session>` (see `api-client.ts`).
  */
 
 /** The session, for every api request. */
 export const SESSION_COOKIE = "hm_session";
-/** The state of a sign-in in progress, until Google sends the browser back. */
-export const LOGIN_STATE_COOKIE = "hm_login";
 /** The page to return to after signing in. */
 export const RETURN_TO_COOKIE = "hm_return_to";
 
 export const LOGIN_PATH = "/login";
 const HOME_PATH = "/patients";
 
-/** This app's public URL, as Google and the browser see it (same as the api's WEB_ORIGIN). */
+/** This app's public URL, as the browser sees it (same as the api's WEB_ORIGIN). */
 export const webOrigin = (): string => process.env.WEB_ORIGIN ?? "http://localhost:3000";
 
 /** Cookie settings: Secure whenever the app is served over HTTPS. */

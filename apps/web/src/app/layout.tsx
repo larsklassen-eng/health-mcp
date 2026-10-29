@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   // The api may be down; pages say so themselves.
   const session = await api.getSession().catch(() => undefined);
-  const signedOut = session?.mode === "google" && !session.user;
+  const signedOut = session?.mode === "password" && !session.user;
   return (
     <html lang="en">
       <body>

@@ -60,15 +60,15 @@ describe("the session in api requests", () => {
 
 describe("sign-in calls", () => {
   it("reads the session, treating 401 as signed out", async () => {
-    respond(200, { mode: "google", user: { email: "ana@example.com" } });
+    respond(200, { mode: "password", user: { email: "ana@example.com" } });
     respond(401, unauthorized);
     respond(200, { mode: "off", user: null });
 
     expect(await api.getSession("token")).toEqual({
-      mode: "google",
+      mode: "password",
       user: { email: "ana@example.com" },
     });
-    expect(await api.getSession(null)).toEqual({ mode: "google", user: null });
+    expect(await api.getSession(null)).toEqual({ mode: "password", user: null });
     expect(await api.getSession(null)).toEqual({ mode: "off", user: null });
     expect(new Headers(fetchMock.mock.calls[0]![1]?.headers).get("authorization")).toBe(
       "Bearer token",
@@ -77,19 +77,24 @@ describe("sign-in calls", () => {
     expect(redirect).not.toHaveBeenCalled();
   });
 
-  it("starts and finishes a sign-in, keeping the api's 403 for the caller", async () => {
-    respond(200, { url: "https://accounts.google.com/o/oauth2/v2/auth?x=1", loginState: "s" });
-    respond(403, { statusCode: 403, error: "Forbidden", message: "eve@example.com may not…" });
-
-    expect(await api.startSignIn()).toEqual({
-      url: "https://accounts.google.com/o/oauth2/v2/auth?x=1",
-      loginState: "s",
+  it("signs in without sending a session, keeping the api's errors for the caller", async () => {
+    cookieStore.set("hm_session", "old-session");
+    respond(200, {
+      session: "sealed",
+      user: { email: "ana@example.com" },
+      expiresAt: "2026-10-30T00:00:00.000Z",
     });
-    const finishing = api.finishSignIn({ code: "c", state: "st", loginState: "s" });
-    await expect(finishing).rejects.toBeInstanceOf(ApiRequestError);
-    const [url, init] = fetchMock.mock.calls[1]!;
-    expect(url).toBe("http://api.test/auth/google/callback");
-    expect(JSON.parse(init?.body as string)).toEqual({ code: "c", state: "st", loginState: "s" });
+    respond(401, { statusCode: 401, error: "Unauthorized", message: "The email or password…" });
+
+    expect((await api.login({ email: "ana@example.com", password: "pw" })).session).toBe("sealed");
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(url).toBe("http://api.test/auth/login");
+    expect(JSON.parse(init?.body as string)).toEqual({ email: "ana@example.com", password: "pw" });
+    expect(new Headers(init?.headers).has("authorization")).toBe(false);
+    await expect(api.login({ email: "ana@example.com", password: "x" })).rejects.toBeInstanceOf(
+      ApiRequestError,
+    );
+    expect(redirect).not.toHaveBeenCalled();
   });
 });
 

@@ -4,8 +4,8 @@ import { LOGIN_PATH, SESSION_COOKIE, webOrigin } from "@/lib/session";
 
 /**
  * Signs out by deleting the session cookie. Sessions are not stored anywhere,
- * so a copied token stays valid until it expires (SESSION_TTL_HOURS) or the
- * address leaves the allowlist.
+ * so a copied token stays valid until it expires (SESSION_TTL_HOURS), the
+ * user's password changes or the user is removed.
  */
 export function POST(): Response {
   // 303: the browser follows a form POST with a GET.

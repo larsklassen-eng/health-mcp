@@ -54,6 +54,7 @@ describe("migrateDb", () => {
       "record_chunks",
       "recovery_milestones",
       "symptoms",
+      "users",
       "vec_chunks",
       "vital_signs",
     ]);

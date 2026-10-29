@@ -3,8 +3,7 @@ const patientPath = (patientId: string) => `/patients/${encodeURIComponent(patie
 /** HTTP routes served by apps/api, shared so apps/web never hard-codes paths. */
 export const API_ROUTES = {
   health: "/health",
-  authGoogleStart: "/auth/google/start",
-  authGoogleCallback: "/auth/google/callback",
+  authLogin: "/auth/login",
   authSession: "/auth/session",
   patients: "/patients",
   patientsImport: "/patients/import",

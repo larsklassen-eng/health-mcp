@@ -1,12 +1,12 @@
 import { createCipheriv, createDecipheriv, hkdfSync, randomBytes } from "node:crypto";
 
 /**
- * Tokens the api hands out and later reads back (sessions, sign-in state):
- * JSON sealed with AES-256-GCM, so they can be neither read nor changed
- * without the key. Each token names its purpose, so a sign-in state can never
- * be used as a session. Format: `v1.<iv>.<ciphertext>.<tag>` (base64url).
+ * Tokens the api hands out and later reads back (sessions): JSON sealed with
+ * AES-256-GCM, so they can be neither read nor changed without the key. Each
+ * token names its purpose, so a token made for something else can never be
+ * used as a session. Format: `v1.<iv>.<ciphertext>.<tag>` (base64url).
  */
-export type TokenPurpose = "session" | "login";
+export type TokenPurpose = "session";
 
 const VERSION = "v1";
 

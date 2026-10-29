@@ -2,18 +2,16 @@ import {
   API_ROUTES,
   type ApiError,
   ApiErrorSchema,
-  type AuthCallbackInput,
-  type AuthCallbackResponse,
-  AuthCallbackResponseSchema,
   type AuthSessionResponse,
   AuthSessionResponseSchema,
-  type AuthStartResponse,
-  AuthStartResponseSchema,
   ChatHistoryResponseSchema,
   type ChatMessage,
   type CreatePatientInput,
   type DashboardOverview,
   type ImagingStudy,
+  type LoginInput,
+  type LoginResponse,
+  LoginResponseSchema,
   ImagingStudySchema,
   DashboardOverviewSchema,
   type Patient,
@@ -133,24 +131,20 @@ export const api = {
       });
     } catch (error) {
       if (error instanceof ApiRequestError && error.status === 401)
-        return { mode: "google", user: null };
+        return { mode: "password", user: null };
       throw error;
     }
   },
 
-  /** Starts a Google sign-in: where to send the browser, and the state to keep. */
-  startSignIn(): Promise<AuthStartResponse> {
-    return request(API_ROUTES.authGoogleStart, AuthStartResponseSchema, {
-      method: "POST",
-      redirectWhenSignedOut: false,
-    });
-  },
-
-  /** Finishes a Google sign-in; throws `ApiRequestError` 403 for addresses not on the allowlist. */
-  finishSignIn(input: AuthCallbackInput): Promise<AuthCallbackResponse> {
-    return request(API_ROUTES.authGoogleCallback, AuthCallbackResponseSchema, {
+  /**
+   * Signs in with an email and password. Throws `ApiRequestError` 401 for a
+   * wrong email or password, 429 after too many failed attempts.
+   */
+  login(input: LoginInput): Promise<LoginResponse> {
+    return request(API_ROUTES.authLogin, LoginResponseSchema, {
       method: "POST",
       body: JSON.stringify(input),
+      session: null,
       redirectWhenSignedOut: false,
     });
   },

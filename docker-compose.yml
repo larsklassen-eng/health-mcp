@@ -25,13 +25,10 @@ services:
       WEB_ORIGIN: http://localhost:3000
       # Must match the MCP server's: the index and the queries use the same model.
       RAG_EMBEDDER: ${RAG_EMBEDDER:-local}
-      # Sign-in is off locally unless .env turns it on (AUTH_MODE=google plus the
-      # Google client, SESSION_SECRET and AUTH_ALLOWED_EMAILS).
+      # Sign-in is off locally unless .env sets AUTH_MODE=password and
+      # SESSION_SECRET; add users with the users command (see the README).
       AUTH_MODE: ${AUTH_MODE:-off}
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
-      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       SESSION_SECRET: ${SESSION_SECRET:-}
-      AUTH_ALLOWED_EMAILS: ${AUTH_ALLOWED_EMAILS:-}
     volumes: [data:/app/data]
     depends_on:
       migrate: { condition: service_completed_successfully }

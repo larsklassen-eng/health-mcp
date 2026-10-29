@@ -2,20 +2,12 @@ import { redirect } from "next/navigation";
 
 import { api } from "@/lib/api-client";
 
-import type { SignInError } from "../auth/callback/route";
+import { LoginForm } from "./login-form";
 
 export const metadata = { title: "Sign in · health-mcp" };
 
-const ERRORS: Record<SignInError, string> = {
-  cancelled: "The sign-in was cancelled.",
-  expired: "The sign-in took too long or was started in another tab. Try again.",
-  "not-allowed": "This Google account may not use this deployment. Ask for access.",
-  failed: "Google sign-in could not be completed. Try again.",
-  unavailable: "Sign-in is not available right now: the api is not reachable.",
-};
-
 interface Props {
-  searchParams: Promise<{ error?: string; "signed-out"?: string }>;
+  searchParams: Promise<{ "signed-out"?: string }>;
 }
 
 export default async function LoginPage({ searchParams }: Props) {
@@ -23,24 +15,12 @@ export default async function LoginPage({ searchParams }: Props) {
   if (session && (session.mode === "off" || session.user)) redirect("/patients");
 
   const params = await searchParams;
-  const error = params.error && ERRORS[params.error as SignInError];
-
   return (
     <div className="card login">
       <h1>Sign in</h1>
-      <p className="muted">
-        Use your Google account. Only people on this deployment&apos;s list can sign in.
-      </p>
-      {error && (
-        <div className="alert error" role="alert">
-          {error}
-        </div>
-      )}
-      {params["signed-out"] !== undefined && !error && <p role="status">You are signed out.</p>}
-      {/* A plain link: /auth/google redirects to Google. */}
-      <a className="button" href="/auth/google">
-        Sign in with Google
-      </a>
+      {params["signed-out"] !== undefined && <p role="status">You are signed out.</p>}
+      <LoginForm />
+      <p className="muted small">Accounts are created by an administrator.</p>
     </div>
   );
 }

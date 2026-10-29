@@ -1,10 +1,9 @@
 import {
   API_ROUTES,
-  type AuthCallbackInput,
-  AuthCallbackInputSchema,
-  type AuthCallbackResponse,
   type AuthSessionResponse,
-  type AuthStartResponse,
+  type LoginInput,
+  LoginInputSchema,
+  type LoginResponse,
 } from "@health-mcp/shared";
 import {
   Body,
@@ -21,24 +20,16 @@ import { bearerToken } from "./auth.guard.js";
 import { AuthService } from "./auth.service.js";
 import { Public } from "./public.decorator.js";
 
-/** Sign-in endpoints, used by apps/web's login routes. */
+/** Sign-in endpoints, used by apps/web's login page and proxy. */
 @Public()
 @Controller()
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
-  @Post(API_ROUTES.authGoogleStart)
+  @Post(API_ROUTES.authLogin)
   @HttpCode(HttpStatus.OK)
-  start(): AuthStartResponse {
-    return this.auth.start();
-  }
-
-  @Post(API_ROUTES.authGoogleCallback)
-  @HttpCode(HttpStatus.OK)
-  callback(
-    @Body({ schema: AuthCallbackInputSchema }) input: AuthCallbackInput,
-  ): Promise<AuthCallbackResponse> {
-    return this.auth.finish(input);
+  login(@Body({ schema: LoginInputSchema }) input: LoginInput): Promise<LoginResponse> {
+    return this.auth.login(input);
   }
 
   @Get(API_ROUTES.authSession)
@@ -47,6 +38,6 @@ export class AuthController {
     const token = bearerToken(authorization);
     const user = token && this.auth.verifySession(token);
     if (!user) throw new UnauthorizedException("Sign in to continue.");
-    return { mode: "google", user };
+    return { mode: "password", user };
   }
 }

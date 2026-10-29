@@ -12,6 +12,7 @@ vi.mock("@/lib/api-client", async (importOriginal) => ({
   api: { getSession },
 }));
 vi.mock("next/navigation", () => ({ redirect }));
+vi.mock("@/app/login/actions", () => ({ signIn: vi.fn() }));
 
 const { default: LoginPage } = await import("@/app/login/page");
 const { UserMenu } = await import("@/app/user-menu");
@@ -22,44 +23,28 @@ const page = async (params: Record<string, string> = {}) =>
   render(await LoginPage({ searchParams: Promise.resolve(params) }));
 
 describe("login page", () => {
-  it("offers Google sign-in", async () => {
-    getSession.mockResolvedValueOnce({ mode: "google", user: null });
+  it("asks for an email and a password", async () => {
+    getSession.mockResolvedValueOnce({ mode: "password", user: null });
 
     await page();
 
     expect(screen.getByRole("heading", { name: "Sign in" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Sign in with Google" })).toHaveAttribute(
-      "href",
-      "/auth/google",
-    );
-    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Email")).toHaveAttribute("autocomplete", "username");
+    expect(screen.getByLabelText("Password")).toHaveAttribute("type", "password");
+    expect(screen.getByRole("button", { name: "Sign in" })).toBeEnabled();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
-  it.each([
-    ["not-allowed", "may not use this deployment"],
-    ["cancelled", "was cancelled"],
-    ["expired", "took too long"],
-    ["failed", "could not be completed"],
-    ["unavailable", "api is not reachable"],
-  ])("explains the %s error", async (error, text) => {
-    getSession.mockResolvedValueOnce({ mode: "google", user: null });
+  it("confirms a sign-out", async () => {
+    getSession.mockResolvedValueOnce({ mode: "password", user: null });
 
-    await page({ error });
+    await page({ "signed-out": "" });
 
-    expect(screen.getByRole("alert")).toHaveTextContent(text);
-  });
-
-  it("ignores unknown errors and confirms a sign-out", async () => {
-    getSession.mockResolvedValueOnce({ mode: "google", user: null });
-
-    await page({ error: "<script>", "signed-out": "" });
-
-    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent("You are signed out.");
   });
 
   it.each([
-    ["signed in", { mode: "google", user: { email: "ana@example.com" } }],
+    ["signed in", { mode: "password", user: { email: "ana@example.com" } }],
     ["sign-in is off", { mode: "off", user: null }],
   ])("goes to the patients list when %s", async (_, session) => {
     getSession.mockResolvedValueOnce(session);

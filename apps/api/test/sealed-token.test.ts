@@ -23,9 +23,9 @@ describe("TokenSealer", () => {
   });
 
   it("rejects a token for another purpose, or sealed with another secret", () => {
-    const token = sealer.seal("login", { state: "x" }, 60, now);
-    expect(sealer.open("session", token, now)).toBeUndefined();
-    expect(new TokenSealer("b".repeat(32)).open("login", token, now)).toBeUndefined();
+    const token = sealer.seal("session", { sub: "u1" }, 60, now);
+    expect(sealer.open("other" as "session", token, now)).toBeUndefined();
+    expect(new TokenSealer("b".repeat(32)).open("session", token, now)).toBeUndefined();
   });
 
   it("rejects tampered and malformed tokens", () => {
