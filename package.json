@@ -19,7 +19,8 @@
     "clean": "turbo run clean",
     "db:generate": "yarn workspace @health-mcp/db db:generate",
     "db:migrate": "yarn workspace @health-mcp/db db:migrate",
-    "imaging:synthetic": "yarn workspace @health-mcp/api imaging:synthetic"
+    "imaging:synthetic": "yarn workspace @health-mcp/api imaging:synthetic",
+    "user": "yarn workspace @health-mcp/api user"
   },
   "devDependencies": {
     "prettier": "^3.9.10",

@@ -11,6 +11,7 @@ import {
   patients,
   recoveryMilestones,
   symptoms,
+  users,
   vitalSigns,
 } from "../src/index.js";
 import { createTestDb, insertPatient, sqliteErrorCode } from "./helpers.js";
@@ -248,5 +249,28 @@ describe("chat_messages", () => {
         .run(patient.id),
     );
     expect(code).toBe("SQLITE_CONSTRAINT_CHECK");
+  });
+});
+
+describe("users", () => {
+  const user = (email: string) => ({ email, passwordHash: "scrypt$hash" });
+
+  it("generates an id and the timestamps", () => {
+    const row = connection.db.insert(users).values(user("ana@example.com")).returning().get();
+
+    expect(row.id).toMatch(/^[0-9a-f-]{36}$/);
+    expect(row.passwordChangedAt).toMatch(/Z$/);
+    expect(row.createdAt).toBe(row.passwordChangedAt);
+  });
+
+  it("allows each email once, and only in lowercase", () => {
+    connection.db.insert(users).values(user("ana@example.com")).run();
+
+    expect(
+      sqliteErrorCode(() => connection.db.insert(users).values(user("ana@example.com")).run()),
+    ).toBe("SQLITE_CONSTRAINT_UNIQUE");
+    expect(
+      sqliteErrorCode(() => connection.db.insert(users).values(user("Ben@example.com")).run()),
+    ).toBe("SQLITE_CONSTRAINT_CHECK");
   });
 });

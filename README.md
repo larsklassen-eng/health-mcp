@@ -82,10 +82,30 @@ yarn test        # run all tests
 yarn format      # format code with Prettier (yarn format:check only checks)
 yarn db:migrate  # create data/health.db (if needed) and apply migrations
 yarn imaging:synthetic  # write data/synthetic-mri.zip, a phantom MRI study to try the DICOM upload
+yarn user add <email>   # add someone who may sign in (see Sign-in)
 yarn dev         # watch-build packages, run apps/api on :3001, apps/mcp-server on :3002 and apps/web on http://localhost:3000
 ```
 
 Copy `.env.example` to `.env` to change settings; the defaults work without it. To give the chat its tools, set `MCP_AUTH_TOKEN` in `.env` (`openssl rand -hex 32`); apps/api and apps/mcp-server both read it. Without it the MCP server rejects every request and chat answers without tools.
+
+### Sign-in
+
+With `AUTH_MODE=password`, people sign in with an email address and a password; every page and api route except `/health` and sign-in needs a session. It is the default with `NODE_ENV=production` (as in the Docker images) and off otherwise, so `yarn dev` and the tests work without signing in. Each deployment's database holds its own users, so access to one never gives access to another. There is no sign-up page: an administrator adds people.
+
+```sh
+yarn user add ana@example.com --name "Ana Example"   # asks for the password twice (12+ characters)
+yarn user add ben@example.com --generate             # makes up a password and prints it once
+yarn user password ana@example.com                   # new password; ends Ana's sessions
+yarn user remove ben@example.com                     # deletes Ben; ends his sessions
+yarn user list
+```
+
+To turn it on locally, set `AUTH_MODE=password` and `SESSION_SECRET` (`openssl rand -hex 32`) in `.env`, add a user and restart `yarn dev`.
+
+How it works:
+- **Passwords** are hashed with scrypt (`apps/api/src/auth/password.ts`); the `users` table keeps only the hash. A wrong email and a wrong password get the same answer and take the same time. After 5 failed attempts for one email within 15 minutes, that email must wait (kept in memory, so it resets on restart).
+- **Sessions** are not stored: the api seals the user id and time of sign-in with AES-256-GCM under `SESSION_SECRET` and the web app keeps the token in an HTTP-only cookie (`hm_session`, `SameSite=Lax`, `Secure` over HTTPS) for `SESSION_TTL_HOURS` (12). Every api request looks the user up again, so removing a user or changing their password ends their sessions at once. Signing out deletes the cookie.
+- **apps/web** sends the session to the api as `Authorization: Bearer`. `src/proxy.ts` checks it before every page and route: signed-out visits go to `/login` and return to where they were going afterwards; other requests get 401. The api checks the session again on every call, so the proxy is the front door, not the only lock.
 
 ### Running with Docker
 
@@ -97,6 +117,9 @@ open http://localhost:3000
 docker compose logs -f api     # follow a service's logs
 docker compose down            # stop (data is kept in the `data` volume)
 docker compose down -v         # stop and delete the data
+
+# With AUTH_MODE=password and SESSION_SECRET in .env, add users inside the api container:
+docker compose exec api node apps/api/dist/cli/users.js add ana@example.com
 ```
 
 | Service | Image (`Dockerfile` target) | What it does |
@@ -106,7 +129,7 @@ docker compose down -v         # stop and delete the data
 | `mcp-server` | `mcp-server` | Shares the api container's network, so it still listens on `127.0.0.1` only: nothing but the api can reach it |
 | `web` | `web` | apps/web (Next.js standalone server) on http://localhost:3000; the only published port |
 
-The images keep the repo layout under `/app` and run as the unprivileged `node` user. The database and imaging files live in the `data` volume (`/app/data`), separate from `data/` on your machine, so start by importing `fixtures/synthetic-patients.json` on the Patients page. Compose reads only the values it needs from `.env` (`MCP_AUTH_TOKEN`, `OPENROUTER_API_KEY`, `OPENROUTER_MODEL`); `.env` itself never goes into an image (see `.dockerignore`).
+The images keep the repo layout under `/app` and run as the unprivileged `node` user. The database and imaging files live in the `data` volume (`/app/data`), separate from `data/` on your machine, so start by importing `fixtures/synthetic-patients.json` on the Patients page. Sign-in is off in Compose unless `.env` sets `AUTH_MODE=password` (with `SESSION_SECRET`). Compose reads only the values it needs from `.env` (`MCP_AUTH_TOKEN`, `OPENROUTER_API_KEY`, `OPENROUTER_MODEL`, `AUTH_MODE`, `SESSION_SECRET`); `.env` itself never goes into an image (see `.dockerignore`).
 
 ### Database
 
@@ -185,7 +208,10 @@ Each run prints ✓/✗ per case with the reasons and the case's model calls, to
 | `IMAGING_DIR` | `apps/api` | `data/imaging`; where the PNG slices of uploaded studies are stored (relative to the repo root) |
 | `PORT` | `apps/api` | `3001` |
 | `API_URL` | `apps/web` (server side only) | `http://localhost:3001` |
-| `WEB_ORIGIN` | `apps/api` (CORS) | `http://localhost:3000` |
+| `WEB_ORIGIN` | `apps/api` (CORS), `apps/web` (redirects, `Secure` cookies over HTTPS) | `http://localhost:3000`; the web app's public URL |
+| `AUTH_MODE` | `apps/api` | `off`, or `password` when `NODE_ENV=production`; see [Sign-in](#sign-in) |
+| `SESSION_SECRET` | `apps/api` | none; required (32+ characters) when sign-in is on. Changing it signs everyone out. Keep it in `.env`, never commit it |
+| `SESSION_TTL_HOURS` | `apps/api` | `12`; how long a session lasts |
 | `OPENROUTER_API_KEY` | `apps/api` (chat) | none; the api starts without it, chat requests fail. Keep it in `.env`, never commit it |
 | `OPENROUTER_MODEL` | `apps/api` (chat) | `anthropic/claude-opus-5.5` |
 | `OPENROUTER_ZDR` | `apps/api` (chat) | `true`; only use zero-data-retention providers. Set `false` for a model that has none (data-collecting providers stay excluded) |
@@ -233,6 +259,7 @@ The tools trust the `patient_id` they receive, so the server must only be reacha
 
 | Page | What it does |
 |---|---|
+| `/login` | Email and password form (when sign-in is on); afterwards the header shows the user and a Sign out button |
 | `/patients` | List of patients (name, MRN, diagnosis, status), with links to create or import |
 | `/patients/new` | Create form; validated with the shared Zod schema, a duplicate MRN shows on the MRN field |
 | `/patients/import` | Upload a JSON file of synthetic patients (format shown on the page); problems are listed with their path, e.g. `patients.0.labResults.2.flag` |
@@ -252,7 +279,9 @@ Chat answers stream through a proxy route, `POST /patients/:id/chat/stream` (`sr
 
 | Method | Path | Body | Response |
 |---|---|---|---|
-| `GET` | `/health` | | `HealthCheckResponse` |
+| `GET` | `/health` | | `HealthCheckResponse` (never needs a session) |
+| `POST` | `/auth/login` | `LoginInput` (email, password) | `LoginResponse` (session token, user, expiry); `401` wrong email or password, `429` too many attempts |
+| `GET` | `/auth/session` | | `AuthSessionResponse`: the mode (`password` or `off`) and the session's user; `401` without a valid session |
 | `GET` | `/patients` | | `PatientListResponse` (summaries, sorted by last name) |
 | `POST` | `/patients` | `CreatePatientInput` | `201` `Patient` |
 | `POST` | `/patients/import` | `PatientImportFile` (up to 5 MB) | `201` `PatientImportResult` |
@@ -271,7 +300,7 @@ Chat answers stream through a proxy route, `POST /patients/:id/chat/stream` (`sr
 | `GET` | `/dashboards/overview` | | `DashboardOverview` |
 | `GET` | `/dashboards/patients/:id` | | `PatientDashboard` |
 
-Types are the Zod schemas in `@health-mcp/shared`. Errors: `400` invalid input, `404` unknown patient, `409` duplicate MRN.
+Types are the Zod schemas in `@health-mcp/shared`. Errors: `400` invalid input, `401` no valid session when sign-in is on (send `Authorization: Bearer <session>`), `404` unknown patient, `409` duplicate MRN.
 
 **Import file format** (`PatientImportFile`): `{ "version": 1, "patients": [ { "patient": {...}, "labResults": [], "vitals": [], "medications": [], "symptoms": [], "milestones": [] } ] }`. Record lists are optional. Timestamps may carry any UTC offset and are stored in UTC. The import is all-or-nothing: if any patient fails (invalid data, duplicate MRN), nothing is saved.
 

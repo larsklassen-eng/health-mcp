@@ -10,7 +10,8 @@
     "typecheck": "tsc -p tsconfig.test.json",
     "clean": "rm -rf dist",
     "test": "vitest run",
-    "imaging:synthetic": "turbo run build && node dist/cli/write-synthetic-dicom.js"
+    "imaging:synthetic": "turbo run build && node dist/cli/write-synthetic-dicom.js",
+    "user": "turbo run build && node dist/cli/users.js"
   },
   "dependencies": {
     "@health-mcp/db": "workspace:*",

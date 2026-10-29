@@ -243,6 +243,31 @@ export const chatMessages = sqliteTable(
   ],
 );
 
+// ---------------------------------------------------------------------- users
+
+/**
+ * People who may sign in (AUTH_MODE=password). Created with the api's users
+ * command; there is no sign-up page. Not linked to patients.
+ */
+export const users = sqliteTable(
+  "users",
+  {
+    id: id(),
+    /** Stored lowercase, so sign-in ignores case. */
+    email: text("email").notNull(),
+    name: text("name"),
+    /** scrypt hash with its parameters and salt (see apps/api/src/auth/password.ts). */
+    passwordHash: text("password_hash").notNull(),
+    /** Sessions issued before this are refused, so a new password signs out everywhere. */
+    passwordChangedAt: text("password_changed_at").notNull().default(nowUtc),
+    createdAt: text("created_at").notNull().default(nowUtc),
+  },
+  (t) => [
+    uniqueIndex("users_email_unique").on(t.email),
+    check("users_email_lowercase", sql`${t.email} = lower(${t.email})`),
+  ],
+);
+
 // ---------------------------------------------------------------- row types
 
 export type PatientRow = typeof patients.$inferSelect;
@@ -262,3 +287,5 @@ export type NewImagingStudyRow = typeof imagingStudies.$inferInsert;
 export type ImagingSeriesRow = typeof imagingSeries.$inferSelect;
 export type ChatMessageRow = typeof chatMessages.$inferSelect;
 export type NewChatMessageRow = typeof chatMessages.$inferInsert;
+export type UserRow = typeof users.$inferSelect;
+export type NewUserRow = typeof users.$inferInsert;

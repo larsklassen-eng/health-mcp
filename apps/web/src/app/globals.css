@@ -82,6 +82,11 @@ a {
 .login p {
   margin: 0;
 }
+.login-form {
+  display: grid;
+  gap: 12px;
+  width: 100%;
+}
 .main {
   padding-top: 32px;
   padding-bottom: 48px;

@@ -15,6 +15,13 @@
       "when": 1792413663416,
       "tag": "0001_imaging",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1793286870852,
+      "tag": "0002_users",
+      "breakpoints": true
     }
   ]
 }

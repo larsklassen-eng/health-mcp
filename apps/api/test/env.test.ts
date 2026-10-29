@@ -15,44 +15,27 @@ describe("loadEnv", () => {
       CHAT_HISTORY_MAX_CHARS: 40_000,
       MCP_URL: "http://127.0.0.1:3002/mcp",
       AUTH_MODE: "off",
-      AUTH_ALLOWED_EMAILS: [],
       SESSION_TTL_HOURS: 12,
     });
   });
 
   describe("sign-in", () => {
-    const google = {
-      AUTH_MODE: "google",
-      GOOGLE_CLIENT_ID: "client.apps.googleusercontent.com",
-      GOOGLE_CLIENT_SECRET: "secret",
-      SESSION_SECRET: "s".repeat(32),
-      AUTH_ALLOWED_EMAILS: " Ana@Example.com, ben@example.com ,",
-    };
+    const secret = "s".repeat(32);
 
-    it("is off by default, and on (google) by default in production", () => {
+    it("is off by default, and on (password) by default in production", () => {
       expect(loadEnv({}).AUTH_MODE).toBe("off");
-      const { AUTH_MODE: _, ...rest } = google;
-      expect(loadEnv({ ...rest, NODE_ENV: "production" }).AUTH_MODE).toBe("google");
+      expect(loadEnv({ NODE_ENV: "production", SESSION_SECRET: secret }).AUTH_MODE).toBe(
+        "password",
+      );
     });
 
-    it("lowercases and trims the allowlist", () => {
-      expect(loadEnv(google).AUTH_ALLOWED_EMAILS).toEqual(["ana@example.com", "ben@example.com"]);
-    });
-
-    it.each(["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "SESSION_SECRET", "AUTH_ALLOWED_EMAILS"])(
-      "requires %s when sign-in is on",
-      (key) => {
-        expect(() => loadEnv({ ...google, [key]: "" })).toThrow(key);
-      },
-    );
-
-    it("refuses to start in production without the sign-in settings", () => {
-      expect(() => loadEnv({ NODE_ENV: "production" })).toThrow("GOOGLE_CLIENT_ID");
+    it("requires a session secret of at least 32 characters when sign-in is on", () => {
+      expect(() => loadEnv({ AUTH_MODE: "password" })).toThrow("SESSION_SECRET");
+      expect(() => loadEnv({ AUTH_MODE: "password", SESSION_SECRET: "short" })).toThrow(
+        "at least 32",
+      );
+      expect(() => loadEnv({ NODE_ENV: "production" })).toThrow("SESSION_SECRET");
       expect(loadEnv({ NODE_ENV: "production", AUTH_MODE: "off" }).AUTH_MODE).toBe("off");
-    });
-
-    it("rejects a short session secret", () => {
-      expect(() => loadEnv({ ...google, SESSION_SECRET: "short" })).toThrow("at least 32");
     });
   });
 

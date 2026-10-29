@@ -50,6 +50,7 @@ describe("migrateDb", () => {
       "patients",
       "recovery_milestones",
       "symptoms",
+      "users",
       "vital_signs",
     ]);
     connection.close();
