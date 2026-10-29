@@ -2,6 +2,13 @@ import {
   API_ROUTES,
   type ApiError,
   ApiErrorSchema,
+  type AuthCallbackInput,
+  type AuthCallbackResponse,
+  AuthCallbackResponseSchema,
+  type AuthSessionResponse,
+  AuthSessionResponseSchema,
+  type AuthStartResponse,
+  AuthStartResponseSchema,
   ChatHistoryResponseSchema,
   type ChatMessage,
   type CreatePatientInput,
@@ -23,10 +30,14 @@ import {
   type UpdateImagingStudyInput,
   type UpdatePatientInput,
 } from "@health-mcp/shared";
+import { redirect } from "next/navigation";
+
+import { LOGIN_PATH, sessionHeaders } from "./session";
 
 /*
- * Server-side client for apps/api. Only server components and server actions
- * use it, so the api URL never reaches the browser and no CORS is involved.
+ * Server-side client for apps/api. Only server components, server actions and
+ * route handlers use it, so the api URL never reaches the browser and no CORS
+ * is involved. Each request carries the signed-in user's session.
  */
 
 export const DEFAULT_API_URL = "http://localhost:3001";
@@ -51,11 +62,27 @@ export class ApiUnavailableError extends Error {
   }
 }
 
+interface RequestOptions extends RequestInit {
+  /**
+   * Session token to send instead of the current request's, or null for none
+   * (the proxy reads the cookie from its request itself).
+   */
+  session?: string | null | undefined;
+  /** On 401 (signed out), go to the login page instead of throwing. Default true. */
+  redirectWhenSignedOut?: boolean;
+}
+
 async function request<T>(
   path: string,
   schema: { parse: (value: unknown) => T },
-  init: RequestInit = {},
+  { session, redirectWhenSignedOut = true, ...init }: RequestOptions = {},
 ): Promise<T> {
+  const auth =
+    session === undefined
+      ? await sessionHeaders()
+      : session === null
+        ? {}
+        : { Authorization: `Bearer ${session}` };
   let response: Response;
   try {
     response = await fetch(`${apiUrl()}${path}`, {
@@ -64,6 +91,7 @@ async function request<T>(
       headers: {
         Accept: "application/json",
         ...(init.body !== undefined && { "Content-Type": "application/json" }),
+        ...auth,
       },
     });
   } catch (cause) {
@@ -72,6 +100,8 @@ async function request<T>(
 
   const text = await response.text();
   const body: unknown = text ? JSON.parse(text) : undefined;
+  // The session expired or was revoked since the proxy checked it.
+  if (response.status === 401 && redirectWhenSignedOut) redirect(LOGIN_PATH);
   if (!response.ok) throw new ApiRequestError(response.status, ApiErrorSchema.safeParse(body).data);
   return schema.parse(body);
 }
@@ -91,6 +121,40 @@ async function orNullIfMissing<T>(promise: Promise<T>): Promise<T | null> {
 }
 
 export const api = {
+  /**
+   * Whether sign-in is on and whose session `session` is (the current
+   * request's when omitted). A missing or invalid session gives `user: null`.
+   */
+  async getSession(session?: string | null): Promise<AuthSessionResponse> {
+    try {
+      return await request(API_ROUTES.authSession, AuthSessionResponseSchema, {
+        ...(session !== undefined && { session }),
+        redirectWhenSignedOut: false,
+      });
+    } catch (error) {
+      if (error instanceof ApiRequestError && error.status === 401)
+        return { mode: "google", user: null };
+      throw error;
+    }
+  },
+
+  /** Starts a Google sign-in: where to send the browser, and the state to keep. */
+  startSignIn(): Promise<AuthStartResponse> {
+    return request(API_ROUTES.authGoogleStart, AuthStartResponseSchema, {
+      method: "POST",
+      redirectWhenSignedOut: false,
+    });
+  },
+
+  /** Finishes a Google sign-in; throws `ApiRequestError` 403 for addresses not on the allowlist. */
+  finishSignIn(input: AuthCallbackInput): Promise<AuthCallbackResponse> {
+    return request(API_ROUTES.authGoogleCallback, AuthCallbackResponseSchema, {
+      method: "POST",
+      body: JSON.stringify(input),
+      redirectWhenSignedOut: false,
+    });
+  },
+
   async listPatients(): Promise<PatientSummary[]> {
     return (await request(API_ROUTES.patients, PatientListResponseSchema)).patients;
   },

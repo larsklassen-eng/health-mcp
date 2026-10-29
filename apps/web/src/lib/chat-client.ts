@@ -19,6 +19,7 @@ export class ChatSendError extends Error {
 }
 
 const SEND_ERRORS: Record<number, string> = {
+  401: "You were signed out. Reload the page to sign in again.",
   404: "This patient no longer exists.",
   413: "The message is too long.",
   503: "The api is not reachable. Start it with `yarn dev` and try again.",

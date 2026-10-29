@@ -235,6 +235,7 @@ describe("ChatPanel", () => {
   });
 
   it.each([
+    [401, "You were signed out. Reload the page"],
     [404, "This patient no longer exists."],
     [503, "The api is not reachable"],
     [500, "The message could not be sent"],
