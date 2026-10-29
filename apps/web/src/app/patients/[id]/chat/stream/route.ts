@@ -1,6 +1,7 @@
 import { API_ROUTES, SendChatMessageRequestSchema } from "@health-mcp/shared";
 
 import { apiUrl } from "@/lib/api-client";
+import { sessionHeaders } from "@/lib/session";
 
 /** Messages are at most 8000 characters; anything far larger is rejected before parsing. */
 const MAX_BODY_BYTES = 64 * 1024;
@@ -37,7 +38,11 @@ export async function POST(
   try {
     upstream = await fetch(`${apiUrl()}${API_ROUTES.patientChat(id)}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "text/event-stream",
+        ...(await sessionHeaders()),
+      },
       body: JSON.stringify(body),
       cache: "no-store",
       signal: request.signal,

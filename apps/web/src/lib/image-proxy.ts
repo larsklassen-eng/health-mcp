@@ -1,6 +1,7 @@
 import { API_ROUTES } from "@health-mcp/shared";
 
 import { apiUrl } from "@/lib/api-client";
+import { sessionHeaders } from "@/lib/session";
 
 export interface ImageParams {
   id: string;
@@ -18,6 +19,7 @@ export async function proxyImage({ id, studyId, seriesId, position }: ImageParam
   try {
     upstream = await fetch(`${apiUrl()}${API_ROUTES.imagingImage(id, studyId, seriesId, index)}`, {
       cache: "no-store",
+      headers: await sessionHeaders(),
     });
   } catch {
     return new Response(null, { status: 503 });

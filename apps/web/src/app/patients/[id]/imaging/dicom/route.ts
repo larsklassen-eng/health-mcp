@@ -1,6 +1,7 @@
 import { API_ROUTES } from "@health-mcp/shared";
 
 import { apiUrl } from "@/lib/api-client";
+import { sessionHeaders } from "@/lib/session";
 
 const jsonError = (status: number, error: string, message: string) =>
   Response.json({ statusCode: status, error, message }, { status });
@@ -24,6 +25,7 @@ export async function POST(
       headers: {
         "Content-Type": request.headers.get("content-type") ?? "application/zip",
         ...(length && { "Content-Length": length }),
+        ...(await sessionHeaders()),
       },
       body: request.body,
       // Required by fetch to send a streamed body.

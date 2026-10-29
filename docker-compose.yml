@@ -66,6 +66,8 @@ services:
     image: health-mcp-web
     environment:
       API_URL: http://api:3001
+      # The public URL, for sign-in redirects and Secure cookies (same as the api's).
+      WEB_ORIGIN: http://localhost:3000
     ports: ["3000:3000"]
     depends_on:
       api: { condition: service_healthy }
