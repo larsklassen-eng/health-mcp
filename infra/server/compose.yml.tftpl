@@ -1,0 +1,63 @@
+# The app on the server: /srv/health-mcp/compose.yml, written at boot by
+# infra/server/user-data.sh.tftpl. IMAGE_TAG comes from .env next to this file
+# (set by deploy.sh); secrets come from app.env, read from Parameter Store.
+name: health-mcp
+
+x-api-image: &api-image
+  image: ${registry}/${name_prefix}-api:$${IMAGE_TAG}
+
+x-logging: &logging
+  logging:
+    driver: json-file
+    options: { max-size: 10m, max-file: "3" }
+
+services:
+  # Run by deploy.sh before the others (`docker compose run --rm migrate`).
+  migrate:
+    <<: [*api-image, *logging]
+    profiles: [tools]
+    command: ["node", "packages/db/dist/migrate.js"]
+    volumes: [${data_dir}:/app/data]
+
+  api:
+    <<: [*api-image, *logging]
+    env_file: [app.env]
+    environment:
+      WEB_ORIGIN: ${web_origin}
+      AUTH_MODE: password
+      RAG_EMBEDDER: local
+    volumes: [${data_dir}:/app/data]
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://127.0.0.1:3001/health').then(r=>process.exit(+!r.ok),()=>process.exit(1))
+      interval: 10s
+      timeout: 5s
+      retries: 18
+    restart: unless-stopped
+
+  # Shares the api container's network, so it listens on 127.0.0.1 only.
+  mcp-server:
+    <<: *logging
+    image: ${registry}/${name_prefix}-mcp-server:$${IMAGE_TAG}
+    network_mode: service:api
+    env_file: [app.env]
+    environment:
+      RAG_EMBEDDER: local
+    volumes: [${data_dir}:/app/data]
+    depends_on:
+      api: { condition: service_started }
+    restart: unless-stopped
+
+  web:
+    <<: *logging
+    image: ${registry}/${name_prefix}-web:$${IMAGE_TAG}
+    environment:
+      API_URL: http://api:3001
+      WEB_ORIGIN: ${web_origin}
+    ports: ["3000:3000"]
+    depends_on:
+      api: { condition: service_healthy }
+    restart: unless-stopped

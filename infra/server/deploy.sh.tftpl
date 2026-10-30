@@ -1,0 +1,25 @@
+#!/bin/bash
+# Starts or updates the app: /srv/health-mcp/deploy.sh [image tag]. Run at boot
+# by health-mcp.service, and by the deploy workflow (through SSM) with the
+# commit just pushed. Without a tag it keeps the last one deployed.
+set -euo pipefail
+cd /srv/health-mcp
+
+TAG="$${1:-}"
+if [ -n "$TAG" ]; then echo "IMAGE_TAG=$TAG" > .env; fi
+[ -f .env ] || echo "IMAGE_TAG=latest" > .env
+
+# Secrets from Parameter Store, readable by root only.
+umask 077
+aws ssm get-parameters-by-path --region ${region} --with-decryption \
+  --path "${parameter_prefix}/" --query 'Parameters[].[Name,Value]' --output text |
+  while IFS=$'\t' read -r name value; do echo "$${name##*/}=$value"; done > app.env.new
+mv app.env.new app.env
+
+aws ecr get-login-password --region ${region} |
+  docker login --username AWS --password-stdin ${registry}
+docker compose pull --quiet
+docker compose run --rm migrate
+docker compose up -d --remove-orphans --wait --wait-timeout 300
+docker image prune -f
+echo "Deployed $(grep IMAGE_TAG .env)"

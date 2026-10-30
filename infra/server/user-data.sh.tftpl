@@ -1,0 +1,74 @@
+#!/bin/bash
+# First boot of the app server (Amazon Linux 2023, ARM): Docker and Compose,
+# swap, the data disk, the app's Compose file and deploy script, and a
+# systemd service that starts the app on every boot. Rendered by server.tf;
+# changing it replaces the instance (the data disk is kept).
+set -euo pipefail
+exec > >(tee -a /var/log/health-mcp-setup.log) 2>&1
+
+APP_DIR=/srv/health-mcp
+DATA_DIR=${data_dir}
+
+# --- Docker and the Compose plugin (checked against its published checksum)
+dnf install -y docker
+systemctl enable --now docker
+COMPOSE_RELEASES=https://github.com/docker/compose/releases/download
+COMPOSE_URL=$COMPOSE_RELEASES/${compose_version}/docker-compose-linux-aarch64
+mkdir -p /usr/libexec/docker/cli-plugins
+curl -fsSL -o /tmp/docker-compose "$COMPOSE_URL"
+echo "$(curl -fsSL "$COMPOSE_URL.sha256" | cut -d' ' -f1)  /tmp/docker-compose" | sha256sum -c -
+install -m 0755 /tmp/docker-compose /usr/libexec/docker/cli-plugins/docker-compose
+
+# --- Swap: the instance has 1 GB of memory; the embedding model and Node need more at peaks
+if [ ! -f /swapfile ]; then
+  dd if=/dev/zero of=/swapfile bs=1M count=${swap_mb}
+  chmod 600 /swapfile
+  mkswap /swapfile
+  echo "/swapfile none swap defaults 0 0" >> /etc/fstab
+fi
+swapon -a
+
+# --- Data disk (SQLite, imaging): found by its volume id, formatted only when empty
+VOLUME_ID=${data_volume_id}
+DEVICE=/dev/disk/by-id/nvme-Amazon_Elastic_Block_Store_$${VOLUME_ID//-/}
+for _ in $(seq 1 60); do [ -e "$DEVICE" ] && break; sleep 5; done
+[ -e "$DEVICE" ] || { echo "Data volume $VOLUME_ID never appeared"; exit 1; }
+blkid "$DEVICE" || mkfs -t xfs "$DEVICE"
+mkdir -p "$DATA_DIR"
+grep -q "$DATA_DIR" /etc/fstab || echo "$DEVICE $DATA_DIR xfs defaults,nofail 0 2" >> /etc/fstab
+mount -a
+# The containers run as the node user (uid 1000).
+chown 1000:1000 "$DATA_DIR"
+
+# --- The app
+mkdir -p "$APP_DIR"
+cat > "$APP_DIR/compose.yml" <<'COMPOSE'
+${compose_file}
+COMPOSE
+cat > "$APP_DIR/deploy.sh" <<'DEPLOY'
+${deploy_script}
+DEPLOY
+chmod 0755 "$APP_DIR/deploy.sh"
+
+cat > /etc/systemd/system/health-mcp.service <<'UNIT'
+[Unit]
+Description=health-mcp (Docker Compose)
+After=docker.service network-online.target
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/srv/health-mcp/deploy.sh
+ExecStop=/usr/bin/docker compose -f /srv/health-mcp/compose.yml down
+TimeoutStartSec=900
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+systemctl daemon-reload
+systemctl enable health-mcp.service
+# The first deploy may find no images yet; the deploy workflow starts it again after pushing them.
+systemctl start health-mcp.service ||
+  echo "The first start failed (no images yet?); the deploy workflow starts it again."

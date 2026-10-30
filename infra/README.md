@@ -1,8 +1,8 @@
 # Infrastructure (AWS)
 
 Terraform for the Factored AWS sandbox account (`us-east-1`), with one independent deployment
-per branch. For now only `rag-option-a` is deployed (deployment `rag`), step by step: so far its
-image repositories and secrets.
+per branch. For now only `rag-option-a` is deployed (deployment `rag`), step by step: its image
+repositories, secrets and app server. It has no public URL yet.
 
 ## Deployments
 
@@ -26,6 +26,8 @@ Apply a deployment from its own branch, so the `rag` deployment runs the RAG cod
 | `variables.tf` | Inputs: account settings, VPC and subnets |
 | `network.tf` | Looks up the existing VPC and subnets (they are not managed here); the deployment's name prefix |
 | `registry.tf` | ECR repositories for the three images (`health-mcp-<deployment>-api`, `-mcp-server`, `-web`), keeping the last 10 images each |
+| `server.tf` | The app server: a `t4g.micro` (ARM) in a private subnet, its IAM role (with the permissions boundary), security group (no inbound rules yet), and a separate encrypted data disk |
+| `server/` | What runs on the server: the boot script (Docker, Compose, swap, data disk, systemd service), the Compose file and `deploy.sh` |
 | `secrets.tf` | SSM parameters under `/health-mcp/<deployment>/`: `MCP_AUTH_TOKEN` and `SESSION_SECRET` (generated) and `OPENROUTER_API_KEY` (set by hand) |
 | `outputs.tf` | The deployment, the VPC's CIDR, each subnet's availability zone and CIDR, the image repositories and the secret names |
 | `environments/sandbox.tfvars` | The sandbox account's values and the deployments |
@@ -62,6 +64,41 @@ aws ssm put-parameter --overwrite --type SecureString \
   --name /health-mcp/rag/OPENROUTER_API_KEY --value "$(read -rs -p 'Key: ' k; echo "$k")"
 ```
 
+## The server
+
+A `t4g.micro` (2 vCPU, 1 GB, about $6 a month) with a 2 GB swap file, in a private subnet with no
+inbound access: it reaches ECR, Parameter Store and OpenRouter through the VPC's NAT, and admins
+reach it through SSM Session Manager, never SSH. Its IAM role may only use SSM, pull its own images
+and read its own secrets.
+
+- **Boot** (`server/user-data.sh.tftpl`): installs Docker and the Compose plugin (checked against
+  its published checksum), adds swap, formats the data disk on first use and mounts it at
+  `/srv/health-mcp/data`, writes `/srv/health-mcp/compose.yml` and `deploy.sh`, and enables
+  `health-mcp.service`, which runs `deploy.sh` on every boot.
+- **`deploy.sh [commit]`**: reads the secrets from Parameter Store into `app.env` (root only),
+  logs in to ECR, pulls the images, runs the database migrations, starts the containers and waits
+  until they are healthy. The deploy workflow runs it through SSM with the commit it just pushed.
+- **Data:** the SQLite database and imaging files live on their own encrypted disk, so a new
+  instance (after a change to the boot script) finds them again.
+
+Measured locally with the same images: about 355 MB for the three containers when idle, and
+625 MB once the embedding model is loaded in the api and the MCP server.
+
+### Adding a user
+
+From your machine, with the sandbox SSO profile and the Session Manager plugin
+(`brew install --cask session-manager-plugin`):
+
+```sh
+export AWS_PROFILE=health-mcp-sandbox
+aws ssm start-session --target <server_instance_id>   # from the Deploy run's Terraform output
+sudo docker compose -f /srv/health-mcp/compose.yml exec api \
+  node apps/api/dist/cli/users.js add you@example.com --name "Your Name"
+```
+
+It asks for the password twice without showing it. `password`, `remove` and `list` work the same
+way (see the main README's Sign-in section).
+
 ## Usage
 
 `.github/workflows/deploy.yml` deploys `rag-option-a` on every push to that branch, or by hand
@@ -73,6 +110,8 @@ pushes to personal copies skip it.
 2. **Images:** builds the api, MCP server and web images for ARM (the server is a Graviton
    instance; GitHub's x86 runners emulate ARM with QEMU) and pushes each to its ECR repository,
    tagged with the commit and `latest`. Each image's build cache is kept in GitHub's cache.
+3. **Rollout:** waits until the server is reachable through SSM, then runs
+   `deploy.sh <commit>` there and shows its output; the run fails if the deploy does.
 
 Locally, without AWS access, you can check the configuration:
 

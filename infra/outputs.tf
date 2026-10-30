@@ -41,3 +41,8 @@ output "parameters" {
     aws_ssm_parameter.openrouter_api_key.name,
   ]
 }
+
+output "server_instance_id" {
+  description = "The app server, for SSM: aws ssm start-session --target <id>."
+  value       = aws_instance.server.id
+}

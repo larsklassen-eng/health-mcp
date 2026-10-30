@@ -1,9 +1,10 @@
 name: Deploy
 
 # Deploys rag-option-a to its AWS sandbox deployment (Terraform workspace
-# `rag`): applies infra/, then builds the images for ARM (Graviton) and pushes
-# them to ECR. Only GitHub Actions in factoredai/health-mcp may use the
-# deployer role, so this runs here, not locally. main is not deployed yet.
+# `rag`): applies infra/, builds the images for ARM (Graviton), pushes them to
+# ECR and has the server pull and start them (through SSM). Only GitHub Actions
+# in factoredai/health-mcp may use the deployer role, so this runs here, not
+# locally. main is not deployed yet.
 on:
   push:
     branches: [rag-option-a]
@@ -31,6 +32,8 @@ jobs:
     if: github.repository == 'factoredai/health-mcp'
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    outputs:
+      instance-id: ${{ steps.outputs.outputs.instance-id }}
     defaults:
       run:
         working-directory: infra
@@ -66,6 +69,10 @@ jobs:
 
       - name: Apply
         run: terraform apply -input=false -lock-timeout=5m -no-color tfplan
+
+      - id: outputs
+        name: Outputs
+        run: echo "instance-id=$(terraform output -raw server_instance_id)" >> "$GITHUB_OUTPUT"
 
   images:
     name: Build and push images (ARM)
@@ -135,3 +142,51 @@ jobs:
             ${{ env.IMAGE }}-web:latest
           cache-from: type=gha,scope=${{ env.DEPLOYMENT }}-web
           cache-to: type=gha,mode=max,scope=${{ env.DEPLOYMENT }}-web
+
+  rollout:
+    name: Roll out to the server
+    needs: [infra, images]
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      INSTANCE_ID: ${{ needs.infra.outputs.instance-id }}
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ env.DEPLOYER_ROLE_ARN }}
+          role-session-name: health-mcp-${{ env.DEPLOYMENT }}-rollout-${{ github.run_id }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # A new server takes a few minutes to boot and register with SSM.
+      - name: Wait for the server
+        run: |
+          for _ in $(seq 1 60); do
+            status=$(aws ssm describe-instance-information \
+              --filters "Key=InstanceIds,Values=$INSTANCE_ID" \
+              --query 'InstanceInformationList[0].PingStatus' --output text)
+            [ "$status" = Online ] && exit 0
+            sleep 10
+          done
+          echo "::error::$INSTANCE_ID did not come online in SSM."
+          exit 1
+
+      # Waits for the first-boot setup, then pulls this commit's images and restarts.
+      - name: Deploy ${{ github.sha }}
+        run: |
+          commands=$(jq -cn --arg sha "$GITHUB_SHA" '{commands: [
+            "cloud-init status --wait > /dev/null",
+            "/srv/health-mcp/deploy.sh " + $sha
+          ]}')
+          command_id=$(aws ssm send-command --instance-ids "$INSTANCE_ID" \
+            --document-name AWS-RunShellScript --timeout-seconds 900 \
+            --comment "deploy ${GITHUB_SHA::7}" --parameters "$commands" \
+            --query Command.CommandId --output text)
+          for _ in $(seq 1 90); do
+            status=$(aws ssm get-command-invocation --command-id "$command_id" \
+              --instance-id "$INSTANCE_ID" --query Status --output text 2>/dev/null || echo Pending)
+            case "$status" in Pending | InProgress | Delayed) sleep 10 ;; *) break ;; esac
+          done
+          aws ssm get-command-invocation --command-id "$command_id" --instance-id "$INSTANCE_ID" \
+            --query '[StandardOutputContent, StandardErrorContent]' --output text
+          echo "Status: $status"
+          [ "$status" = Success ]
