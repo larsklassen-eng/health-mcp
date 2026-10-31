@@ -26,7 +26,7 @@ Apply a deployment from its own branch, so the `rag` deployment runs the RAG cod
 | `variables.tf` | Inputs: account settings, VPC and subnets |
 | `network.tf` | Looks up the existing VPC and subnets (they are not managed here); the deployment's name prefix |
 | `registry.tf` | ECR repositories for the three images (`health-mcp-<deployment>-api`, `-mcp-server`, `-web`), keeping the last 10 images each |
-| `server.tf` | The app server: a `t4g.micro` (ARM) in a private subnet, its IAM role (with the permissions boundary), security group (no inbound rules yet), and a separate encrypted data disk |
+| `server.tf` | The app server: a `t4g.small` (ARM) in a private subnet, its IAM role (with the permissions boundary), security group (no inbound rules yet), and a separate encrypted data disk |
 | `server/` | What runs on the server: the boot script (Docker, Compose, swap, data disk, systemd service), the Compose file and `deploy.sh` |
 | `secrets.tf` | SSM parameters under `/health-mcp/<deployment>/`: `MCP_AUTH_TOKEN` and `SESSION_SECRET` (generated) and `OPENROUTER_API_KEY` (set by hand) |
 | `outputs.tf` | The deployment, the VPC's CIDR, each subnet's availability zone and CIDR, the image repositories and the secret names |
@@ -66,7 +66,7 @@ aws ssm put-parameter --overwrite --type SecureString \
 
 ## The server
 
-A `t4g.micro` (2 vCPU, 1 GB, about $6 a month) with a 2 GB swap file, in a private subnet with no
+A `t4g.small` (2 vCPU, 2 GB, about $12 a month) with a 2 GB swap file, in a private subnet with no
 inbound access: it reaches ECR, Parameter Store and OpenRouter through the VPC's NAT, and admins
 reach it through SSM Session Manager, never SSH. Its IAM role may only use SSM, pull its own images
 and read its own secrets.
@@ -81,8 +81,9 @@ and read its own secrets.
 - **Data:** the SQLite database and imaging files live on their own encrypted disk, so a new
   instance (after a change to the boot script) finds them again.
 
-Measured locally with the same images: about 355 MB for the three containers when idle, and
-625 MB once the embedding model is loaded in the api and the MCP server.
+Measured locally with the same images: about 355 MB for the three containers when idle, 625 MB
+once the embedding model is loaded in the api and the MCP server, and about 550 MB more for the
+reranker in the MCP server; hence 2 GB rather than a 1 GB `t4g.micro` ($6 a month).
 
 ### Adding a user
 

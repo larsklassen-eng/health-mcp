@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
   HashingEmbedder,
+  type Reranker,
   indexSource,
   keywordQuery,
   searchPatientChunks,
@@ -181,5 +182,68 @@ describe("keywordQuery", () => {
     expect(keywordQuery("Has she had any HEADACHES, or nausea?")).toBe('"headaches" OR "nausea"');
     expect(keywordQuery("Did he? Is it?")).toBeUndefined();
     expect(keywordQuery('head" OR 1')).toBe('"head" OR "1"');
+  });
+});
+
+describe("searchPatientChunks with a reranker", () => {
+  /** Ranks passages that mention `favourite` first, and records what it was asked. */
+  const fakeReranker = (favourite: string) => {
+    const calls: { query: string; texts: readonly string[] }[] = [];
+    const reranker: Reranker = {
+      model: "fake",
+      async rerank(query, texts) {
+        calls.push({ query, texts });
+        return texts.map((text) => (text.includes(favourite) ? 10 : 0));
+      },
+    };
+    return { reranker, calls };
+  };
+
+  it("re-orders the filtered candidates by the reranker's score", async () => {
+    const patient = addPatient("FAKE-1");
+    await index(patient, "y1", "Headache in the morning, worse with coughing.");
+    await index(patient, "y2", "Headache with nausea.");
+    await index(patient, "y3", "Headache when standing up, with dizziness.");
+    const { reranker, calls } = fakeReranker("dizziness");
+
+    const results = await searchPatientChunks(connection.db, embedder, patient, "headache", {
+      k: 2,
+      reranker,
+      minSimilarity: 0.1,
+    });
+
+    expect(results.map((r) => r.sourceId)).toEqual(["y3", expect.any(String)]);
+    expect(results[0]!.rerankScore).toBe(10);
+    expect(results[1]!.rerankScore).toBe(0);
+    // It saw every candidate, with the question, including the title line.
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.query).toBe("headache");
+    expect(calls[0]!.texts).toHaveLength(3);
+    expect(calls[0]!.texts[0]).toMatch(/^Symptom \(2026-10-01\)\n/);
+  });
+
+  it("re-scores at most the best 20 candidates", async () => {
+    const patient = addPatient("FAKE-1");
+    for (let i = 0; i < 25; i++) await index(patient, `y${i}`, `Headache number ${i}.`);
+    const { reranker, calls } = fakeReranker("number 24");
+
+    const results = await searchPatientChunks(connection.db, embedder, patient, "headache", {
+      reranker,
+      minSimilarity: 0.1,
+    });
+
+    expect(calls[0]!.texts).toHaveLength(20);
+    expect(results).toHaveLength(5);
+  });
+
+  it("does not call the reranker when nothing is relevant", async () => {
+    const patient = addPatient("FAKE-1");
+    await index(patient, "y1", "Headache in the morning.");
+    const { reranker, calls } = fakeReranker("anything");
+
+    expect(
+      await searchPatientChunks(connection.db, embedder, patient, "weather forecast", { reranker }),
+    ).toEqual([]);
+    expect(calls).toEqual([]);
   });
 });

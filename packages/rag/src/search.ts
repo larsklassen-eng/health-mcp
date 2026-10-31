@@ -2,12 +2,14 @@ import type { HealthDb } from "@health-mcp/db";
 import type { ChunkSourceType } from "@health-mcp/shared";
 
 import type { Embedder } from "./embedder.js";
+import type { Reranker } from "./reranker.js";
 
 /*
  * Hybrid search over one patient's chunks. Vector search finds passages with
  * the same meaning ("head pain" → "headache"); keyword search finds exact
  * terms the model may not know well (drug names, "FLAIR"). The two ranked
- * lists are merged with reciprocal rank fusion.
+ * lists are merged with reciprocal rank fusion. A reranker, when given, then
+ * re-orders the best of them by reading each passage with the question.
  */
 
 export interface SearchOptions {
@@ -21,6 +23,12 @@ export interface SearchOptions {
    * vector search would return the "nearest" passages even when none is relevant.
    */
   minSimilarity?: number;
+  /**
+   * Re-orders the best candidates (after the similarity filter, which still
+   * decides what counts as relevant: reranker scores do not separate
+   * off-topic questions reliably).
+   */
+  reranker?: Reranker;
 }
 
 export interface SearchResult {
@@ -35,6 +43,8 @@ export interface SearchResult {
   similarity?: number;
   /** Which searches found the passage. */
   matchedBy: ("vector" | "keyword")[];
+  /** The reranker's score (a logit), when one was used: higher is more relevant. */
+  rerankScore?: number;
 }
 
 /**
@@ -49,6 +59,8 @@ export const DEFAULT_MIN_SIMILARITY = 0.57;
 const CANDIDATES = 30;
 /** The usual RRF constant: damps the difference between the first few ranks. */
 const RRF_K = 60;
+/** Candidates the reranker re-scores; 20 found as much as 40 on the retrieval checks. */
+const RERANK_CANDIDATES = 20;
 
 /** Words that would match almost every passage. */
 const STOP_WORDS = new Set(
@@ -78,7 +90,7 @@ export async function searchPatientChunks(
   embedder: Embedder,
   patientId: string,
   query: string,
-  { k = 5, sources, minSimilarity = DEFAULT_MIN_SIMILARITY }: SearchOptions = {},
+  { k = 5, sources, minSimilarity = DEFAULT_MIN_SIMILARITY, reranker }: SearchOptions = {},
 ): Promise<SearchResult[]> {
   const sqlite = db.$client;
   const vector = await embedder.embedQuery(query);
@@ -123,7 +135,7 @@ export async function searchPatientChunks(
     )
     .all(...ids) as ChunkRow[];
 
-  return rows
+  const ranked: SearchResult[] = rows
     .filter((row) => !sources || sources.includes(row.source_type))
     .map((row) => ({
       chunkId: row.id,
@@ -133,6 +145,16 @@ export async function searchPatientChunks(
       text: row.text,
       ...merged.get(row.id)!,
     }))
-    .sort((a, b) => b.score - a.score || a.chunkId - b.chunkId)
+    .sort((a, b) => b.score - a.score || a.chunkId - b.chunkId);
+  if (!reranker || ranked.length === 0) return ranked.slice(0, k);
+
+  const candidates = ranked.slice(0, RERANK_CANDIDATES);
+  const scores = await reranker.rerank(
+    query,
+    candidates.map((result) => result.text),
+  );
+  return candidates
+    .map((result, index) => ({ ...result, rerankScore: scores[index]! }))
+    .sort((a, b) => b.rerankScore - a.rerankScore || b.score - a.score)
     .slice(0, k);
 }

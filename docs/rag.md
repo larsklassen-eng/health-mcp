@@ -14,7 +14,7 @@ The diagram builds on today's architecture ([architecture.png](architecture.png)
 | **Vector store** | `sqlite-vec` inside the existing SQLite file: no new service |
 | **Who decides to retrieve** | The model, through a new MCP tool `search_patient_records` (agentic RAG) |
 | **Embeddings** | Local model (`bge-small-en-v1.5` via transformers.js, 384 dimensions) |
-| **Search** | Vector nearest neighbours + SQLite FTS5 keywords, merged with reciprocal rank fusion |
+| **Search** | Vector nearest neighbours + SQLite FTS5 keywords, merged with reciprocal rank fusion, then re-ordered by a local reranker (cross-encoder) |
 | **When indexing happens** | Right after every write: the patient's texts are compared with what is indexed, and only changed records are embedded again (each record's chunks are replaced in one transaction) |
 | **Isolation** | Every chunk carries `patient_id`, and vectors are partitioned by patient; the api sets the patient on the tool call, as for every other tool |
 | **Privacy** | No text leaves the machine for retrieval |
@@ -40,9 +40,24 @@ Small steps, one commit each, with tests.
 
    First run (2026-10-29): 18/19 passed, hit rate 94%, mean reciprocal rank 0.75. The miss is `paresthesia`: the small model does not link the medical term to the note "Pins and needles"; reports and notes about the same arm ranked higher. Imaging reports often outrank symptom notes, partly because every synthetic report starts with the same boilerplate sentence.
 
+9. ✅ **Reranker:** `LocalReranker` (`packages/rag`) runs a cross-encoder that reads the question and each passage together. Search keeps its relevance filter (cosine floor or keyword match), takes the 20 best candidates by reciprocal rank fusion and re-orders them by the reranker's score (`rerankScore`). The MCP server uses it unless `RAG_RERANKER=off`; `yarn rag:model` downloads it.
+
+   Chosen by measurement on the retrieval checks (a wide candidate pool re-scored by each model; off-topic questions included):
+
+   | Model | Hit rate | MRR | Per passage | Notes |
+   |---|---|---|---|---|
+   | None (hybrid search) | 94% | 0.75 | | misses `paresthesia` |
+   | `ms-marco-TinyBERT-L-2-v2` | 71% | 0.61 | 0.5 ms | |
+   | `ms-marco-MiniLM-L-6-v2` | 94% | 0.78 | 4 ms | misses `paresthesia` |
+   | `jina-reranker-v1-tiny-en` | 94% | 0.77 | 3 ms | misses `fine-motor-hand` |
+   | `bge-reranker-base` | 88% | 0.62 | 20 ms | 10 times larger |
+   | **`mxbai-rerank-xsmall-v1`** | **100%** | **0.86** | 9–11 ms | 87 MB, about 550 MB of memory once loaded |
+
+   No model's scores cleanly separate relevant passages from off-topic questions (the weakest real match scored below the strongest off-topic one), hence the cosine floor stays. Re-scoring 20 candidates found as much as 40. With the app's real path (`yarn eval:retrieval`), the reranker takes the checks from 18/19 to 19/19 (hit rate 94% → 100%, MRR 0.75 → 0.86); a search takes about 0.15–0.2 s more on a laptop. Its memory is why the server is a 2 GB `t4g.small`.
+
 ## Open choices
 
 - **Embedding model:** the vector size (384) is fixed by the migration; a model with another size needs a new one. Check current model names before building; `bge-small-en-v1.5` is a starting point.
 - **Chunk size and overlap:** start with about 800 characters and tune them with `yarn eval:retrieval`.
-- **Relevance:** similarity scores of related medical topics overlap (asking about dizziness scores 0.66 against "trouble concentrating"), so the model judges relevance from the returned passages. A reranker model (a cross-encoder such as `bge-reranker-base`) would score relevance more sharply, at the cost of a second model.
+- **Relevance:** similarity scores of related medical topics overlap (asking about dizziness scores 0.66 against "trouble concentrating"), so the model judges relevance from the returned passages. The reranker orders passages much better, but its scores do not separate off-topic questions either (step 9), so the cosine floor still decides what counts as relevant.
 - **Merging into `main`:** this branch numbers its migrations `0002_record_chunks`, `0003_search_indexes`, `0004_users`, while `main` has `0002_users`. Drizzle applies migrations in order of creation time, so a merge needs the migrations renumbered into one sequence, and databases created from either branch recreated (they hold only synthetic data).

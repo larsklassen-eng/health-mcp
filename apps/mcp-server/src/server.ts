@@ -1,5 +1,5 @@
 import type { HealthDb } from "@health-mcp/db";
-import type { Embedder } from "@health-mcp/rag";
+import type { Embedder, Reranker } from "@health-mcp/rag";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 import { getImagingStudies } from "./tools/get-imaging-studies.js";
@@ -19,10 +19,15 @@ export interface McpServerOptions {
   now?: () => Date;
   /** Embeds search queries; without it, `search_patient_records` is not offered. */
   embedder?: Embedder | null;
+  /** Re-orders search results; optional. */
+  reranker?: Reranker | null;
 }
 
 /** An MCP server with the patient-scoped health tools. Every tool requires `patient_id`. */
-export function createMcpServer(db: HealthDb, { now, embedder }: McpServerOptions = {}): McpServer {
+export function createMcpServer(
+  db: HealthDb,
+  { now, embedder, reranker }: McpServerOptions = {},
+): McpServer {
   const server = new McpServer(SERVER_INFO);
   registerTool(server, "get_patient_profile", getPatientProfile(db));
   registerTool(server, "get_lab_results", getLabResults(db));
@@ -31,6 +36,7 @@ export function createMcpServer(db: HealthDb, { now, embedder }: McpServerOption
   registerTool(server, "get_recovery_milestones", getRecoveryMilestones(db));
   registerTool(server, "log_symptom", logSymptom(db, now));
   registerTool(server, "get_imaging_studies", getImagingStudies(db));
-  if (embedder) registerTool(server, "search_patient_records", searchPatientRecords(db, embedder));
+  if (embedder)
+    registerTool(server, "search_patient_records", searchPatientRecords(db, embedder, reranker));
   return server;
 }

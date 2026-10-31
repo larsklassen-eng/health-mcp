@@ -19,7 +19,7 @@ This branch adds RAG over each patient's records, for learning: their free text 
 | `apps/mcp-server` | MCP TypeScript SDK | Standalone MCP server exposing patient-scoped health tools (labs, vitals, medications, symptoms, recovery milestones, imaging reports) and a search over the patient's free text (`search_patient_records`). |
 | `packages/shared` | Zod | Schemas and inferred types shared by every app (API contracts, tool inputs). |
 | `packages/db` | SQLite + Drizzle ORM | Database schema, migrations and client used by `apps/api` and `apps/mcp-server`. Stores patients, health records and chat history per patient. |
-| `packages/rag` | TypeScript, transformers.js | RAG building blocks: splitting patient text into chunks, embedding them with a local model, storing them, keeping each patient's index in sync with their records, and hybrid search (vector + keyword) per patient. See [docs/rag.md](docs/rag.md). |
+| `packages/rag` | TypeScript, transformers.js | RAG building blocks: splitting patient text into chunks, embedding them with a local model, storing them, keeping each patient's index in sync with their records, and hybrid search (vector + keyword) per patient, re-ordered by a local reranker. See [docs/rag.md](docs/rag.md). |
 | `packages/evals` | Zod + TypeScript | Agent eval cases on the synthetic patients, a deterministic grader, and `yarn eval` to run them against the real stack; retrieval checks for the record search (`yarn eval:retrieval`, free). |
 
 ### Chat flow (per patient)
@@ -80,7 +80,7 @@ yarn typecheck   # type-check all packages, including tests
 yarn test        # run all tests
 yarn format      # format code with Prettier (yarn format:check only checks)
 yarn db:migrate  # create data/health.db (if needed) and apply migrations
-yarn rag:model   # download the local embedding model (34 MB) into data/models, once
+yarn rag:model   # download the local embedding model (34 MB) and reranker (87 MB) into data/models, once
 yarn rag:reindex # bring every patient's search index up to date (--full rebuilds it)
 yarn imaging:synthetic  # write data/synthetic-mri.zip, a phantom MRI study to try the DICOM upload
 yarn user add <email>   # add someone who may sign in (see Sign-in)
@@ -130,7 +130,7 @@ docker compose exec api node apps/api/dist/cli/users.js add ana@example.com
 | `mcp-server` | `mcp-server` | Shares the api container's network, so it still listens on `127.0.0.1` only: nothing but the api can reach it |
 | `web` | `web` | apps/web (Next.js standalone server) on http://localhost:3000; the only published port |
 
-The images keep the repo layout under `/app` and run as the unprivileged `node` user. The api and MCP server images include the embedding model for search (downloaded once while building, in `/app/models`), and both use `RAG_EMBEDDER` from `.env` (default `local`), so they always match. The database and imaging files live in the `data` volume (`/app/data`), separate from `data/` on your machine, so start by importing `fixtures/synthetic-patients.json` on the Patients page. Sign-in is off in Compose unless `.env` sets `AUTH_MODE=password` (with `SESSION_SECRET`). Compose reads only the values it needs from `.env` (`MCP_AUTH_TOKEN`, `OPENROUTER_API_KEY`, `OPENROUTER_MODEL`, `RAG_EMBEDDER`, `AUTH_MODE`, `SESSION_SECRET`); `.env` itself never goes into an image (see `.dockerignore`).
+The images keep the repo layout under `/app` and run as the unprivileged `node` user. The api and MCP server images include the embedding model and the reranker for search (downloaded once while building, in `/app/models`), and both use `RAG_EMBEDDER` from `.env` (default `local`), so they always match. The database and imaging files live in the `data` volume (`/app/data`), separate from `data/` on your machine, so start by importing `fixtures/synthetic-patients.json` on the Patients page. Sign-in is off in Compose unless `.env` sets `AUTH_MODE=password` (with `SESSION_SECRET`). Compose reads only the values it needs from `.env` (`MCP_AUTH_TOKEN`, `OPENROUTER_API_KEY`, `OPENROUTER_MODEL`, `RAG_EMBEDDER`, `AUTH_MODE`, `SESSION_SECRET`); `.env` itself never goes into an image (see `.dockerignore`).
 
 ### Database
 
@@ -199,15 +199,16 @@ The cases are in `packages/evals/src/cases.ts`. Grading is deterministic, with n
 
 Each run prints ✓/✗ per case with the reasons and the case's model calls, tokens and cost, then the totals. It writes a JSON report with the answers, each case's tool calls with their arguments and `usage`, and the run's total to `eval-results/` (git-ignored). The exit code is 1 if any case fails. CI does not run evals; `yarn test` checks the grader, the stream parsing, and that every expected value really is in the fixture. To try the runner without model calls, point `OPENROUTER_BASE_URL` at a local fake server.
 
-Five agent cases (`search-*`) ask about things only written in symptom notes, which only `search_patient_records` returns. Both runners use the local embedding model, so run `yarn rag:model` once first.
+Five agent cases (`search-*`) ask about things only written in symptom notes, which only `search_patient_records` returns. Both runners use the local embedding model and reranker, so run `yarn rag:model` once first.
 
-`yarn eval:retrieval` checks the record search alone, for free: it imports the synthetic patients into a temporary database through apps/api (which indexes them), then runs each check's query and looks for the expected passage (its source and a phrase from it) in the top 5. Two checks are off-topic questions that must return nothing. No LLM is called, and no API key is needed.
+`yarn eval:retrieval` checks the record search alone, for free: it imports the synthetic patients into a temporary database through apps/api (which indexes them), then runs each check's query (reranked, as in the MCP server) and looks for the expected passage (its source and a phrase from it) in the top 5. Two checks are off-topic questions that must return nothing. No LLM is called, and no API key is needed.
 
 ```sh
 yarn eval:retrieval --list        # list the checks
 yarn eval:retrieval               # run all checks
 yarn eval:retrieval --verbose     # also print what each search returned
 yarn eval:retrieval --case vertigo
+yarn eval:retrieval --no-rerank   # without the reranker, to compare
 ```
 
 It prints ✓/✗ per check with the expected passage's rank (failures list what came back), then the hit rate (expected passages found in the top 5) and the mean reciprocal rank (1 when the expected passage is always first). The checks are in `packages/evals/src/retrieval-cases.ts`; the report goes to `eval-results/retrieval-*.json`.
@@ -222,7 +223,8 @@ It prints ✓/✗ per check with the expected passage's rank (failures list what
 |---|---|---|
 | `DATABASE_PATH` | `packages/db`, `apps/api`, `apps/mcp-server` | `data/health.db` |
 | `RAG_EMBEDDER` | `apps/api`, `apps/mcp-server` | `local`; embedding model for the search index and for search queries (both must use the same one): `local` (bge-small on this machine), `hashing` (word-hashing stand-in, used by the tests) or `off` |
-| `RAG_MODEL_DIR` | `packages/rag` | `data/models`; where the embedding model is downloaded (relative to the repo root) |
+| `RAG_RERANKER` | `apps/mcp-server` | `local`; re-orders search results with a local cross-encoder (`mxbai-rerank-xsmall-v1`, about 550 MB of memory once loaded), or `off`. Only used with `RAG_EMBEDDER=local` |
+| `RAG_MODEL_DIR` | `packages/rag` | `data/models`; where the embedding model and the reranker are downloaded (relative to the repo root) |
 | `IMAGING_DIR` | `apps/api` | `data/imaging`; where the PNG slices of uploaded studies are stored (relative to the repo root) |
 | `PORT` | `apps/api` | `3001` |
 | `API_URL` | `apps/web` (server side only) | `http://localhost:3001` |
@@ -263,7 +265,7 @@ Serves the patient-scoped health tools over [MCP](https://modelcontextprotocol.i
 | `get_medications` | Done: `status` is `active` (default), `stopped` or `all`. Active before stopped, then the most recently started first, as `{ medications }` |
 | `get_recovery_milestones` | Done: optional `status` (`pending`, `achieved`, `missed`). By target date, earliest first, undated last, as `{ milestones, counts }`; `counts` has every status, whatever the filter |
 | `get_imaging_studies` | Done: newest first, with impression, report (first 4000 characters; `reportTruncated` when cut) and series; optional `modality` (`MR`, `CT`, `CR`…) and `limit` (default 5, max 20). Reports and details only, never the images |
-| `search_patient_records` | RAG (see [docs/rag.md](docs/rag.md)): hybrid search (meaning + keywords) over the patient's indexed free text: reports, notes, symptom notes and the clinician's chat messages. `query`, optional `sources` and `limit` (default 5, max 10); returns passages with source, date, title and similarity, or a note when nothing relevant is found. Offered only when `RAG_EMBEDDER` is not `off` |
+| `search_patient_records` | RAG (see [docs/rag.md](docs/rag.md)): hybrid search (meaning + keywords, re-ordered by the reranker) over the patient's indexed free text: reports, notes, symptom notes and the clinician's chat messages. `query`, optional `sources` and `limit` (default 5, max 10); returns passages with source, date, title and similarity, or a note when nothing relevant is found. Offered only when `RAG_EMBEDDER` is not `off` |
 | `log_symptom` | Done: saves `name`, `severity` (0–10) and optional `notes`, recorded at the time it runs, and returns `{ symptom }`. apps/api only calls it after the clinician confirms (see [Confirming changes](#confirming-changes)) |
 
 Tool descriptions and input schemas come from `MCP_TOOLS` in `packages/shared`; each tool's input is the model's arguments plus `patient_id`, validated before the tool runs. Results are JSON text. An unknown patient or invalid input is returned as a tool error (`isError`) that the model can read; unexpected failures return a generic message and are logged.

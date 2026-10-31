@@ -35,6 +35,11 @@ export const EnvSchema = z.object({
    * leaves the tool out. Must match the model that built the index.
    */
   RAG_EMBEDDER: z.enum(["local", "hashing", "off"]).default("local"),
+  /**
+   * Re-orders search results with a local cross-encoder (`local`, about 550 MB
+   * of memory once loaded) or not (`off`). Only used with RAG_EMBEDDER=local.
+   */
+  RAG_RERANKER: z.enum(["local", "off"]).default("local"),
   /** SQLite file; relative paths resolve from the repo root (see @health-mcp/db). */
   DATABASE_PATH: z.string().min(1).optional(),
 });

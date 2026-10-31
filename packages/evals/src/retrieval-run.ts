@@ -4,7 +4,7 @@ import path from "node:path";
 import { parseArgs } from "node:util";
 
 import { createDb, migrateDb, REPO_ROOT } from "@health-mcp/db";
-import { LocalEmbedder, searchPatientChunks } from "@health-mcp/rag";
+import { LocalEmbedder, LocalReranker, searchPatientChunks } from "@health-mcp/rag";
 import { API_ROUTES, PatientImportFileSchema, PatientImportResultSchema } from "@health-mcp/shared";
 
 import {
@@ -19,8 +19,9 @@ import { FIXTURE, missingEmbeddingModel, request, RESULTS_DIR, startStack } from
 /*
  * Runs the retrieval checks: imports the synthetic patients through apps/api
  * (which indexes them with the local embedding model, as in the app), then
- * runs each case's search on that index. No LLM is called, so it is free.
- * Usage: `yarn eval:retrieval [--case <id>]... [--verbose]`.
+ * runs each case's search on that index, reranked as in the MCP server. No LLM
+ * is called, so it is free.
+ * Usage: `yarn eval:retrieval [--case <id>]... [--verbose] [--no-rerank]`.
  */
 
 function printResult(result: RetrievalResult, verbose: boolean) {
@@ -37,6 +38,7 @@ async function main(): Promise<number> {
       case: { type: "string", multiple: true },
       list: { type: "boolean" },
       verbose: { type: "boolean" },
+      "no-rerank": { type: "boolean" },
     },
   });
   const cases = RETRIEVAL_CASES.map((input) => RetrievalCaseSchema.parse(input));
@@ -73,13 +75,16 @@ async function main(): Promise<number> {
     const { imported } = PatientImportResultSchema.parse(await response.json());
     const patientIds = new Map(imported.map(({ mrn, patientId }) => [mrn, patientId]));
 
-    console.log(`Running ${selected.length} retrieval checks.\n`);
+    const reranker = values["no-rerank"] ? undefined : new LocalReranker({ allowDownload: false });
+    const how = reranker ? "with" : "without";
+    console.log(`Running ${selected.length} retrieval checks ${how} the reranker.\n`);
     const embedder = new LocalEmbedder({ allowDownload: false });
     for (const c of selected) {
       const patientId = patientIds.get(c.patientMrn);
       if (!patientId) throw new Error(`${c.patientMrn} is not in ${FIXTURE}`);
       const found = await searchPatientChunks(connection.db, embedder, patientId, c.query, {
         k: c.k,
+        ...(reranker && { reranker }),
       });
       const result = gradeRetrieval(c, found);
       results.push(result);

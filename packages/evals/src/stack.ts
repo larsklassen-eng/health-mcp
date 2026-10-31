@@ -5,7 +5,7 @@ import { createServer } from "node:net";
 import path from "node:path";
 
 import { REPO_ROOT } from "@health-mcp/db";
-import { DEFAULT_EMBEDDING_MODEL, resolveModelDir } from "@health-mcp/rag";
+import { DEFAULT_EMBEDDING_MODEL, DEFAULT_RERANKER_MODEL, resolveModelDir } from "@health-mcp/rag";
 
 /** The synthetic patients the evals run on. */
 export const FIXTURE = path.join(REPO_ROOT, "fixtures/synthetic-patients.json");
@@ -23,14 +23,16 @@ export interface Stack {
 }
 
 /**
- * The stack indexes and searches with the local embedding model, which is
- * downloaded once with `yarn rag:model`; this says so before anything starts.
+ * The stack indexes and searches with the local embedding model and reranks
+ * with the local reranker, both downloaded once with `yarn rag:model`; this
+ * says so before anything starts.
  */
 export function missingEmbeddingModel(): string | undefined {
-  const dir = path.join(resolveModelDir(), DEFAULT_EMBEDDING_MODEL);
-  return existsSync(dir)
-    ? undefined
-    : `The embedding model is not in ${dir}. Run \`yarn rag:model\` once.`;
+  for (const model of [DEFAULT_EMBEDDING_MODEL, DEFAULT_RERANKER_MODEL]) {
+    const dir = path.join(resolveModelDir(), model);
+    if (!existsSync(dir)) return `${model} is not in ${dir}. Run \`yarn rag:model\` once.`;
+  }
+  return undefined;
 }
 
 /** A JSON request to apps/api; throws with the response body when it fails. */
@@ -115,6 +117,7 @@ export async function startStack(databasePath: string): Promise<Stack> {
     MCP_PORT: String(mcpPort),
     MCP_AUTH_TOKEN: token,
     RAG_EMBEDDER: "local",
+    RAG_RERANKER: "local",
   });
   const api = startService(API_MAIN, {
     DATABASE_PATH: databasePath,

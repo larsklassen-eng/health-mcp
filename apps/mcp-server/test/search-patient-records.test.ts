@@ -127,6 +127,40 @@ describe("search_patient_records", () => {
     expect((await call({ query: "headache", limit: 11 })).isError).toBe(true);
   });
 
+  it("orders passages by the reranker when the server has one", async () => {
+    const reranked = await startTestServer({
+      reranker: {
+        model: "fake",
+        // Prefers the passage about standing up, whatever the search order was.
+        rerank: async (_query, texts) => texts.map((text) => (text.includes("standing") ? 9 : 1)),
+      },
+    });
+    try {
+      const otherPatient = insertPatient(reranked.db).id;
+      for (const [sourceId, text] of [
+        ["y1", "Dizziness, severity 5/10. Dizziness all morning, dizziness at night."],
+        ["y2", "Dizziness, severity 2/10. When standing up."],
+      ] as const)
+        await indexSource(
+          reranked.db,
+          new HashingEmbedder(),
+          { patientId: otherPatient, sourceType: "symptom", sourceId },
+          { sourceType: "symptom", sourceId, sourceDate: "2026-10-01", title: "Symptom", text },
+        );
+      const result = (await (
+        await reranked.connect()
+      ).callTool({
+        name: "search_patient_records",
+        arguments: { patient_id: otherPatient, query: "dizziness" },
+      })) as CallToolResult;
+
+      const { passages } = RecordSearchOutputSchema.parse(JSON.parse(text(result)));
+      expect(passages.map((p) => p.sourceId)).toEqual(["y2", "y1"]);
+    } finally {
+      await reranked.close();
+    }
+  });
+
   it("is not offered when the server has no embedder", async () => {
     const plain = await startTestServer({ embedder: null });
     try {

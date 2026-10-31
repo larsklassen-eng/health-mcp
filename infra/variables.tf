@@ -52,7 +52,8 @@ variable "public_subnet_ids" {
 variable "instance_type" {
   description = "App server size; must be ARM (Graviton), as the images are built for ARM."
   type        = string
-  default     = "t4g.micro"
+  # 2 GB: the app needs about 1.2 GB once the embedding model and the reranker are loaded.
+  default = "t4g.small"
 }
 
 variable "swap_mb" {
