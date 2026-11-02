@@ -100,8 +100,8 @@ sudo docker compose -f /srv/health-mcp/compose.yml exec api \
   node apps/api/dist/cli/users.js add you@example.com --first Your --last Name
 ```
 
-It asks for the password twice without showing it. `password`, `remove` and `list` work the same
-way (see the main README's Sign-in section).
+It asks for the password twice without showing it, and checks it against the password rules.
+`password`, `remove` and `list` work the same way (see the main README's Sign-in section).
 
 ## The public URL
 

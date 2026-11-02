@@ -97,7 +97,7 @@ export class AuthService {
     const problem =
       nameProblem(input.firstName, input.lastName) ??
       emailProblem(input.email) ??
-      passwordProblem(input.password);
+      passwordProblem(input.password, input);
     if (problem) throw new BadRequestException(problem);
 
     const wait = this.signups.retryAfter();

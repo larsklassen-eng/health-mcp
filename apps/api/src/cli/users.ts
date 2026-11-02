@@ -5,9 +5,11 @@ import { parseArgs } from "node:util";
 
 import { createDb, resolveDatabasePath } from "@health-mcp/db";
 import { PASSWORD_MIN_LENGTH } from "@health-mcp/shared";
+import type { PasswordOwner } from "@health-mcp/shared/password";
 
 import {
   createUser,
+  findUserByEmail,
   listUsers,
   nameProblem,
   passwordProblem,
@@ -35,13 +37,20 @@ const USAGE = `Usage:
   yarn user remove <email>
   yarn user list`;
 
-/** A random password of 20 characters (letters, digits, - and _). */
-const generatePassword = () => randomBytes(15).toString("base64url");
+/** A random password of 20 characters (letters, digits, - and _) that meets the rules. */
+function generatePassword(owner: PasswordOwner): string {
+  for (;;) {
+    const password = randomBytes(15).toString("base64url");
+    if (!passwordProblem(password, owner)) return password;
+  }
+}
 
-async function newPassword(generate: boolean): Promise<string> {
-  if (generate) return generatePassword();
-  const password = await promptHidden(`Password (at least ${PASSWORD_MIN_LENGTH} characters): `);
-  const problem = passwordProblem(password);
+async function newPassword(generate: boolean, owner: PasswordOwner): Promise<string> {
+  if (generate) return generatePassword(owner);
+  const password = await promptHidden(
+    `Password (at least ${PASSWORD_MIN_LENGTH} characters, hard to guess): `,
+  );
+  const problem = passwordProblem(password, owner);
   if (problem) throw new Error(problem);
   if (process.stdin.isTTY && (await promptHidden("Repeat the password: ")) !== password)
     throw new Error("The passwords do not match.");
@@ -72,7 +81,8 @@ async function main(): Promise<number> {
       case "add": {
         const problem = nameProblem(values.first!, values.last!);
         if (problem) throw new Error(problem);
-        const password = await newPassword(values.generate);
+        const owner = { email, firstName: values.first, lastName: values.last };
+        const password = await newPassword(values.generate, owner);
         const user = await createUser(db, {
           email: email!,
           password,
@@ -84,7 +94,9 @@ async function main(): Promise<number> {
         break;
       }
       case "password": {
-        const password = await newPassword(values.generate);
+        const user = findUserByEmail(db, email!);
+        if (!user) throw new Error(`No user ${email}.`);
+        const password = await newPassword(values.generate, user);
         if (!(await setPassword(db, email!, password))) throw new Error(`No user ${email}.`);
         console.log(`Changed the password of ${email}; their sessions have ended.`);
         if (values.generate) console.log(`Password (shown once): ${password}`);

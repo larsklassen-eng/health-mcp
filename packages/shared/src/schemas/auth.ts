@@ -21,7 +21,7 @@ export const AuthUserSchema = z.object({
 /** First and last names: required for new users, at most this long. */
 export const NAME_MAX_LENGTH = 100;
 
-/** Passwords: at least 12 characters. */
+/** Password length bounds; the full rules are in `@health-mcp/shared/password`. */
 export const PASSWORD_MIN_LENGTH = 12;
 export const PASSWORD_MAX_LENGTH = 200;
 

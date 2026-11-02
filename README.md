@@ -94,7 +94,7 @@ Copy `.env.example` to `.env` to change settings; the defaults work without it. 
 With `AUTH_MODE=password`, people sign in with an email address and a password; every page and api route except `/health`, sign-in and sign-up needs a session. It is the default with `NODE_ENV=production` (as in the Docker images) and off otherwise, so `yarn dev` and the tests work without signing in. Users are doctors, with an email address, a first and a last name. Each deployment's database holds its own users, so access to one never gives access to another. Doctors create their own account (`POST /auth/register`; the sign-up page comes next), or an administrator adds them:
 
 ```sh
-yarn user add ana@example.com --first Ana --last Example   # asks for the password twice (12+ characters)
+yarn user add ana@example.com --first Ana --last Example   # asks for the password twice (see the rules below)
 yarn user add ben@example.com --first Ben --last Example --generate   # makes up a password, prints it once
 yarn user password ana@example.com                         # new password; ends Ana's sessions
 yarn user remove ben@example.com                           # deletes Ben; ends his sessions; keeps his patients, unassigned
@@ -104,6 +104,7 @@ yarn user list
 To turn it on locally, set `AUTH_MODE=password` and `SESSION_SECRET` (`openssl rand -hex 32`) in `.env`, add a user and restart `yarn dev`.
 
 How it works:
+- **Password rules** (`packages/shared/src/password.ts`, the same for sign-up, `yarn user` and the web page that will show them as you type): 12 to 200 characters; no first name, last name or email address in it (names of 1–3 letters only as a word on their own, so "banana" is fine for Ana); and hard to guess: a [zxcvbn](https://github.com/zxcvbn-ts/zxcvbn) score of at least 3 of 4, which refuses common passwords, keyboard patterns, repeats and dictionary words with obvious substitutions. Several unrelated words make a good password. The rules have their own entry point, `@health-mcp/shared/password`, because zxcvbn's dictionaries are large.
 - **Passwords** are hashed with scrypt (`apps/api/src/auth/password.ts`); the `users` table keeps only the hash. A wrong email and a wrong password get the same answer and take the same time. After 5 failed attempts for one email within 15 minutes, that email must wait (kept in memory, so it resets on restart).
 - **Sign-up** (`POST /auth/register`): first name, last name, email and password, with the same rules as `yarn user add`. The new doctor is signed in at once and starts with no patients. There is no email verification yet, so an email that already has an account is answered with "sign in instead" (unlike sign-in, which does not say whether an email exists). At most `SIGNUPS_PER_HOUR` accounts (20) are created per hour, all together, against scripted sign-ups; `0` closes sign-up. Like the sign-in limit, it is kept in memory.
 - **Sessions** are not stored: the api seals the user id and time of sign-in with AES-256-GCM under `SESSION_SECRET` and the web app keeps the token in an HTTP-only cookie (`hm_session`, `SameSite=Lax`, `Secure` over HTTPS) for `SESSION_TTL_HOURS` (12). Every api request looks the user up again, so removing a user or changing their password ends their sessions at once. Signing out deletes the cookie.

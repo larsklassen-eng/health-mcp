@@ -1,5 +1,6 @@
 import { type HealthDb, users, type UserRow } from "@health-mcp/db";
-import { NAME_MAX_LENGTH, PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from "@health-mcp/shared";
+import { NAME_MAX_LENGTH } from "@health-mcp/shared";
+import { checkPassword, type PasswordOwner } from "@health-mcp/shared/password";
 import { asc, eq } from "drizzle-orm";
 
 import { hashPassword } from "./password.js";
@@ -25,12 +26,9 @@ export function nameProblem(firstName: string, lastName: string): string | undef
   return undefined;
 }
 
-export function passwordProblem(password: string): string | undefined {
-  if (password.length < PASSWORD_MIN_LENGTH)
-    return `Use at least ${PASSWORD_MIN_LENGTH} characters.`;
-  if (password.length > PASSWORD_MAX_LENGTH)
-    return `Use at most ${PASSWORD_MAX_LENGTH} characters.`;
-  return undefined;
+/** The password rules (12+ characters, hard to guess, without the owner's names or email). */
+export function passwordProblem(password: string, owner: PasswordOwner): string | undefined {
+  return checkPassword(password, owner).problem;
 }
 
 export const findUserByEmail = (db: HealthDb, email: string): UserRow | undefined =>
@@ -53,7 +51,7 @@ export async function createUser(
   const problem =
     emailProblem(input.email) ??
     nameProblem(input.firstName, input.lastName) ??
-    passwordProblem(input.password);
+    passwordProblem(input.password, input);
   if (problem) throw new Error(problem);
   if (findUserByEmail(db, input.email))
     throw new Error(`${normalizeEmail(input.email)} already exists.`);
@@ -71,7 +69,9 @@ export async function createUser(
 
 /** Sets a new password, ending the user's sessions. Returns false for unknown emails. */
 export async function setPassword(db: HealthDb, email: string, password: string) {
-  const problem = passwordProblem(password);
+  const user = findUserByEmail(db, email);
+  if (!user) return false;
+  const problem = passwordProblem(password, user);
   if (problem) throw new Error(problem);
   const updated = db
     .update(users)

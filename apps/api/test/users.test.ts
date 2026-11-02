@@ -36,6 +36,8 @@ describe("users", () => {
   it.each([
     [{ email: "not-an-email", password: "long enough password" }, "not an email"],
     [{ email: "ana@example.com", password: "short" }, "at least 12"],
+    [{ email: "ana@example.com", password: "password1234" }, "commonly used password"],
+    [{ email: "ana@example.com", password: "Example rocks 2026" }, "name and email"],
     [{ email: "ana@example.com", password: "x".repeat(201) }, "at most 200"],
     [{ email: "ana@example.com", password: "long enough password", lastName: " " }, "last name"],
     [
@@ -65,6 +67,9 @@ describe("users", () => {
     expect(await setPassword(db, "ANA@example.com", "a brand new password")).toBe(true);
     expect(await setPassword(db, "nobody@example.com", "a brand new password")).toBe(false);
     await expect(setPassword(db, "ana@example.com", "short")).rejects.toThrow("at least 12");
+    await expect(setPassword(db, "ana@example.com", "ana@example.com 2026")).rejects.toThrow(
+      "name and email",
+    );
 
     const after = findUserByEmail(db, "ana@example.com")!;
     expect(await verifyPassword("a brand new password", after.passwordHash)).toBe(true);

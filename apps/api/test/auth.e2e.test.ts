@@ -203,6 +203,12 @@ describe("sign-up", () => {
     expect(errorOf(await register({ ...ben, password: "short" }), 400)).toBe(
       "Use at least 12 characters.",
     );
+    expect(errorOf(await register({ ...ben, password: "password1234" }), 400)).toBe(
+      "This is similar to a commonly used password.",
+    );
+    expect(errorOf(await register({ ...ben, password: "Example forever 2026" }), 400)).toBe(
+      "Leave your name and email address out of the password.",
+    );
     errorOf(await register({ ...ben, firstName: "x".repeat(101) }), 400);
     errorOf(await register({ email: "ben@example.com" }), 400);
   });
