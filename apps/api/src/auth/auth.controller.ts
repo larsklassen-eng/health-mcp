@@ -4,6 +4,8 @@ import {
   type LoginInput,
   LoginInputSchema,
   type LoginResponse,
+  type RegisterInput,
+  RegisterInputSchema,
 } from "@health-mcp/shared";
 import {
   Body,
@@ -20,7 +22,7 @@ import { bearerToken } from "./auth.guard.js";
 import { AuthService, toAuthUser } from "./auth.service.js";
 import { Public } from "./public.decorator.js";
 
-/** Sign-in endpoints, used by apps/web's login page and proxy. */
+/** Sign-in and sign-up endpoints, used by apps/web's login and register pages and its proxy. */
 @Public()
 @Controller()
 export class AuthController {
@@ -30,6 +32,11 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   login(@Body({ schema: LoginInputSchema }) input: LoginInput): Promise<LoginResponse> {
     return this.auth.login(input);
+  }
+
+  @Post(API_ROUTES.authRegister)
+  register(@Body({ schema: RegisterInputSchema }) input: RegisterInput): Promise<LoginResponse> {
+    return this.auth.register(input);
   }
 
   @Get(API_ROUTES.authSession)

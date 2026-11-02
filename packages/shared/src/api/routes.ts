@@ -4,6 +4,7 @@ const patientPath = (patientId: string) => `/patients/${encodeURIComponent(patie
 export const API_ROUTES = {
   health: "/health",
   authLogin: "/auth/login",
+  authRegister: "/auth/register",
   authSession: "/auth/session",
   patients: "/patients",
   patientsImport: "/patients/import",

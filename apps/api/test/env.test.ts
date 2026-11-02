@@ -17,6 +17,7 @@ describe("loadEnv", () => {
       MCP_URL: "http://127.0.0.1:3002/mcp",
       AUTH_MODE: "off",
       SESSION_TTL_HOURS: 12,
+      SIGNUPS_PER_HOUR: 20,
     });
   });
 

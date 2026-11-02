@@ -65,8 +65,9 @@ const BaseEnvSchema = z.object({
    */
   CHAT_HISTORY_MAX_CHARS: z.coerce.number().int().min(1_000).max(1_000_000).default(40_000),
   /**
-   * Sign-in. `password`: every route except health and sign-in needs a
-   * session; users are created with `yarn user add`. `off`: anyone who can
+   * Sign-in. `password`: every route except health, sign-in and sign-up needs
+   * a session; doctors register themselves or are added with `yarn user add`.
+   * `off`: anyone who can
    * reach the api may use it. Defaults to `password` in production
    * (NODE_ENV=production, as in the Docker images), `off` otherwise.
    */
@@ -82,6 +83,11 @@ const BaseEnvSchema = z.object({
     .min(1)
     .max(24 * 30)
     .default(12),
+  /**
+   * New accounts allowed per hour through sign-up (all together), against
+   * scripted sign-ups; `0` turns sign-up off. `yarn user add` is not limited.
+   */
+  SIGNUPS_PER_HOUR: z.coerce.number().int().min(0).max(10_000).default(20),
 });
 
 export const EnvSchema = BaseEnvSchema.transform((env, context) => {

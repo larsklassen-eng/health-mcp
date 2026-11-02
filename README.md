@@ -91,7 +91,7 @@ Copy `.env.example` to `.env` to change settings; the defaults work without it. 
 
 ### Sign-in
 
-With `AUTH_MODE=password`, people sign in with an email address and a password; every page and api route except `/health` and sign-in needs a session. It is the default with `NODE_ENV=production` (as in the Docker images) and off otherwise, so `yarn dev` and the tests work without signing in. Users are doctors, with an email address, a first and a last name. Each deployment's database holds its own users, so access to one never gives access to another. There is no sign-up page yet: an administrator adds people.
+With `AUTH_MODE=password`, people sign in with an email address and a password; every page and api route except `/health`, sign-in and sign-up needs a session. It is the default with `NODE_ENV=production` (as in the Docker images) and off otherwise, so `yarn dev` and the tests work without signing in. Users are doctors, with an email address, a first and a last name. Each deployment's database holds its own users, so access to one never gives access to another. Doctors create their own account (`POST /auth/register`; the sign-up page comes next), or an administrator adds them:
 
 ```sh
 yarn user add ana@example.com --first Ana --last Example   # asks for the password twice (12+ characters)
@@ -105,6 +105,7 @@ To turn it on locally, set `AUTH_MODE=password` and `SESSION_SECRET` (`openssl r
 
 How it works:
 - **Passwords** are hashed with scrypt (`apps/api/src/auth/password.ts`); the `users` table keeps only the hash. A wrong email and a wrong password get the same answer and take the same time. After 5 failed attempts for one email within 15 minutes, that email must wait (kept in memory, so it resets on restart).
+- **Sign-up** (`POST /auth/register`): first name, last name, email and password, with the same rules as `yarn user add`. The new doctor is signed in at once and starts with no patients. There is no email verification yet, so an email that already has an account is answered with "sign in instead" (unlike sign-in, which does not say whether an email exists). At most `SIGNUPS_PER_HOUR` accounts (20) are created per hour, all together, against scripted sign-ups; `0` closes sign-up. Like the sign-in limit, it is kept in memory.
 - **Sessions** are not stored: the api seals the user id and time of sign-in with AES-256-GCM under `SESSION_SECRET` and the web app keeps the token in an HTTP-only cookie (`hm_session`, `SameSite=Lax`, `Secure` over HTTPS) for `SESSION_TTL_HOURS` (12). Every api request looks the user up again, so removing a user or changing their password ends their sessions at once. Signing out deletes the cookie.
 - **Each doctor sees only their own patients.** A patient belongs to the doctor who created or imported it (`owner_id`). The patient list and the dashboard overview show only theirs, and every api route about one patient (`/patients/:id/...`, including chat, imaging and its dashboard) answers 404 for anyone else's, as if it did not exist (`apps/api/src/auth/patient-scope.ts`, checked by the auth guard for every such route). Chat and record search are covered too: the api adds the patient's id to every MCP tool call, and the MCP server only listens to the api. MRNs are unique per doctor, so each one can import the synthetic patients. With sign-in off, everyone sees every patient.
 - **apps/web** sends the session to the api as `Authorization: Bearer`. `src/proxy.ts` checks it before every page and route: signed-out visits go to `/login` and return to where they were going afterwards; other requests get 401. The api checks the session again on every call, so the proxy is the front door, not the only lock.
@@ -235,6 +236,7 @@ It prints ✓/✗ per check with the expected passage's rank (failures list what
 | `AUTH_MODE` | `apps/api` | `off`, or `password` when `NODE_ENV=production`; see [Sign-in](#sign-in) |
 | `SESSION_SECRET` | `apps/api` | none; required (32+ characters) when sign-in is on. Changing it signs everyone out. Keep it in `.env`, never commit it |
 | `SESSION_TTL_HOURS` | `apps/api` | `12`; how long a session lasts |
+| `SIGNUPS_PER_HOUR` | `apps/api` | `20`; accounts created per hour through sign-up, all together; `0` closes sign-up |
 | `OPENROUTER_API_KEY` | `apps/api` (chat) | none; the api starts without it, chat requests fail. Keep it in `.env`, never commit it |
 | `OPENROUTER_MODEL` | `apps/api` (chat) | `anthropic/claude-opus-5.5` |
 | `OPENROUTER_ZDR` | `apps/api` (chat) | `true`; only use zero-data-retention providers. Set `false` for a model that has none (data-collecting providers stay excluded) |
@@ -305,6 +307,7 @@ Chat answers stream through a proxy route, `POST /patients/:id/chat/stream` (`sr
 |---|---|---|---|
 | `GET` | `/health` | | `HealthCheckResponse` (never needs a session) |
 | `POST` | `/auth/login` | `LoginInput` (email, password) | `LoginResponse` (session token, user, expiry); `401` wrong email or password, `429` too many attempts |
+| `POST` | `/auth/register` | `RegisterInput` (first name, last name, email, password) | `201` `LoginResponse`, signed in; `400` what to fix, `409` the email has an account, `429` too many new accounts this hour, `403` sign-up closed |
 | `GET` | `/auth/session` | | `AuthSessionResponse`: the mode (`password` or `off`) and the session's user; `401` without a valid session |
 | `GET` | `/patients` | | `PatientListResponse` (summaries, sorted by last name) |
 | `POST` | `/patients` | `CreatePatientInput` | `201` `Patient` |

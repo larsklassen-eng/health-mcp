@@ -23,11 +23,11 @@ afterEach(async () => {
   testApp = undefined;
 });
 
-async function start(mode: "password" | "off" = "password") {
+async function start(mode: "password" | "off" = "password", env: Record<string, string> = {}) {
   testApp = await startTestApp(AppModule, [
     {
       provide: ENV,
-      useValue: loadEnv({ ...process.env, AUTH_MODE: mode, SESSION_SECRET: SECRET }),
+      useValue: loadEnv({ ...process.env, AUTH_MODE: mode, SESSION_SECRET: SECRET, ...env }),
     },
   ]);
   const { db } = testApp.app.get(DatabaseService);
@@ -162,6 +162,81 @@ describe("with sign-in on", () => {
 
     errorOf(await call("GET", API_ROUTES.patients, { token: expired }), 401);
     errorOf(await call("GET", API_ROUTES.patients, { token: forged }), 401);
+  });
+});
+
+describe("sign-up", () => {
+  const ben = {
+    firstName: " Ben ",
+    lastName: "Example",
+    email: " Ben@Example.com ",
+    password: "a long sign-up password",
+  };
+  const register = (body: unknown) => call("POST", API_ROUTES.authRegister, { body });
+
+  it("creates the doctor, signs them in, and lets them sign in again", async () => {
+    await start();
+
+    const { status, body } = await register(ben);
+
+    expect(status).toBe(201);
+    const signedUp = LoginResponseSchema.parse(body);
+    expect(signedUp.user).toEqual({
+      email: "ben@example.com",
+      firstName: "Ben",
+      lastName: "Example",
+    });
+    const patients = await call("GET", API_ROUTES.patients, { token: signedUp.session });
+    expect(patients).toEqual({ status: 200, body: { patients: [] } });
+    expect((await login("ben@example.com", ben.password)).status).toBe(200);
+  });
+
+  it("says what to fix", async () => {
+    await start();
+
+    expect(errorOf(await register({ ...ben, lastName: " " }), 400)).toBe(
+      "Enter a first and a last name.",
+    );
+    expect(errorOf(await register({ ...ben, email: "ben" }), 400)).toBe(
+      "That is not an email address.",
+    );
+    expect(errorOf(await register({ ...ben, password: "short" }), 400)).toBe(
+      "Use at least 12 characters.",
+    );
+    errorOf(await register({ ...ben, firstName: "x".repeat(101) }), 400);
+    errorOf(await register({ email: "ben@example.com" }), 400);
+  });
+
+  it("refuses an email that already has an account, in any case", async () => {
+    await start();
+
+    expect(errorOf(await register({ ...ben, email: "ANA@example.com" }), 409)).toBe(
+      "An account with this email exists. Sign in instead.",
+    );
+  });
+
+  it("creates at most SIGNUPS_PER_HOUR accounts per hour", async () => {
+    await start("password", { SIGNUPS_PER_HOUR: "2" });
+
+    for (const name of ["one", "two"])
+      expect((await register({ ...ben, email: `${name}@example.com` })).status).toBe(201);
+
+    expect(errorOf(await register({ ...ben, email: "three@example.com" }), 429)).toBe(
+      "Too many new accounts right now. Try again in 60 minutes.",
+    );
+    // Invalid requests do not use up the limit; they are refused first.
+    errorOf(await register({ ...ben, email: "four@example.com", password: "short" }), 400);
+  });
+
+  it("is closed with SIGNUPS_PER_HOUR=0, and off with sign-in", async () => {
+    await start("password", { SIGNUPS_PER_HOUR: "0" });
+    expect(errorOf(await register(ben), 403)).toBe(
+      "Sign-up is closed. Ask an administrator for an account.",
+    );
+    await testApp!.close();
+
+    await start("off");
+    expect(errorOf(await register(ben), 401)).toBe("Sign-in is off.");
   });
 });
 

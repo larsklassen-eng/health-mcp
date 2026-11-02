@@ -21,7 +21,7 @@ export const AuthUserSchema = z.object({
 /** First and last names: required for new users, at most this long. */
 export const NAME_MAX_LENGTH = 100;
 
-/** Passwords: at least 12 characters (set with the api's users command). */
+/** Passwords: at least 12 characters. */
 export const PASSWORD_MIN_LENGTH = 12;
 export const PASSWORD_MAX_LENGTH = 200;
 
@@ -29,6 +29,19 @@ export const PASSWORD_MAX_LENGTH = 200;
 export const LoginInputSchema = z.object({
   email: z.string().trim().min(1).max(320),
   password: z.string().min(1).max(PASSWORD_MAX_LENGTH),
+});
+
+/**
+ * `POST /auth/register`: a doctor creates their own account and is signed in
+ * (the response is a {@link LoginResponseSchema}). Only types and upper bounds
+ * are checked here; the api checks the rest (names given, a valid email that is
+ * free, the password rules), so its messages can say what to fix.
+ */
+export const RegisterInputSchema = z.object({
+  firstName: z.string().trim().max(NAME_MAX_LENGTH),
+  lastName: z.string().trim().max(NAME_MAX_LENGTH),
+  email: z.string().trim().max(320),
+  password: z.string().max(PASSWORD_MAX_LENGTH),
 });
 
 export const LoginResponseSchema = z.object({
@@ -48,5 +61,6 @@ export const AuthSessionResponseSchema = z.object({
 export type AuthMode = z.infer<typeof AuthModeSchema>;
 export type AuthUser = z.infer<typeof AuthUserSchema>;
 export type LoginInput = z.infer<typeof LoginInputSchema>;
+export type RegisterInput = z.infer<typeof RegisterInputSchema>;
 export type LoginResponse = z.infer<typeof LoginResponseSchema>;
 export type AuthSessionResponse = z.infer<typeof AuthSessionResponseSchema>;
