@@ -1,8 +1,10 @@
-import { createDb, migrateDb } from "@health-mcp/db";
+import { createDb, migrateDb, patients } from "@health-mcp/db";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { verifyPassword } from "../src/auth/password.js";
 import {
+  assignUnownedPatients,
+  countPatientsByOwner,
   createUser,
   findUserByEmail,
   listUsers,
@@ -86,5 +88,63 @@ describe("users", () => {
     expect(removeUser(db, "Ben@example.com")).toBe(true);
     expect(removeUser(db, "ben@example.com")).toBe(false);
     expect(listUsers(db).map((u) => u.email)).toEqual(["ana@example.com"]);
+  });
+});
+
+describe("patients without an owner", () => {
+  const addPatient = (mrn: string, ownerId: string | null = null) =>
+    db
+      .insert(patients)
+      .values({
+        mrn,
+        ownerId,
+        firstName: "Pat",
+        lastName: "Test",
+        dateOfBirth: "1980-01-01",
+        sex: "female",
+        diagnosis: "Synthetic",
+      })
+      .run();
+  const owners = () =>
+    Object.fromEntries(
+      db
+        .select({ mrn: patients.mrn, ownerId: patients.ownerId })
+        .from(patients)
+        .all()
+        .map((row) => [row.mrn, row.ownerId]),
+    );
+
+  it("gives them to a doctor, skipping MRNs the doctor already has", async () => {
+    const password = "long enough password";
+    const ana = await createUser(db, { ...NAMES, email: "ana@example.com", password });
+    const ben = await createUser(db, { ...NAMES, email: "ben@example.com", password });
+    addPatient("FAKE-001");
+    addPatient("FAKE-002");
+    addPatient("FAKE-003");
+    addPatient("FAKE-002", ana.id);
+    addPatient("FAKE-009", ben.id);
+
+    expect(assignUnownedPatients(db, "ANA@example.com")).toEqual({
+      assigned: 2,
+      skippedMrns: ["FAKE-002"],
+    });
+
+    expect(countPatientsByOwner(db)).toEqual(
+      new Map([
+        [ana.id, 3],
+        [ben.id, 1],
+        [null, 1],
+      ]),
+    );
+    expect(owners()).toMatchObject({ "FAKE-001": ana.id, "FAKE-003": ana.id, "FAKE-009": ben.id });
+    expect(assignUnownedPatients(db, "ben@example.com")).toEqual({ assigned: 1, skippedMrns: [] });
+    expect(countPatientsByOwner(db).get(null)).toBeUndefined();
+  });
+
+  it("does nothing for an unknown email", () => {
+    addPatient("FAKE-001");
+
+    expect(assignUnownedPatients(db, "nobody@example.com")).toBeUndefined();
+    expect(countPatientsByOwner(db)).toEqual(new Map([[null, 1]]));
   });
 });

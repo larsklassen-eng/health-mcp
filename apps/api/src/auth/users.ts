@@ -1,7 +1,7 @@
-import { type HealthDb, users, type UserRow } from "@health-mcp/db";
+import { type HealthDb, patients, users, type UserRow } from "@health-mcp/db";
 import { NAME_MAX_LENGTH } from "@health-mcp/shared";
 import { checkPassword, type PasswordOwner } from "@health-mcp/shared/password";
-import { asc, eq } from "drizzle-orm";
+import { asc, count, eq, inArray, isNull } from "drizzle-orm";
 
 import { hashPassword } from "./password.js";
 
@@ -94,4 +94,55 @@ export function removeUser(db: HealthDb, email: string): boolean {
       .returning({ id: users.id })
       .all().length > 0
   );
+}
+
+/** Patients per owner (user id), and under `null` those without one. */
+export function countPatientsByOwner(db: HealthDb): Map<string | null, number> {
+  const rows = db
+    .select({ ownerId: patients.ownerId, patients: count() })
+    .from(patients)
+    .groupBy(patients.ownerId)
+    .all();
+  return new Map(rows.map((row) => [row.ownerId, row.patients]));
+}
+
+/**
+ * Gives the patients without an owner (from before owners existed, or whose
+ * doctor was removed) to the doctor with `email`. A patient whose MRN that
+ * doctor already has is skipped, since MRNs are unique per doctor. Returns
+ * undefined for unknown emails.
+ */
+export function assignUnownedPatients(
+  db: HealthDb,
+  email: string,
+): { assigned: number; skippedMrns: string[] } | undefined {
+  const user = findUserByEmail(db, email);
+  if (!user) return undefined;
+  return db.transaction((tx) => {
+    const taken = new Set(
+      tx
+        .select({ mrn: patients.mrn })
+        .from(patients)
+        .where(eq(patients.ownerId, user.id))
+        .all()
+        .map((row) => row.mrn),
+    );
+    const unowned = tx
+      .select({ id: patients.id, mrn: patients.mrn })
+      .from(patients)
+      .where(isNull(patients.ownerId))
+      .all();
+    const free = unowned.filter((patient) => !taken.has(patient.mrn)).map((patient) => patient.id);
+    // SQLite allows a limited number of parameters per statement.
+    for (let start = 0; start < free.length; start += 500)
+      tx.update(patients)
+        .set({ ownerId: user.id })
+        .where(inArray(patients.id, free.slice(start, start + 500)))
+        .run();
+    const skippedMrns = unowned
+      .filter((patient) => taken.has(patient.mrn))
+      .map((patient) => patient.mrn)
+      .sort();
+    return { assigned: free.length, skippedMrns };
+  });
 }

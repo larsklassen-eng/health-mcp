@@ -101,7 +101,16 @@ sudo docker compose -f /srv/health-mcp/compose.yml exec api \
 ```
 
 It asks for the password twice without showing it, and checks it against the password rules.
-`password`, `remove` and `list` work the same way (see the main README's Sign-in section).
+`password`, `remove`, `assign` and `list` work the same way (see the main README's Sign-in
+section). Doctors can also sign up themselves at the app's URL (`/register`).
+
+Patients created before they had owners (or whose doctor was removed) are seen by no one; give
+them to a doctor with:
+
+```sh
+sudo docker compose -f /srv/health-mcp/compose.yml exec api \
+  node apps/api/dist/cli/users.js assign you@example.com
+```
 
 ## The public URL
 

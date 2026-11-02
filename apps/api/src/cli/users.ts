@@ -8,6 +8,8 @@ import { PASSWORD_MIN_LENGTH } from "@health-mcp/shared";
 import type { PasswordOwner } from "@health-mcp/shared/password";
 
 import {
+  assignUnownedPatients,
+  countPatientsByOwner,
   createUser,
   findUserByEmail,
   listUsers,
@@ -19,12 +21,13 @@ import {
 import { promptHidden } from "./prompt.js";
 
 /*
- * Manages who may sign in (AUTH_MODE=password); there is no sign-up page.
+ * Manages the doctors who may sign in (AUTH_MODE=password), besides sign-up.
  *
  *   yarn user add <email> --first <name> --last <name> [--generate]
  *   yarn user password <email> [--generate]   new password; signs them out everywhere
  *   yarn user remove <email>                   deletes the user and ends their sessions
- *   yarn user list
+ *   yarn user assign <email>                   gives them the patients without an owner
+ *   yarn user list                             with their number of patients
  *
  * Passwords are typed twice without echo, or made up with --generate and
  * printed once. Works on the database in DATABASE_PATH (default data/health.db);
@@ -35,6 +38,7 @@ const USAGE = `Usage:
   yarn user add <email> --first <name> --last <name> [--generate]
   yarn user password <email> [--generate]
   yarn user remove <email>
+  yarn user assign <email>
   yarn user list`;
 
 /** A random password of 20 characters (letters, digits, - and _) that meets the rules. */
@@ -57,6 +61,8 @@ async function newPassword(generate: boolean, owner: PasswordOwner): Promise<str
   return password;
 }
 
+const patientCount = (n: number) => `${n} patient${n === 1 ? "" : "s"}`;
+
 async function main(): Promise<number> {
   const { positionals, values } = parseArgs({
     allowPositionals: true,
@@ -67,7 +73,7 @@ async function main(): Promise<number> {
     },
   });
   const [command, email] = positionals;
-  const needsEmail = command === "add" || command === "password" || command === "remove";
+  const needsEmail = ["add", "password", "remove", "assign"].includes(command ?? "");
   const needsNames = command === "add" && !(values.first && values.last);
   if (!command || (needsEmail && !email) || needsNames || !(needsEmail || command === "list")) {
     console.error(USAGE);
@@ -106,13 +112,35 @@ async function main(): Promise<number> {
         if (!removeUser(db, email!)) throw new Error(`No user ${email}.`);
         console.log(`Removed ${email}; their sessions have ended.`);
         break;
+      case "assign": {
+        const result = assignUnownedPatients(db, email!);
+        if (!result) throw new Error(`No user ${email}.`);
+        const { assigned, skippedMrns } = result;
+        console.log(`Gave ${patientCount(assigned)} without an owner to ${email}.`);
+        if (skippedMrns.length > 0)
+          console.log(
+            `Skipped ${patientCount(skippedMrns.length)} whose MRN they already have: ` +
+              skippedMrns.join(", "),
+          );
+        break;
+      }
       case "list": {
         const rows = listUsers(db);
+        const counts = countPatientsByOwner(db);
         if (rows.length === 0) console.log("No users yet. Add one with `yarn user add <email>`.");
         for (const user of rows) {
           const name = `${user.firstName} ${user.lastName}`.trim();
-          console.log(`${user.email}${name ? ` (${name})` : ""}, since ${user.createdAt}`);
+          const owned = patientCount(counts.get(user.id) ?? 0);
+          console.log(
+            `${user.email}${name ? ` (${name})` : ""}, ${owned}, since ${user.createdAt}`,
+          );
         }
+        const unowned = counts.get(null) ?? 0;
+        if (unowned > 0)
+          console.log(
+            `${patientCount(unowned)} without an owner; give them to a doctor with ` +
+              "`yarn user assign <email>`.",
+          );
         break;
       }
     }

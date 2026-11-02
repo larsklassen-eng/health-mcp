@@ -98,7 +98,8 @@ yarn user add ana@example.com --first Ana --last Example   # asks for the passwo
 yarn user add ben@example.com --first Ben --last Example --generate   # makes up a password, prints it once
 yarn user password ana@example.com                         # new password; ends Ana's sessions
 yarn user remove ben@example.com                           # deletes Ben; ends his sessions; keeps his patients, unassigned
-yarn user list
+yarn user assign ana@example.com                           # gives Ana the patients without an owner
+yarn user list                                             # each doctor's number of patients, and those without an owner
 ```
 
 To turn it on locally, set `AUTH_MODE=password` and `SESSION_SECRET` (`openssl rand -hex 32`) in `.env`, add a user and restart `yarn dev`.
@@ -148,7 +149,7 @@ yarn db:migrate                               # apply it to data/health.db
 
 Store timestamps as UTC ISO strings ending in `Z` (convert offsets before writing), so sorting by text matches sorting by time.
 
-**Owners:** each patient has an `owner_id`, the doctor (user) it belongs to (see [Sign-in](#sign-in)); its MRN is unique among that doctor's patients. Removing a user keeps their patients, with no owner, and no doctor sees them. Patients created before owners existed (migration `0005_users_names_and_patient_owners`) have none, and existing users' single name was split into a first and last name at the first space.
+**Owners:** each patient has an `owner_id`, the doctor (user) it belongs to (see [Sign-in](#sign-in)); its MRN is unique among that doctor's patients. Removing a user keeps their patients, with no owner, and no doctor sees them until `yarn user assign <email>` gives them to one (skipping any whose MRN that doctor already has). Patients created before owners existed (migration `0005_users_names_and_patient_owners`) have none, and existing users' single name was split into a first and last name at the first space.
 
 After pulling a commit that adds a migration, run `yarn db:migrate`: the api does not migrate on startup.
 
