@@ -1,6 +1,6 @@
 # The app server: one small ARM instance in a private subnet, running the
-# three containers with Docker Compose (see server/). No inbound access yet;
-# admins reach it with SSM Session Manager, never SSH. Its data lives on a
+# three containers with Docker Compose (see server/). Only CloudFront reaches
+# it (cdn.tf); admins use SSM Session Manager, never SSH. Its data lives on a
 # separate disk, so replacing the instance keeps the database.
 
 data "aws_ssm_parameter" "al2023_arm64" {
@@ -17,6 +17,20 @@ locals {
   ssm_arn_prefix   = "arn:aws:ssm:${var.region}:${local.account_id}"
   parameter_arn    = "${local.ssm_arn_prefix}:parameter${local.parameter_prefix}"
   data_dir         = "/srv/health-mcp/data"
+
+  # Written to the server by each rollout (see the deploy workflow), not at boot, so changing
+  # them does not replace the instance.
+  compose_file = templatefile("${path.module}/server/compose.yml.tftpl", {
+    registry    = local.registry
+    name_prefix = local.name_prefix
+    data_dir    = local.data_dir
+    web_origin  = local.web_origin
+  })
+  deploy_script = templatefile("${path.module}/server/deploy.sh.tftpl", {
+    region           = var.region
+    registry         = local.registry
+    parameter_prefix = local.parameter_prefix
+  })
 }
 
 # --- Permissions of the server: SSM (sessions and commands), pulling its
@@ -77,8 +91,8 @@ resource "aws_iam_instance_profile" "server" {
   role = aws_iam_role.server.name
 }
 
-# --- Network: no inbound rules (CloudFront is let in by a later step);
-# outbound through the VPC's NAT for images, secrets and OpenRouter.
+# --- Network: inbound from CloudFront only (cdn.tf); outbound through the
+# VPC's NAT for images, secrets and OpenRouter.
 
 resource "aws_security_group" "server" {
   name        = "${local.name_prefix}-server"
@@ -130,23 +144,13 @@ resource "aws_instance" "server" {
     encrypted   = true
   }
 
+  # A new boot script means a new server (and a new VPC origin for it, see cdn.tf).
   user_data_replace_on_change = true
   user_data = templatefile("${path.module}/server/user-data.sh.tftpl", {
     data_dir        = local.data_dir
     data_volume_id  = aws_ebs_volume.data.id
     swap_mb         = var.swap_mb
     compose_version = "v5.6.1"
-    compose_file = templatefile("${path.module}/server/compose.yml.tftpl", {
-      registry    = local.registry
-      name_prefix = local.name_prefix
-      data_dir    = local.data_dir
-      web_origin  = var.web_origin
-    })
-    deploy_script = templatefile("${path.module}/server/deploy.sh.tftpl", {
-      region           = var.region
-      registry         = local.registry
-      parameter_prefix = local.parameter_prefix
-    })
   })
 
   tags = { Name = "${local.name_prefix}-server" }

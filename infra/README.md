@@ -2,7 +2,7 @@
 
 Terraform for the Factored AWS sandbox account (`us-east-1`), with one independent deployment
 per branch. For now only `rag-option-a` is deployed (deployment `rag`), step by step: its image
-repositories, secrets and app server. It has no public URL yet.
+repositories, secrets, app server and its public URL (CloudFront).
 
 ## Deployments
 
@@ -26,10 +26,11 @@ Apply a deployment from its own branch, so the `rag` deployment runs the RAG cod
 | `variables.tf` | Inputs: account settings, VPC and subnets |
 | `network.tf` | Looks up the existing VPC and subnets (they are not managed here); the deployment's name prefix |
 | `registry.tf` | ECR repositories for the three images (`health-mcp-<deployment>-api`, `-mcp-server`, `-web`), keeping the last 10 images each |
-| `server.tf` | The app server: a `t4g.small` (ARM) in a private subnet, its IAM role (with the permissions boundary), security group (no inbound rules yet), and a separate encrypted data disk |
+| `server.tf` | The app server: a `t4g.small` (ARM) in a private subnet, its IAM role (with the permissions boundary), security group, and a separate encrypted data disk |
 | `server/` | What runs on the server: the boot script (Docker, Compose, swap, data disk, systemd service), the Compose file and `deploy.sh` |
+| `cdn.tf` | The public URL: a CloudFront distribution reaching the server through a VPC origin, and the security group rule that lets CloudFront in |
 | `secrets.tf` | SSM parameters under `/health-mcp/<deployment>/`: `MCP_AUTH_TOKEN` and `SESSION_SECRET` (generated) and `OPENROUTER_API_KEY` (set by hand) |
-| `outputs.tf` | The deployment, the VPC's CIDR, each subnet's availability zone and CIDR, the image repositories and the secret names |
+| `outputs.tf` | The deployment, the VPC's CIDR, each subnet's availability zone and CIDR, the image repositories, the secret names, the app's URL and the server's files for the rollout |
 | `environments/sandbox.tfvars` | The sandbox account's values and the deployments |
 | `environments/sandbox.s3.tfbackend` | Where the state lives: S3 (one file per deployment), encrypted with KMS, locked by S3 |
 
@@ -66,15 +67,17 @@ aws ssm put-parameter --overwrite --type SecureString \
 
 ## The server
 
-A `t4g.small` (2 vCPU, 2 GB, about $12 a month) with a 2 GB swap file, in a private subnet with no
-inbound access: it reaches ECR, Parameter Store and OpenRouter through the VPC's NAT, and admins
-reach it through SSM Session Manager, never SSH. Its IAM role may only use SSM, pull its own images
-and read its own secrets.
+A `t4g.small` (2 vCPU, 2 GB, about $12 a month) with a 2 GB swap file, in a private subnet. Only
+CloudFront reaches it, on the web port (see [The public URL](#the-public-url)); it reaches ECR,
+Parameter Store and OpenRouter through the VPC's NAT, and admins reach it through SSM Session
+Manager, never SSH. Its IAM role may only use SSM, pull its own images and read its own secrets.
 
 - **Boot** (`server/user-data.sh.tftpl`): installs Docker and the Compose plugin (checked against
   its published checksum), adds swap, formats the data disk on first use and mounts it at
-  `/srv/health-mcp/data`, writes `/srv/health-mcp/compose.yml` and `deploy.sh`, and enables
-  `health-mcp.service`, which runs `deploy.sh` on every boot.
+  `/srv/health-mcp/data`, and enables `health-mcp.service`, which runs `deploy.sh` on every boot
+  once a rollout has written it.
+- **App files:** `server/compose.yml.tftpl` and `server/deploy.sh.tftpl` are rendered by Terraform
+  and written to `/srv/health-mcp/` by each rollout, so changing them does not replace the server.
 - **`deploy.sh [commit]`**: reads the secrets from Parameter Store into `app.env` (root only),
   logs in to ECR, pulls the images, runs the database migrations, starts the containers and waits
   until they are healthy. The deploy workflow runs it through SSM with the commit it just pushed.
@@ -100,6 +103,31 @@ sudo docker compose -f /srv/health-mcp/compose.yml exec api \
 It asks for the password twice without showing it. `password`, `remove` and `list` work the same
 way (see the main README's Sign-in section).
 
+## The public URL
+
+The `app_url` output (also in the Deploy run's summary): `https://<id>.cloudfront.net`, with
+CloudFront's certificate, so no domain is needed. It is also the app's `WEB_ORIGIN`, which marks
+the session cookie `Secure`.
+
+- **VPC origin:** CloudFront reaches the server privately inside the VPC (plain HTTP on port 3000
+  there; viewers always get HTTPS). The server has no public IP, and its security group lets in
+  only CloudFront's origin-facing addresses (the `com.amazonaws.global.cloudfront.origin-facing`
+  prefix list).
+- **No caching** of pages or API calls: everything is per user and behind sign-in, and all viewer
+  headers, cookies and query strings reach the app. Only Next.js build assets
+  (`/_next/static/*`, named by content hash) are cached.
+- **Security headers** from AWS's managed policy: HSTS, `X-Content-Type-Options`,
+  `X-Frame-Options`, `Referrer-Policy`.
+- **Cost:** VPC origins are free; CloudFront's free tier covers 1 TB and 10 million requests a
+  month. `PriceClass_100` uses the North American and European edges only.
+- **Replacing the server** (only a change to the boot script does that): CloudFront cannot move a
+  VPC origin to another instance while it is in use, so Terraform creates the new server and a new
+  VPC origin first, moves the distribution to it, then deletes the old ones. The site is down
+  from when the old server stops (to hand over the data disk) until the distribution has moved,
+  about 20 minutes.
+
+Creating the VPC origin and the distribution takes up to 15 minutes each.
+
 ## Usage
 
 `.github/workflows/deploy.yml` deploys `rag-option-a` on every push to that branch, or by hand
@@ -111,8 +139,9 @@ pushes to personal copies skip it.
 2. **Images:** builds the api, MCP server and web images for ARM (the server is a Graviton
    instance; GitHub's x86 runners emulate ARM with QEMU) and pushes each to its ECR repository,
    tagged with the commit and `latest`. Each image's build cache is kept in GitHub's cache.
-3. **Rollout:** waits until the server is reachable through SSM, then runs
-   `deploy.sh <commit>` there and shows its output; the run fails if the deploy does.
+3. **Rollout:** waits until the server is reachable through SSM, writes the Compose file and
+   `deploy.sh` that Terraform rendered, then runs `deploy.sh <commit>` there and shows its output;
+   the run fails if the deploy does.
 
 Locally, without AWS access, you can check the configuration:
 

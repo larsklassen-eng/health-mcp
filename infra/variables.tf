@@ -67,9 +67,3 @@ variable "data_volume_gb" {
   type        = number
   default     = 5
 }
-
-variable "web_origin" {
-  description = "The app's public URL, for sign-in redirects and Secure cookies."
-  type        = string
-  default     = "http://localhost:3000"
-}

@@ -46,3 +46,16 @@ output "server_instance_id" {
   description = "The app server, for SSM: aws ssm start-session --target <id>."
   value       = aws_instance.server.id
 }
+
+output "app_url" {
+  description = "The app's public URL (CloudFront)."
+  value       = local.web_origin
+}
+
+output "server_files" {
+  description = "The app's Compose file and deploy script, base64-encoded; the rollout writes them."
+  value = {
+    "compose.yml" = base64encode(local.compose_file)
+    "deploy.sh"   = base64encode(local.deploy_script)
+  }
+}
