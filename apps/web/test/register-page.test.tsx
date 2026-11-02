@@ -60,4 +60,14 @@ describe("register page", () => {
     expect(guarded("/login")).toBe(false);
     expect(guarded("/patients")).toBe(true);
   });
+
+  it("leaves the DICOM upload route to the api, which checks the session itself", () => {
+    const [matcher] = config.matcher;
+    const guarded = (path: string) => new RegExp(`^${matcher}$`).test(path);
+
+    expect(guarded("/patients/p1/imaging/dicom")).toBe(false);
+    expect(guarded("/patients/p1/imaging/upload")).toBe(true);
+    expect(guarded("/patients/p1/imaging/dicom-other")).toBe(true);
+    expect(guarded("/patients/p1/imaging")).toBe(true);
+  });
 });

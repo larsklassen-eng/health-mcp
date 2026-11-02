@@ -6,9 +6,20 @@ import { sessionHeaders } from "@/lib/session";
 const jsonError = (status: number, error: string, message: string) =>
   Response.json({ statusCode: status, error, message }, { status });
 
+const passOn = async (response: Response) =>
+  new Response(await response.text(), {
+    status: response.status,
+    headers: { "Content-Type": response.headers.get("content-type") ?? "application/json" },
+  });
+
 /**
  * Forwards a DICOM zip upload to the api, streaming the body so a large CD
  * export is never held in memory here. The api checks the type and size.
+ *
+ * The proxy does not run for this route (see proxy.ts), so it first asks the
+ * api for the patient: that answers 401 without a valid session and 404 for
+ * another doctor's patient. Refused while streaming, the upload would fail
+ * as a broken connection instead.
  */
 export async function POST(
   request: Request,
@@ -18,14 +29,21 @@ export async function POST(
   if (!request.body) return jsonError(400, "Bad Request", "Choose a zip file to upload");
 
   const length = request.headers.get("content-length");
+  const auth = await sessionHeaders();
   let upstream: Response;
   try {
+    const patient = await fetch(`${apiUrl()}${API_ROUTES.patient(id)}`, {
+      headers: auth,
+      cache: "no-store",
+      signal: request.signal,
+    });
+    if (!patient.ok) return await passOn(patient);
     upstream = await fetch(`${apiUrl()}${API_ROUTES.dicomUpload(id)}`, {
       method: "POST",
       headers: {
         "Content-Type": request.headers.get("content-type") ?? "application/zip",
         ...(length && { "Content-Length": length }),
-        ...(await sessionHeaders()),
+        ...auth,
       },
       body: request.body,
       // Required by fetch to send a streamed body.
@@ -39,8 +57,5 @@ export async function POST(
     return jsonError(503, "Service Unavailable", "The api is not reachable");
   }
 
-  return new Response(await upstream.text(), {
-    status: upstream.status,
-    headers: { "Content-Type": upstream.headers.get("content-type") ?? "application/json" },
-  });
+  return passOn(upstream);
 }

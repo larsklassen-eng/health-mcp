@@ -10,11 +10,15 @@ import {
 } from "@/lib/session";
 
 /**
- * Runs before every page and route except sign-in, sign-up and static files. When
- * sign-in is on and the request has no valid session, pages redirect to the
- * login page (remembering where the user was going) and other requests get
- * 401. The api checks the session again on every call, so this is the
- * friendly front door, not the only lock.
+ * Runs before every page and route except sign-in, sign-up, the DICOM upload
+ * and static files. When sign-in is on and the request has no valid session,
+ * pages redirect to the login page (remembering where the user was going) and
+ * other requests get 401. The api checks the session again on every call, so
+ * this is the friendly front door, not the only lock.
+ *
+ * The DICOM upload (up to 2 GB) is left out because Next.js buffers the body
+ * of every request the proxy sees and cuts it at 10 MB. Its route streams the
+ * zip to the api with the session, and the api refuses it without one.
  */
 export async function proxy(request: NextRequest): Promise<Response> {
   const token = request.cookies.get(SESSION_COOKIE)?.value;
@@ -48,5 +52,7 @@ export async function proxy(request: NextRequest): Promise<Response> {
 }
 
 export const config = {
-  matcher: ["/((?!login|register|auth/|_next/static|_next/image|favicon.ico).*)"],
+  matcher: [
+    "/((?!login|register|auth/|_next/static|_next/image|favicon.ico|patients/[^/]+/imaging/dicom$).*)",
+  ],
 };

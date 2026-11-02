@@ -16,7 +16,10 @@ describe("POST /patients/[id]/imaging/dicom", () => {
       body: "PK-zip-bytes",
     });
 
+  const patientFound = () => fetchMock.mockResolvedValueOnce(Response.json({ id: "p1" }));
+
   it("streams the zip to the api and returns its answer", async () => {
+    patientFound();
     fetchMock.mockResolvedValueOnce(
       Response.json({ studies: [], skippedFiles: 0, unsupportedImages: 0 }, { status: 201 }),
     );
@@ -24,7 +27,8 @@ describe("POST /patients/[id]/imaging/dicom", () => {
     const response = await POST(upload(), { params: Promise.resolve({ id: "a/b" }) });
 
     expect(response.status).toBe(201);
-    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(fetchMock.mock.calls[0]![0]).toBe("http://api.test/patients/a%2Fb");
+    const [url, init] = fetchMock.mock.calls[1]!;
     expect(url).toBe("http://api.test/patients/a%2Fb/imaging/dicom");
     expect(init?.headers).toMatchObject({ "Content-Type": "application/zip" });
     expect(init?.body).toBeInstanceOf(ReadableStream);
@@ -32,12 +36,26 @@ describe("POST /patients/[id]/imaging/dicom", () => {
   });
 
   it("passes on api errors and reports an unreachable api", async () => {
+    patientFound();
     fetchMock.mockResolvedValueOnce(Response.json({ message: "too big" }, { status: 413 }));
     expect((await POST(upload(), { params: Promise.resolve({ id: "p1" }) })).status).toBe(413);
 
     fetchMock.mockRejectedValueOnce(new Error("ECONNREFUSED"));
     vi.spyOn(console, "error").mockImplementationOnce(() => {});
     expect((await POST(upload(), { params: Promise.resolve({ id: "p1" }) })).status).toBe(503);
+  });
+
+  it.each([
+    [401, "Sign in to continue."],
+    [404, "Patient p1 not found"],
+  ])("answers %i without sending the zip when the api refuses", async (status, message) => {
+    fetchMock.mockResolvedValueOnce(Response.json({ statusCode: status, message }, { status }));
+
+    const response = await POST(upload(), { params: Promise.resolve({ id: "p1" }) });
+
+    expect(response.status).toBe(status);
+    expect(await response.json()).toMatchObject({ message });
+    expect(fetchMock).toHaveBeenCalledOnce();
   });
 });
 
