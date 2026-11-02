@@ -11,9 +11,9 @@ permissions_boundary_arn = "arn:aws:iam::986608278121:policy/health-mcp-Deployer
 
 vpc_id = "vpc-0a133342682857484"
 private_subnet_ids = [
-  "subnet-07790bf632edb2998",
-  "subnet-04491df5b1a4fc24d",
-  "subnet-0b2da32126e158bb0",
+  "subnet-05723bcdd684bc371", # health-mcp-us-east-1a-prv
+  "subnet-003062975c6c70017", # health-mcp-us-east-1b-prv
+  "subnet-00d9b579fbfcb2f74", # health-mcp-us-east-1d-prv
 ]
 public_subnet_ids = [
   "subnet-0d75c9c5919023102",
