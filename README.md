@@ -67,7 +67,7 @@ docs/
 
 ## Status
 
-`packages/shared` holds the Zod schemas for patients, health records, the JSON import format, chat and its SSE stream events, dashboards, MCP tool inputs and API routes. `packages/db` has the SQLite schema (10 tables: patients, lab results, vital signs, medications, symptoms, recovery milestones, imaging studies, imaging series, chat messages, record chunks, plus the search indexes), its migrations and a client. `packages/rag` chunks, embeds and searches each patient's free text (see [`docs/rag.md`](docs/rag.md)). `packages/evals` has 20 agent eval cases, 19 retrieval checks and their runners (see [Evals](#evals)). `apps/api` has its NestJS foundation: validated config, the database connection, `GET /health`, Zod request validation and a consistent error format. It also has the patient endpoints (create, list, get, update, delete, import) and each patient's chat history. Chat works end to end with tools: `POST /patients/:id/chat` runs the agent loop (OpenRouter model, tools on the MCP server), streams the answer and tool events, and saves the conversation with its tool calls. Imaging studies come from the JSON import (with reports) or from a DICOM upload (a zip of a CD/DVD; see [Imaging](#imaging)). `GET /dashboards/overview` and `GET /dashboards/patients/:id` serve the dashboards (how each number is calculated is documented on the schemas in `packages/shared/src/schemas/dashboard.ts`). `apps/web` has the Patients pages: list, create, import a JSON file of fake data, a profile with an edit page (including delete, after a confirmation), and a chat per patient that streams the answer as it is written, with a card for each tool call (what was asked, and the result when expanded; a record search lists the passages found, linked to their sources). It also has the dashboards: an overview of all patients (`/dashboard`) and one per patient (`/patients/:id/dashboard`), and imaging: a study page with a slice viewer and the editable report, and a DICOM upload page. `apps/mcp-server` serves eight tools (`get_patient_profile`, `get_lab_results`, `get_vitals_trend`, `get_medications`, `get_recovery_milestones`, `get_imaging_studies`, `search_patient_records`, `log_symptom`) over MCP Streamable HTTP, on localhost only and behind a shared token. `log_symptom`, the only tool that writes, runs only after the clinician confirms it in the chat (see [Confirming changes](#confirming-changes)). Every workspace has tests, and CI runs on each push to `main`. `fixtures/synthetic-patients.json` has 8 invented patients to import (see [fixtures/README.md](fixtures/README.md)). Work is tracked in Linear (LKLA-1).
+`packages/shared` holds the Zod schemas for patients, health records, the JSON import format, chat and its SSE stream events, dashboards, MCP tool inputs and API routes. `packages/db` has the SQLite schema (11 tables: patients, lab results, vital signs, medications, symptoms, recovery milestones, imaging studies, imaging series, chat messages, record chunks, users, plus the search indexes), its migrations and a client. `packages/rag` chunks, embeds and searches each patient's free text (see [`docs/rag.md`](docs/rag.md)). `packages/evals` has 20 agent eval cases, 19 retrieval checks and their runners (see [Evals](#evals)). `apps/api` has its NestJS foundation: validated config, the database connection, `GET /health`, Zod request validation and a consistent error format. It also has the patient endpoints (create, list, get, update, delete, import) and each patient's chat history. Chat works end to end with tools: `POST /patients/:id/chat` runs the agent loop (OpenRouter model, tools on the MCP server), streams the answer and tool events, and saves the conversation with its tool calls. Imaging studies come from the JSON import (with reports) or from a DICOM upload (a zip of a CD/DVD; see [Imaging](#imaging)). `GET /dashboards/overview` and `GET /dashboards/patients/:id` serve the dashboards (how each number is calculated is documented on the schemas in `packages/shared/src/schemas/dashboard.ts`). `apps/web` has the Patients pages: list, create, import a JSON file of fake data, a profile with an edit page (including delete, after a confirmation), and a chat per patient that streams the answer as it is written, with a card for each tool call (what was asked, and the result when expanded; a record search lists the passages found, linked to their sources). It also has the dashboards: an overview of all patients (`/dashboard`) and one per patient (`/patients/:id/dashboard`), and imaging: a study page with a slice viewer and the editable report, and a DICOM upload page. `apps/mcp-server` serves eight tools (`get_patient_profile`, `get_lab_results`, `get_vitals_trend`, `get_medications`, `get_recovery_milestones`, `get_imaging_studies`, `search_patient_records`, `log_symptom`) over MCP Streamable HTTP, on localhost only and behind a shared token. `log_symptom`, the only tool that writes, runs only after the clinician confirms it in the chat (see [Confirming changes](#confirming-changes)). Every workspace has tests, and CI runs on each push to `main`. `fixtures/synthetic-patients.json` has 8 invented patients to import (see [fixtures/README.md](fixtures/README.md)). Work is tracked in Linear (LKLA-1).
 
 ## Getting started
 
@@ -83,7 +83,7 @@ yarn db:migrate  # create data/health.db (if needed) and apply migrations
 yarn rag:model   # download the local embedding model (34 MB) and reranker (87 MB) into data/models, once
 yarn rag:reindex # bring every patient's search index up to date (--full rebuilds it)
 yarn imaging:synthetic  # write data/synthetic-mri.zip, a phantom MRI study to try the DICOM upload
-yarn user add <email>   # add someone who may sign in (see Sign-in)
+yarn user add <email> --first <name> --last <name>   # add a doctor who may sign in (see Sign-in)
 yarn dev         # watch-build packages, run apps/api on :3001, apps/mcp-server on :3002 and apps/web on http://localhost:3000
 ```
 
@@ -91,13 +91,13 @@ Copy `.env.example` to `.env` to change settings; the defaults work without it. 
 
 ### Sign-in
 
-With `AUTH_MODE=password`, people sign in with an email address and a password; every page and api route except `/health` and sign-in needs a session. It is the default with `NODE_ENV=production` (as in the Docker images) and off otherwise, so `yarn dev` and the tests work without signing in. Each deployment's database holds its own users, so access to one never gives access to another. There is no sign-up page: an administrator adds people.
+With `AUTH_MODE=password`, people sign in with an email address and a password; every page and api route except `/health` and sign-in needs a session. It is the default with `NODE_ENV=production` (as in the Docker images) and off otherwise, so `yarn dev` and the tests work without signing in. Users are doctors, with an email address, a first and a last name. Each deployment's database holds its own users, so access to one never gives access to another. There is no sign-up page yet: an administrator adds people.
 
 ```sh
-yarn user add ana@example.com --name "Ana Example"   # asks for the password twice (12+ characters)
-yarn user add ben@example.com --generate             # makes up a password and prints it once
-yarn user password ana@example.com                   # new password; ends Ana's sessions
-yarn user remove ben@example.com                     # deletes Ben; ends his sessions
+yarn user add ana@example.com --first Ana --last Example   # asks for the password twice (12+ characters)
+yarn user add ben@example.com --first Ben --last Example --generate   # makes up a password, prints it once
+yarn user password ana@example.com                         # new password; ends Ana's sessions
+yarn user remove ben@example.com                           # deletes Ben; ends his sessions; keeps his patients, unassigned
 yarn user list
 ```
 
@@ -144,6 +144,8 @@ yarn db:migrate                               # apply it to data/health.db
 ```
 
 Store timestamps as UTC ISO strings ending in `Z` (convert offsets before writing), so sorting by text matches sorting by time.
+
+**Owners:** each patient has an `owner_id`, the doctor (user) it belongs to. Removing a user keeps their patients, with no owner. Patients created before owners existed (migration `0005_users_names_and_patient_owners`) have none, and existing users' single name was split into a first and last name at the first space.
 
 After pulling a commit that adds a migration, run `yarn db:migrate`: the api does not migrate on startup.
 

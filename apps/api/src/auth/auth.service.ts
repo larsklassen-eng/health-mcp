@@ -15,9 +15,10 @@ import { UNKNOWN_USER_HASH, verifyPassword } from "./password.js";
 import { TokenSealer } from "./sealed-token.js";
 import { findUserByEmail, findUserById, normalizeEmail } from "./users.js";
 
-const toAuthUser = (user: { email: string; name: string | null }): AuthUser => ({
-  email: user.email,
-  ...(user.name && { name: user.name }),
+const toAuthUser = ({ email, firstName, lastName }: AuthUser): AuthUser => ({
+  email,
+  firstName,
+  lastName,
 });
 
 /**

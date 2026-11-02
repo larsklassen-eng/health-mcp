@@ -1,5 +1,5 @@
 import { type HealthDb, users, type UserRow } from "@health-mcp/db";
-import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from "@health-mcp/shared";
+import { NAME_MAX_LENGTH, PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from "@health-mcp/shared";
 import { asc, eq } from "drizzle-orm";
 
 import { hashPassword } from "./password.js";
@@ -16,6 +16,13 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 /** Why a new email or password is refused, or undefined when it is fine. */
 export function emailProblem(email: string): string | undefined {
   return EMAIL.test(normalizeEmail(email)) ? undefined : "That is not an email address.";
+}
+
+export function nameProblem(firstName: string, lastName: string): string | undefined {
+  if (!firstName.trim() || !lastName.trim()) return "Enter a first and a last name.";
+  if (firstName.trim().length > NAME_MAX_LENGTH || lastName.trim().length > NAME_MAX_LENGTH)
+    return `Use at most ${NAME_MAX_LENGTH} characters for each name.`;
+  return undefined;
 }
 
 export function passwordProblem(password: string): string | undefined {
@@ -41,9 +48,12 @@ export const listUsers = (db: HealthDb): UserRow[] =>
 
 export async function createUser(
   db: HealthDb,
-  input: { email: string; password: string; name?: string | undefined },
+  input: { email: string; password: string; firstName: string; lastName: string },
 ): Promise<UserRow> {
-  const problem = emailProblem(input.email) ?? passwordProblem(input.password);
+  const problem =
+    emailProblem(input.email) ??
+    nameProblem(input.firstName, input.lastName) ??
+    passwordProblem(input.password);
   if (problem) throw new Error(problem);
   if (findUserByEmail(db, input.email))
     throw new Error(`${normalizeEmail(input.email)} already exists.`);
@@ -51,7 +61,8 @@ export async function createUser(
     .insert(users)
     .values({
       email: normalizeEmail(input.email),
-      name: input.name?.trim() || null,
+      firstName: input.firstName.trim(),
+      lastName: input.lastName.trim(),
       passwordHash: await hashPassword(input.password),
     })
     .returning()

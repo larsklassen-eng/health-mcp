@@ -6,13 +6,20 @@ import { parseArgs } from "node:util";
 import { createDb, resolveDatabasePath } from "@health-mcp/db";
 import { PASSWORD_MIN_LENGTH } from "@health-mcp/shared";
 
-import { createUser, listUsers, passwordProblem, removeUser, setPassword } from "../auth/users.js";
+import {
+  createUser,
+  listUsers,
+  nameProblem,
+  passwordProblem,
+  removeUser,
+  setPassword,
+} from "../auth/users.js";
 import { promptHidden } from "./prompt.js";
 
 /*
  * Manages who may sign in (AUTH_MODE=password); there is no sign-up page.
  *
- *   yarn user add <email> [--name "Full Name"] [--generate]
+ *   yarn user add <email> --first <name> --last <name> [--generate]
  *   yarn user password <email> [--generate]   new password; signs them out everywhere
  *   yarn user remove <email>                   deletes the user and ends their sessions
  *   yarn user list
@@ -23,7 +30,7 @@ import { promptHidden } from "./prompt.js";
  */
 
 const USAGE = `Usage:
-  yarn user add <email> [--name "Full Name"] [--generate]
+  yarn user add <email> --first <name> --last <name> [--generate]
   yarn user password <email> [--generate]
   yarn user remove <email>
   yarn user list`;
@@ -44,11 +51,16 @@ async function newPassword(generate: boolean): Promise<string> {
 async function main(): Promise<number> {
   const { positionals, values } = parseArgs({
     allowPositionals: true,
-    options: { name: { type: "string" }, generate: { type: "boolean", default: false } },
+    options: {
+      first: { type: "string" },
+      last: { type: "string" },
+      generate: { type: "boolean", default: false },
+    },
   });
   const [command, email] = positionals;
   const needsEmail = command === "add" || command === "password" || command === "remove";
-  if (!command || (needsEmail && !email) || !(needsEmail || command === "list")) {
+  const needsNames = command === "add" && !(values.first && values.last);
+  if (!command || (needsEmail && !email) || needsNames || !(needsEmail || command === "list")) {
     console.error(USAGE);
     return 2;
   }
@@ -58,8 +70,15 @@ async function main(): Promise<number> {
     const { db } = connection;
     switch (command) {
       case "add": {
+        const problem = nameProblem(values.first!, values.last!);
+        if (problem) throw new Error(problem);
         const password = await newPassword(values.generate);
-        const user = await createUser(db, { email: email!, password, name: values.name });
+        const user = await createUser(db, {
+          email: email!,
+          password,
+          firstName: values.first!,
+          lastName: values.last!,
+        });
         console.log(`Added ${user.email}.`);
         if (values.generate) console.log(`Password (shown once): ${password}`);
         break;
@@ -78,10 +97,10 @@ async function main(): Promise<number> {
       case "list": {
         const rows = listUsers(db);
         if (rows.length === 0) console.log("No users yet. Add one with `yarn user add <email>`.");
-        for (const user of rows)
-          console.log(
-            `${user.email}${user.name ? ` (${user.name})` : ""}, since ${user.createdAt}`,
-          );
+        for (const user of rows) {
+          const name = `${user.firstName} ${user.lastName}`.trim();
+          console.log(`${user.email}${name ? ` (${name})` : ""}, since ${user.createdAt}`);
+        }
         break;
       }
     }

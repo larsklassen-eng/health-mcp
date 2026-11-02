@@ -97,7 +97,7 @@ From your machine, with the sandbox SSO profile and the Session Manager plugin
 export AWS_PROFILE=health-mcp-sandbox
 aws ssm start-session --target <server_instance_id>   # from the Deploy run's Terraform output
 sudo docker compose -f /srv/health-mcp/compose.yml exec api \
-  node apps/api/dist/cli/users.js add you@example.com --name "Your Name"
+  node apps/api/dist/cli/users.js add you@example.com --first Your --last Name
 ```
 
 It asks for the password twice without showing it. `password`, `remove` and `list` work the same

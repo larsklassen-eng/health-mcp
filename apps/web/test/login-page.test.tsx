@@ -55,10 +55,11 @@ describe("login page", () => {
 
 describe("UserMenu", () => {
   it("shows the user's name, or the email, and a sign-out button", () => {
-    const { rerender } = render(<UserMenu user={{ email: "ana@example.com", name: "Ana" }} />);
-    expect(screen.getByText("Ana")).toHaveAttribute("title", "ana@example.com");
+    const ana = { email: "ana@example.com", firstName: "Ana", lastName: "Example" };
+    const { rerender } = render(<UserMenu user={ana} />);
+    expect(screen.getByText("Ana Example")).toHaveAttribute("title", "ana@example.com");
 
-    rerender(<UserMenu user={{ email: "ana@example.com" }} />);
+    rerender(<UserMenu user={{ ...ana, firstName: "", lastName: "" }} />);
     expect(screen.getByText("ana@example.com")).toBeInTheDocument();
     const form = screen.getByRole("button", { name: "Sign out" }).closest("form")!;
     expect(form).toHaveAttribute("action", "/auth/logout");

@@ -58,15 +58,17 @@ describe("the session in api requests", () => {
   });
 });
 
+const ANA = { email: "ana@example.com", firstName: "Ana", lastName: "Example" };
+
 describe("sign-in calls", () => {
   it("reads the session, treating 401 as signed out", async () => {
-    respond(200, { mode: "password", user: { email: "ana@example.com" } });
+    respond(200, { mode: "password", user: ANA });
     respond(401, unauthorized);
     respond(200, { mode: "off", user: null });
 
     expect(await api.getSession("token")).toEqual({
       mode: "password",
-      user: { email: "ana@example.com" },
+      user: ANA,
     });
     expect(await api.getSession(null)).toEqual({ mode: "password", user: null });
     expect(await api.getSession(null)).toEqual({ mode: "off", user: null });
@@ -81,7 +83,7 @@ describe("sign-in calls", () => {
     cookieStore.set("hm_session", "old-session");
     respond(200, {
       session: "sealed",
-      user: { email: "ana@example.com" },
+      user: ANA,
       expiresAt: "2026-10-30T00:00:00.000Z",
     });
     respond(401, { statusCode: 401, error: "Unauthorized", message: "The email or password…" });

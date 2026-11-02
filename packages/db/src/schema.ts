@@ -8,6 +8,8 @@
  *   timestamps. Callers must normalize offsets to UTC before writing so that
  *   text ordering matches time ordering.
  * - Every health record belongs to a patient and is deleted with it.
+ * - A patient belongs to the doctor (user) who created it; removing the user
+ *   keeps the patient, without an owner.
  *
  * This file must not use relative imports: drizzle-kit loads it directly.
  */
@@ -65,6 +67,10 @@ export const patients = sqliteTable(
   "patients",
   {
     id: id(),
+    /** The doctor who sees this patient; null when unassigned (see the users command). */
+    ownerId: text("owner_id").references((): AnySQLiteColumn => users.id, {
+      onDelete: "set null",
+    }),
     mrn: text("mrn").notNull().unique(),
     firstName: text("first_name").notNull(),
     lastName: text("last_name").notNull(),
@@ -86,6 +92,7 @@ export const patients = sqliteTable(
     check("patients_sex_check", oneOf(t.sex, SexSchema.options)),
     check("patients_status_check", oneOf(t.status, PatientStatusSchema.options)),
     index("patients_status_idx").on(t.status),
+    index("patients_owner_idx").on(t.ownerId),
   ],
 );
 
@@ -280,8 +287,8 @@ export const recordChunks = sqliteTable(
 // ---------------------------------------------------------------------- users
 
 /**
- * People who may sign in (AUTH_MODE=password). Created with the api's users
- * command; there is no sign-up page. Not linked to patients.
+ * Doctors who may sign in (AUTH_MODE=password). Each sees only the patients
+ * they own. Created with the api's users command.
  */
 export const users = sqliteTable(
   "users",
@@ -289,7 +296,8 @@ export const users = sqliteTable(
     id: id(),
     /** Stored lowercase, so sign-in ignores case. */
     email: text("email").notNull(),
-    name: text("name"),
+    firstName: text("first_name").notNull(),
+    lastName: text("last_name").notNull(),
     /** scrypt hash with its parameters and salt (see apps/api/src/auth/password.ts). */
     passwordHash: text("password_hash").notNull(),
     /** Sessions issued before this are refused, so a new password signs out everywhere. */

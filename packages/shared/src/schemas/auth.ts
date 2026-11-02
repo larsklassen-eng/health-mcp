@@ -14,8 +14,12 @@ export const AuthModeSchema = z.enum(["password", "off"]);
 
 export const AuthUserSchema = z.object({
   email: z.email(),
-  name: z.string().optional(),
+  firstName: z.string(),
+  lastName: z.string(),
 });
+
+/** First and last names: required for new users, at most this long. */
+export const NAME_MAX_LENGTH = 100;
 
 /** Passwords: at least 12 characters (set with the api's users command). */
 export const PASSWORD_MIN_LENGTH = 12;

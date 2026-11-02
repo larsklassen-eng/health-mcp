@@ -16,15 +16,18 @@ beforeEach(() => {
   migrateDb(db);
 });
 
+const NAMES = { firstName: "Ana", lastName: "Example" };
+
 describe("users", () => {
   it("creates a user with a lowercase email and a hashed password", async () => {
     const user = await createUser(db, {
       email: " Ana@Example.com ",
       password: "long enough password",
-      name: " Ana ",
+      firstName: " Ana ",
+      lastName: " Example ",
     });
 
-    expect(user).toMatchObject({ email: "ana@example.com", name: "Ana" });
+    expect(user).toMatchObject({ email: "ana@example.com", firstName: "Ana", lastName: "Example" });
     expect(user.passwordHash).not.toContain("long enough");
     expect(await verifyPassword("long enough password", user.passwordHash)).toBe(true);
     expect(findUserByEmail(db, "ANA@example.com")?.id).toBe(user.id);
@@ -34,20 +37,26 @@ describe("users", () => {
     [{ email: "not-an-email", password: "long enough password" }, "not an email"],
     [{ email: "ana@example.com", password: "short" }, "at least 12"],
     [{ email: "ana@example.com", password: "x".repeat(201) }, "at most 200"],
+    [{ email: "ana@example.com", password: "long enough password", lastName: " " }, "last name"],
+    [
+      { email: "ana@example.com", password: "long enough password", firstName: "x".repeat(101) },
+      "at most 100",
+    ],
   ])("refuses %j", async (input, message) => {
-    await expect(createUser(db, input)).rejects.toThrow(message);
+    await expect(createUser(db, { ...NAMES, ...input })).rejects.toThrow(message);
   });
 
   it("refuses a second user with the same email in another case", async () => {
-    await createUser(db, { email: "ana@example.com", password: "long enough password" });
+    await createUser(db, { ...NAMES, email: "ana@example.com", password: "long enough password" });
 
     await expect(
-      createUser(db, { email: "ANA@example.com", password: "another password!" }),
+      createUser(db, { ...NAMES, email: "ANA@example.com", password: "another password!" }),
     ).rejects.toThrow("ana@example.com already exists.");
   });
 
   it("changes a password and records when", async () => {
     const before = await createUser(db, {
+      ...NAMES,
       email: "ana@example.com",
       password: "long enough password",
     });
@@ -65,8 +74,8 @@ describe("users", () => {
   });
 
   it("lists users by email and removes them", async () => {
-    await createUser(db, { email: "ben@example.com", password: "long enough password" });
-    await createUser(db, { email: "ana@example.com", password: "long enough password" });
+    await createUser(db, { ...NAMES, email: "ben@example.com", password: "long enough password" });
+    await createUser(db, { ...NAMES, email: "ana@example.com", password: "long enough password" });
 
     expect(listUsers(db).map((u) => u.email)).toEqual(["ana@example.com", "ben@example.com"]);
     expect(removeUser(db, "Ben@example.com")).toBe(true);

@@ -31,7 +31,12 @@ async function start(mode: "password" | "off" = "password") {
     },
   ]);
   const { db } = testApp.app.get(DatabaseService);
-  await createUser(db, { email: "ana@example.com", password: PASSWORD, name: "Ana Example" });
+  await createUser(db, {
+    email: "ana@example.com",
+    password: PASSWORD,
+    firstName: "Ana",
+    lastName: "Example",
+  });
   return db;
 }
 
@@ -84,7 +89,11 @@ describe("with sign-in on", () => {
 
     expect(status).toBe(200);
     const signedIn = LoginResponseSchema.parse(body);
-    expect(signedIn.user).toEqual({ email: "ana@example.com", name: "Ana Example" });
+    expect(signedIn.user).toEqual({
+      email: "ana@example.com",
+      firstName: "Ana",
+      lastName: "Example",
+    });
     const hours = (Date.parse(signedIn.expiresAt) - Date.now()) / 3_600_000;
     expect(hours).toBeGreaterThan(11.9);
     expect(hours).toBeLessThanOrEqual(12);

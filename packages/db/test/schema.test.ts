@@ -253,7 +253,12 @@ describe("chat_messages", () => {
 });
 
 describe("users", () => {
-  const user = (email: string) => ({ email, passwordHash: "scrypt$hash" });
+  const user = (email: string) => ({
+    email,
+    firstName: "Ana",
+    lastName: "Test",
+    passwordHash: "scrypt$hash",
+  });
 
   it("generates an id and the timestamps", () => {
     const row = connection.db.insert(users).values(user("ana@example.com")).returning().get();
@@ -272,5 +277,39 @@ describe("users", () => {
     expect(
       sqliteErrorCode(() => connection.db.insert(users).values(user("Ben@example.com")).run()),
     ).toBe("SQLITE_CONSTRAINT_CHECK");
+  });
+});
+
+describe("patient owners", () => {
+  const insertUser = (email: string) =>
+    connection.db
+      .insert(users)
+      .values({ email, firstName: "Ana", lastName: "Test", passwordHash: "scrypt$hash" })
+      .returning()
+      .get();
+
+  it("leaves a patient unassigned unless an owner is given", () => {
+    const doctor = insertUser("ana@example.com");
+    const owned = insertPatient(connection, { mrn: "FAKE-001", ownerId: doctor.id });
+    const unassigned = insertPatient(connection, { mrn: "FAKE-002" });
+
+    expect(owned.ownerId).toBe(doctor.id);
+    expect(unassigned.ownerId).toBeNull();
+  });
+
+  it("rejects an owner that does not exist", () => {
+    expect(sqliteErrorCode(() => insertPatient(connection, { ownerId: "no-such-user" }))).toBe(
+      "SQLITE_CONSTRAINT_FOREIGNKEY",
+    );
+  });
+
+  it("keeps a patient, unassigned, when its owner is removed", () => {
+    const doctor = insertUser("ana@example.com");
+    const patient = insertPatient(connection, { ownerId: doctor.id });
+
+    connection.db.delete(users).where(eq(users.id, doctor.id)).run();
+
+    const row = connection.db.select().from(patients).where(eq(patients.id, patient.id)).get();
+    expect(row?.ownerId).toBeNull();
   });
 });
