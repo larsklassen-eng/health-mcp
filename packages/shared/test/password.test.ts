@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { checkPassword, PASSWORD_MIN_SCORE } from "../src/password.js";
+import { checkPassword, PASSWORD_MIN_SCORE, suggestPassword } from "../src/password.js";
 
 const ana = { email: "ana.example@example.com", firstName: "Ana", lastName: "Example" };
 
@@ -49,5 +49,25 @@ describe("checkPassword", () => {
 
   it("allows a short name inside another word", () => {
     expect(checkPassword("banana bread on tuesdays", ana).ok).toBe(true);
+  });
+});
+
+describe("suggestPassword", () => {
+  it("makes four groups of five unambiguous characters that pass the rules", () => {
+    for (let i = 0; i < 20; i++) {
+      const password = suggestPassword();
+      expect(password).toMatch(/^([a-km-zA-HJ-NP-Z2-9]{5}-){3}[a-km-zA-HJ-NP-Z2-9]{5}$/);
+      expect(checkPassword(password, ana).ok).toBe(true);
+    }
+    expect(new Set(Array.from({ length: 20 }, () => suggestPassword())).size).toBe(20);
+  });
+
+  it("skips random bytes that would bias the choice", () => {
+    // 57 characters: bytes from 228 on are skipped, so 228 never maps to the first one.
+    let call = 0;
+    const fill = (bytes: Uint8Array) => bytes.fill(call++ === 0 ? 228 : 0);
+
+    expect(suggestPassword(fill)).toBe("aaaaa-aaaaa-aaaaa-aaaaa");
+    expect(call).toBe(2);
   });
 });

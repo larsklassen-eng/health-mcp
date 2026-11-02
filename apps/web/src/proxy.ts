@@ -10,7 +10,7 @@ import {
 } from "@/lib/session";
 
 /**
- * Runs before every page and route except sign-in and static files. When
+ * Runs before every page and route except sign-in, sign-up and static files. When
  * sign-in is on and the request has no valid session, pages redirect to the
  * login page (remembering where the user was going) and other requests get
  * 401. The api checks the session again on every call, so this is the
@@ -48,5 +48,5 @@ export async function proxy(request: NextRequest): Promise<Response> {
 }
 
 export const config = {
-  matcher: ["/((?!login|auth/|_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!login|register|auth/|_next/static|_next/image|favicon.ico).*)"],
 };

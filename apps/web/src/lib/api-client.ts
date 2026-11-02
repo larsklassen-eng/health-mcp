@@ -22,6 +22,7 @@ import {
   PatientListResponseSchema,
   PatientSchema,
   type PatientSummary,
+  type RegisterInput,
   type ToolCall,
   type ToolCallDecisionRequest,
   ToolCallSchema,
@@ -142,6 +143,20 @@ export const api = {
    */
   login(input: LoginInput): Promise<LoginResponse> {
     return request(API_ROUTES.authLogin, LoginResponseSchema, {
+      method: "POST",
+      body: JSON.stringify(input),
+      session: null,
+      redirectWhenSignedOut: false,
+    });
+  },
+
+  /**
+   * Creates a doctor's account and signs them in. Throws `ApiRequestError`
+   * 400 (what to fix), 409 (the email has an account), 429 (too many new
+   * accounts this hour) or 403 (sign-up is closed).
+   */
+  register(input: RegisterInput): Promise<LoginResponse> {
+    return request(API_ROUTES.authRegister, LoginResponseSchema, {
       method: "POST",
       body: JSON.stringify(input),
       session: null,

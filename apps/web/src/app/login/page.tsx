@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { api } from "@/lib/api-client";
@@ -20,7 +21,9 @@ export default async function LoginPage({ searchParams }: Props) {
       <h1>Sign in</h1>
       {params["signed-out"] !== undefined && <p role="status">You are signed out.</p>}
       <LoginForm />
-      <p className="muted small">Accounts are created by an administrator.</p>
+      <p className="muted small">
+        New here? <Link href="/register">Create an account</Link>
+      </p>
     </div>
   );
 }

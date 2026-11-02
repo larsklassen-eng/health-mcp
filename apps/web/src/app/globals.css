@@ -87,6 +87,43 @@ a {
   gap: 12px;
   width: 100%;
 }
+.field-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+.link-button:disabled {
+  color: var(--muted);
+  cursor: default;
+  text-decoration: none;
+}
+.password-row {
+  display: flex;
+  gap: 8px;
+}
+.password-row input {
+  flex: 1;
+  min-width: 0;
+}
+.password-help {
+  display: grid;
+  gap: 4px;
+}
+.password-help ul {
+  margin: 0;
+  padding-left: 18px;
+}
+.password-strength {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+}
+.password-strength meter {
+  flex: 1;
+  height: 8px;
+}
 .main {
   padding-top: 32px;
   padding-bottom: 48px;

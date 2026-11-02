@@ -84,3 +84,29 @@ export function checkPassword(password: string, owner: PasswordOwner = {}): Pass
     );
   return { score, ok: true, suggestions };
 }
+
+/** Letters and digits that cannot be mistaken for one another (no 0/O, 1/l/I). */
+const SUGGESTION_ALPHABET = "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+/** Web Crypto, in browsers and Node alike (this package is typed without the DOM). */
+const webCrypto = (
+  globalThis as unknown as { crypto: { getRandomValues(bytes: Uint8Array): Uint8Array } }
+).crypto;
+
+/**
+ * A random password to suggest: four groups of five characters, such as
+ * `k7mPq-x2vRt-9hWcz-bN4fs` (about 115 bits). `fillRandom` is for tests.
+ */
+export function suggestPassword(
+  fillRandom: (bytes: Uint8Array) => Uint8Array = (bytes) => webCrypto.getRandomValues(bytes),
+): string {
+  const size = SUGGESTION_ALPHABET.length;
+  // Bytes at or above this would make some characters likelier than others.
+  const limit = 256 - (256 % size);
+  const characters: string[] = [];
+  while (characters.length < 20)
+    for (const byte of fillRandom(new Uint8Array(32)))
+      if (byte < limit && characters.length < 20)
+        characters.push(SUGGESTION_ALPHABET[byte % size]!);
+  return [0, 5, 10, 15].map((start) => characters.slice(start, start + 5).join("")).join("-");
+}
