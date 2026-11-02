@@ -15,7 +15,10 @@ import { UNKNOWN_USER_HASH, verifyPassword } from "./password.js";
 import { TokenSealer } from "./sealed-token.js";
 import { findUserByEmail, findUserById, normalizeEmail } from "./users.js";
 
-const toAuthUser = ({ email, firstName, lastName }: AuthUser): AuthUser => ({
+/** A signed-in user, with the id the api scopes their patients by. */
+export type SessionUser = AuthUser & { id: string };
+
+export const toAuthUser = ({ email, firstName, lastName }: AuthUser): AuthUser => ({
   email,
   firstName,
   lastName,
@@ -72,13 +75,13 @@ export class AuthService {
   }
 
   /** The session's user, or undefined if the token is invalid or expired, or the user is gone. */
-  verifySession(token: string): AuthUser | undefined {
+  verifySession(token: string): SessionUser | undefined {
     const payload = this.sealer?.open("session", token);
     if (!payload || typeof payload.sub !== "string" || typeof payload.iat !== "number")
       return undefined;
     const user = findUserById(this.database.db, payload.sub);
     // A password change ends the sessions issued before it.
     if (!user || Date.parse(user.passwordChangedAt) > payload.iat) return undefined;
-    return toAuthUser(user);
+    return { id: user.id, ...toAuthUser(user) };
   }
 }

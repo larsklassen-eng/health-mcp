@@ -23,6 +23,7 @@ import {
   Post,
 } from "@nestjs/common";
 
+import { type PatientScope, Scope } from "../auth/patient-scope.js";
 import { IndexingService } from "../rag/indexing.service.js";
 import { PatientImportService } from "./patient-import.service.js";
 import { PatientsService } from "./patients.service.js";
@@ -38,15 +39,16 @@ export class PatientsController {
   ) {}
 
   @Get()
-  list(): PatientListResponse {
-    return { patients: this.patients.list() };
+  list(@Scope() scope: PatientScope): PatientListResponse {
+    return { patients: this.patients.list(scope) };
   }
 
   @Post()
   async create(
     @Body({ schema: CreatePatientInputSchema }) input: CreatePatientInput,
+    @Scope() scope: PatientScope,
   ): Promise<Patient> {
-    const patient = this.patients.create(input);
+    const patient = this.patients.create(input, scope);
     await this.indexing.syncPatient(patient.id);
     return patient;
   }
@@ -58,8 +60,9 @@ export class PatientsController {
   @Post("import")
   async import(
     @Body({ schema: PatientImportFileSchema }) file: ParsedPatientImportFile,
+    @Scope() scope: PatientScope,
   ): Promise<PatientImportResult> {
-    const result = this.importer.import(file);
+    const result = this.importer.import(file, scope);
     for (const { patientId } of result.imported) await this.indexing.syncPatient(patientId);
     return result;
   }

@@ -71,7 +71,8 @@ export const patients = sqliteTable(
     ownerId: text("owner_id").references((): AnySQLiteColumn => users.id, {
       onDelete: "set null",
     }),
-    mrn: text("mrn").notNull().unique(),
+    /** Unique per owner, so every doctor can import the same synthetic patients. */
+    mrn: text("mrn").notNull(),
     firstName: text("first_name").notNull(),
     lastName: text("last_name").notNull(),
     dateOfBirth: text("date_of_birth").notNull(),
@@ -93,6 +94,8 @@ export const patients = sqliteTable(
     check("patients_status_check", oneOf(t.status, PatientStatusSchema.options)),
     index("patients_status_idx").on(t.status),
     index("patients_owner_idx").on(t.ownerId),
+    // Unassigned patients (and all of them with sign-in off) share one MRN namespace.
+    uniqueIndex("patients_owner_mrn_unique").on(sql`coalesce(${t.ownerId}, '')`, t.mrn),
   ],
 );
 

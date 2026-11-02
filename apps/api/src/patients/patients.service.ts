@@ -8,6 +8,7 @@ import type {
 import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import { asc, eq } from "drizzle-orm";
 
+import { ownedBy, ownerFor, type PatientScope } from "../auth/patient-scope.js";
 import { isUniqueViolation } from "../common/sqlite-errors.js";
 import { DatabaseService } from "../database/database.service.js";
 import { ImagingStorage } from "../imaging/imaging-storage.js";
@@ -19,10 +20,12 @@ export class PatientsService {
     private readonly storage: ImagingStorage,
   ) {}
 
-  list(): PatientSummary[] {
+  /** The scope's patients (the signed-in doctor's), by name. */
+  list(scope: PatientScope): PatientSummary[] {
     return this.database.db
       .select()
       .from(patients)
+      .where(ownedBy(scope))
       .orderBy(asc(patients.lastName), asc(patients.firstName))
       .all()
       .map(toPatientSummary);
@@ -45,9 +48,14 @@ export class PatientsService {
       .map((row) => row.testName);
   }
 
-  create(input: CreatePatientInput): Patient {
+  /** Creates a patient owned by the scope's doctor. */
+  create(input: CreatePatientInput, scope: PatientScope): Patient {
     try {
-      const [row] = this.database.db.insert(patients).values(input).returning().all();
+      const [row] = this.database.db
+        .insert(patients)
+        .values({ ...input, ownerId: ownerFor(scope) })
+        .returning()
+        .all();
       return toPatient(row!);
     } catch (error) {
       throw this.mapConflict(error, input.mrn);

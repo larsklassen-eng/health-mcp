@@ -10,6 +10,7 @@ import {
 import type { ParsedPatientImportFile, PatientImportResult } from "@health-mcp/shared";
 import { ConflictException, Injectable } from "@nestjs/common";
 
+import { ownerFor, type PatientScope } from "../auth/patient-scope.js";
 import { isUniqueViolation } from "../common/sqlite-errors.js";
 import { DatabaseService } from "../database/database.service.js";
 
@@ -28,8 +29,9 @@ export class PatientImportService {
   /**
    * Imports every patient in the file with all of their records, in one
    * transaction: if anything fails (e.g. a duplicate MRN), nothing is saved.
+   * The patients belong to the scope's doctor.
    */
-  import(file: ParsedPatientImportFile): PatientImportResult {
+  import(file: ParsedPatientImportFile, scope: PatientScope): PatientImportResult {
     const duplicate = findDuplicateMrn(file);
     if (duplicate)
       throw new ConflictException(`MRN ${duplicate} appears more than once in the import file`);
@@ -43,7 +45,7 @@ export class PatientImportService {
           currentMrn = bundle.patient.mrn;
           const [patient] = tx
             .insert(patients)
-            .values(bundle.patient)
+            .values({ ...bundle.patient, ownerId: ownerFor(scope) })
             .returning({ id: patients.id })
             .all();
           const patientId = patient!.id;

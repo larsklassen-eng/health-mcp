@@ -185,7 +185,7 @@ describe("GET /dashboards/overview", () => {
     lab(b, "Hemoglobin", "2026-10-15T08:00:00.000Z", "low");
     lab(b, "Hemoglobin", "2026-10-16T08:00:00.000Z", "critical");
 
-    const overview = testApp.app.get(DashboardsService).overview(now);
+    const overview = testApp.app.get(DashboardsService).overview("all", now);
 
     expect(overview.abnormalLabsLast7Days).toBe(3);
   });

@@ -288,6 +288,19 @@ describe("patient owners", () => {
       .returning()
       .get();
 
+  it("allows each MRN once per owner, and once among unassigned patients", () => {
+    const ana = insertUser("ana@example.com");
+    const ben = insertUser("ben@example.com");
+    insertPatient(connection, { ownerId: ana.id });
+    insertPatient(connection, { ownerId: ben.id });
+    insertPatient(connection);
+
+    expect(sqliteErrorCode(() => insertPatient(connection, { ownerId: ana.id }))).toBe(
+      "SQLITE_CONSTRAINT_UNIQUE",
+    );
+    expect(sqliteErrorCode(() => insertPatient(connection))).toBe("SQLITE_CONSTRAINT_UNIQUE");
+  });
+
   it("leaves a patient unassigned unless an owner is given", () => {
     const doctor = insertUser("ana@example.com");
     const owned = insertPatient(connection, { mrn: "FAKE-001", ownerId: doctor.id });

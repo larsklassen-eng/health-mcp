@@ -37,7 +37,10 @@ export const PatientOverviewRowSchema = z.object({
 export const DashboardOverviewSchema = z.object({
   totalPatients: z.int().nonnegative(),
   activePatients: z.int().nonnegative(),
-  /** Abnormal lab results collected in the 7 days before the request, across all patients. */
+  /**
+   * Abnormal lab results collected in the 7 days before the request, across
+   * the doctor's patients.
+   */
   abnormalLabsLast7Days: z.int().nonnegative(),
   patients: z.array(PatientOverviewRowSchema),
 });

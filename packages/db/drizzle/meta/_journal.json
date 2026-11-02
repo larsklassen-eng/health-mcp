@@ -43,6 +43,13 @@
       "when": 1793638071826,
       "tag": "0005_users_names_and_patient_owners",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1793638483389,
+      "tag": "0006_mrn_unique_per_owner",
+      "breakpoints": true
     }
   ]
 }

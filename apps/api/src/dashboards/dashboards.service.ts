@@ -25,6 +25,7 @@ import {
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { and, asc, desc, eq, type SQL, sql } from "drizzle-orm";
 
+import { ownedBy, patientIdIn, type PatientScope } from "../auth/patient-scope.js";
 import { DatabaseService } from "../database/database.service.js";
 import { ImagingService } from "../imaging/imaging.service.js";
 
@@ -42,11 +43,16 @@ export class DashboardsService {
     private readonly imaging: ImagingService,
   ) {}
 
-  /** `now` sets the end of the 7-day window; tests pass a fixed time. */
-  overview(now = new Date()): DashboardOverview {
+  /**
+   * The scope's patients (the signed-in doctor's). The per-patient numbers are
+   * read for those patients only, and the 7-day count is filtered to them.
+   * `now` sets the end of the 7-day window; tests pass a fixed time.
+   */
+  overview(scope: PatientScope, now = new Date()): DashboardOverview {
     const rows = this.database.db
       .select()
       .from(patients)
+      .where(ownedBy(scope))
       .orderBy(asc(patients.lastName), asc(patients.firstName))
       .all();
 
@@ -89,7 +95,7 @@ export class DashboardsService {
     const since = new Date(now.getTime() - 7 * DAY_MS).toISOString();
     const recentAbnormal = this.database.db.get<{ count: number }>(sql`
       select count(*) as count from ${labResults}
-      where flag in (${abnormalFlags}) and collected_at >= ${since}`);
+      where flag in (${abnormalFlags}) and collected_at >= ${since} and ${patientIdIn(scope)}`);
 
     return {
       totalPatients: rows.length,

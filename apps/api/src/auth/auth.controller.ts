@@ -17,7 +17,7 @@ import {
 } from "@nestjs/common";
 
 import { bearerToken } from "./auth.guard.js";
-import { AuthService } from "./auth.service.js";
+import { AuthService, toAuthUser } from "./auth.service.js";
 import { Public } from "./public.decorator.js";
 
 /** Sign-in endpoints, used by apps/web's login page and proxy. */
@@ -38,6 +38,6 @@ export class AuthController {
     const token = bearerToken(authorization);
     const user = token && this.auth.verifySession(token);
     if (!user) throw new UnauthorizedException("Sign in to continue.");
-    return { mode: "password", user };
+    return { mode: "password", user: toAuthUser(user) };
   }
 }
