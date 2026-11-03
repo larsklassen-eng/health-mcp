@@ -4,6 +4,7 @@ import type { ChunkSourceType } from "@health-mcp/shared";
 import type { ChunkOptions } from "./chunker.js";
 import type { Embedder } from "./embedder.js";
 import { chunkSource, type TextSource } from "./sources.js";
+import { embeddingTextAttributes, inSpan, SpanKind } from "./telemetry.js";
 
 /** The record a source's chunks belong to. */
 export interface SourceRef {
@@ -26,7 +27,17 @@ export async function indexSource(
   options?: ChunkOptions,
 ): Promise<number> {
   const chunks = source ? chunkSource(source, options) : [];
-  const vectors = await embedder.embedDocuments(chunks.map((chunk) => chunk.text));
+  const texts = chunks.map((chunk) => chunk.text);
+  // A removed record has nothing to embed.
+  const vectors =
+    texts.length === 0
+      ? []
+      : await inSpan(
+          "rag.embed_passages",
+          SpanKind.EMBEDDING,
+          { ...embeddingTextAttributes(embedder.model, texts), "rag.source_type": ref.sourceType },
+          () => embedder.embedDocuments(texts),
+        );
 
   const sqlite = db.$client;
   const remove = sqlite.prepare(

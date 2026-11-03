@@ -29,6 +29,8 @@ services:
       # SESSION_SECRET; add users with the users command (see the README).
       AUTH_MODE: ${AUTH_MODE:-off}
       SESSION_SECRET: ${SESSION_SECRET:-}
+      # Traces to the phoenix service (PHOENIX_TRACING=on in .env, see below).
+      PHOENIX_COLLECTOR_ENDPOINT: ${PHOENIX_TRACING:+http://phoenix:6006}
     volumes: [data:/app/data]
     depends_on:
       migrate: { condition: service_completed_successfully }
@@ -52,6 +54,7 @@ services:
     environment:
       MCP_AUTH_TOKEN: ${MCP_AUTH_TOKEN:?Set MCP_AUTH_TOKEN in .env (openssl rand -hex 32)}
       RAG_EMBEDDER: ${RAG_EMBEDDER:-local}
+      PHOENIX_COLLECTOR_ENDPOINT: ${PHOENIX_TRACING:+http://phoenix:6006}
     volumes: [data:/app/data]
     depends_on:
       migrate: { condition: service_completed_successfully }
@@ -70,5 +73,19 @@ services:
       api: { condition: service_healthy }
     restart: unless-stopped
 
+  # RAG monitoring (optional): `docker compose --profile monitoring up`, then
+  # http://localhost:6006. Set PHOENIX_TRACING=on in .env so the api and the
+  # MCP server send their search and indexing traces here. Traces stay in the
+  # phoenix volume, on this machine.
+  phoenix:
+    image: arizephoenix/phoenix:version-20.27.0
+    profiles: [monitoring]
+    environment:
+      PHOENIX_WORKING_DIR: /mnt/data
+    volumes: [phoenix:/mnt/data]
+    ports: ["127.0.0.1:6006:6006"]
+    restart: unless-stopped
+
 volumes:
   data:
+  phoenix:

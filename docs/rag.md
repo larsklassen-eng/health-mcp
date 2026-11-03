@@ -27,6 +27,33 @@ The diagram builds on today's architecture ([architecture.png](architecture.png)
 
 How records become vectors and how a question finds them, as built. **Indexing:** after a record is saved, its patient's texts are compared with what is stored; a changed record is split into chunks (paragraphs, then sentences, up to 800 characters with 100 of overlap), each chunk is embedded with `bge-small-en-v1.5`, and the chunk goes to `record_chunks` and its vector to `vec_chunks` (partitioned by patient). Triggers keep the FTS5 keyword index `chunks_fts` in step and remove vectors and keywords with their chunk. **Search:** the question is embedded with the same model; the 30 nearest vectors (kept only at cosine similarity 0.57 or more) and the 30 best keyword matches, both from this patient only, are merged by reciprocal rank fusion; a cross-encoder (`mxbai-rerank-xsmall-v1`) re-orders the best 20, and the top `k` (5) go back to the model with their source and date. The editable source is [`vector-search.svg`](vector-search.svg); the numbers are in `packages/rag/src` (`chunker.ts`, `search.ts`).
 
+### Monitoring with Phoenix
+
+Search and indexing are traced with [OpenTelemetry](https://opentelemetry.io), using [OpenInference](https://github.com/Arize-ai/openinference)'s names so [Arize Phoenix](https://github.com/Arize-ai/phoenix) shows each search as a retrieval with its passages. Phoenix runs locally, open source, as one container; tracing is off unless it is configured, and never on in AWS.
+
+```sh
+docker compose --profile monitoring up -d phoenix      # Phoenix on http://localhost:6006
+echo PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006 >> .env   # for `yarn dev`
+# Or the whole app in Docker: PHOENIX_TRACING=on in .env, then
+docker compose --profile monitoring up
+```
+
+Traces appear in Phoenix's `health-mcp` project. What each span records (`packages/rag/src/search.ts`, `sync.ts`, `store.ts`):
+
+| Span | Kind | What it records |
+|---|---|---|
+| `rag.search` | retriever | The question, patient id, `k`, the similarity floor; the passages returned with their source, date, similarity, which searches found them, RRF and rerank scores; how many were merged and found by both searches |
+| `rag.embed_query` | embedding | The model and the question it embedded |
+| `rag.vector_search` | retriever | Candidates (chunk ids with their cosine similarity), the best similarity, and how many the floor removed |
+| `rag.keyword_search` | retriever | The FTS5 query and its hits |
+| `rag.rerank` | reranker | The model, the candidates in and the order out, and whether the top passage changed |
+| `rag.sync_patient` | chain | Indexing one patient: records indexed, removed and unchanged |
+| `rag.embed_passages` | embedding | The model and the chunk texts embedded for one record |
+
+Things to watch: searches returning nothing (and the best similarity they had, to tune the floor), how often the reranker changes the top passage, the time each step takes (the reranker is the slowest), and records re-indexed on every save (which would mean their chunks are not stable). Phoenix's 2D views of embeddings take datasets loaded with its Python client, not traces, so they are not part of this setup.
+
+Spans carry patients' text, so `PHOENIX_COLLECTOR_ENDPOINT` must only point at a Phoenix on the same machine (Compose publishes it on `127.0.0.1` only), with synthetic data as everywhere in this repo. The tracing setup is `startTracing()` in `packages/rag/src/start-tracing.ts` (`@health-mcp/rag/tracing`), called by apps/api (indexing) and apps/mcp-server (search) when the variable is set; without it the spans cost nothing.
+
 ## What it teaches
 
 Chunking real records, local embeddings, metadata filtering for multi-tenant isolation, keeping an index consistent with its source (insert, update, delete), hybrid search, and agentic retrieval through MCP. It answers questions the structured tools cannot, such as "Has she mentioned dizziness before?" or "What did the reports say about the cavity over time?".

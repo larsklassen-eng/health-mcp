@@ -40,6 +40,16 @@ export const EnvSchema = z.object({
    * of memory once loaded) or not (`off`). Only used with RAG_EMBEDDER=local.
    */
   RAG_RERANKER: z.enum(["local", "off"]).default("local"),
+  /**
+   * Phoenix (RAG monitoring) address, e.g. `http://localhost:6006`: search and
+   * indexing spans go there. Unset: no tracing. Spans carry patients' text,
+   * so only point it at a local Phoenix (see docs/rag.md).
+   */
+  PHOENIX_COLLECTOR_ENDPOINT: z
+    .string()
+    .optional()
+    .transform((value) => value?.trim() || undefined)
+    .pipe(z.url().optional()),
   /** SQLite file; relative paths resolve from the repo root (see @health-mcp/db). */
   DATABASE_PATH: z.string().min(1).optional(),
 });

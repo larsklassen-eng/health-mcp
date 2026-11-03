@@ -40,6 +40,16 @@ const BaseEnvSchema = z.object({
    * machine, `hashing` is a word-hashing stand-in for tests, `off` disables indexing.
    */
   RAG_EMBEDDER: z.enum(["local", "hashing", "off"]).default("local"),
+  /**
+   * Phoenix (RAG monitoring) address, e.g. `http://localhost:6006`: search and
+   * indexing spans go there. Unset: no tracing. Spans carry patients' text,
+   * so only point it at a local Phoenix (see docs/rag.md).
+   */
+  PHOENIX_COLLECTOR_ENDPOINT: z
+    .string()
+    .optional()
+    .transform((value) => value?.trim() || undefined)
+    .pipe(z.url().optional()),
   /** Let the provider cache prompts for a few minutes, so repeated input costs less. */
   OPENROUTER_PROMPT_CACHING: z.stringbool().default(true),
   /** Override the OpenRouter API base URL, e.g. a local fake server for a dry run of the evals. */

@@ -137,7 +137,7 @@ docker compose exec api node apps/api/dist/cli/users.js add ana@example.com
 | `mcp-server` | `mcp-server` | Shares the api container's network, so it still listens on `127.0.0.1` only: nothing but the api can reach it |
 | `web` | `web` | apps/web (Next.js standalone server) on http://localhost:3000; the only published port |
 
-The images keep the repo layout under `/app` and run as the unprivileged `node` user. The api and MCP server images include the embedding model and the reranker for search (downloaded once while building, in `/app/models`), and both use `RAG_EMBEDDER` from `.env` (default `local`), so they always match. The database and imaging files live in the `data` volume (`/app/data`), separate from `data/` on your machine, so start by importing `fixtures/synthetic-patients.json` on the Patients page. Sign-in is off in Compose unless `.env` sets `AUTH_MODE=password` (with `SESSION_SECRET`). Compose reads only the values it needs from `.env` (`MCP_AUTH_TOKEN`, `OPENROUTER_API_KEY`, `OPENROUTER_MODEL`, `RAG_EMBEDDER`, `AUTH_MODE`, `SESSION_SECRET`); `.env` itself never goes into an image (see `.dockerignore`).
+The images keep the repo layout under `/app` and run as the unprivileged `node` user. The api and MCP server images include the embedding model and the reranker for search (downloaded once while building, in `/app/models`), and both use `RAG_EMBEDDER` from `.env` (default `local`), so they always match. The database and imaging files live in the `data` volume (`/app/data`), separate from `data/` on your machine, so start by importing `fixtures/synthetic-patients.json` on the Patients page. Sign-in is off in Compose unless `.env` sets `AUTH_MODE=password` (with `SESSION_SECRET`). `docker compose --profile monitoring up` also starts [Phoenix](docs/rag.md#monitoring-with-phoenix) on http://localhost:6006, to watch searches and indexing (with `PHOENIX_TRACING=on` in `.env`). Compose reads only the values it needs from `.env` (`MCP_AUTH_TOKEN`, `OPENROUTER_API_KEY`, `OPENROUTER_MODEL`, `RAG_EMBEDDER`, `AUTH_MODE`, `SESSION_SECRET`, `PHOENIX_TRACING`); `.env` itself never goes into an image (see `.dockerignore`).
 
 ### Database
 
@@ -234,6 +234,8 @@ It prints ✓/✗ per check with the expected passage's rank (failures list what
 |---|---|---|
 | `DATABASE_PATH` | `packages/db`, `apps/api`, `apps/mcp-server` | `data/health.db` |
 | `RAG_EMBEDDER` | `apps/api`, `apps/mcp-server` | `local`; embedding model for the search index and for search queries (both must use the same one): `local` (bge-small on this machine), `hashing` (word-hashing stand-in, used by the tests) or `off` |
+| `PHOENIX_COLLECTOR_ENDPOINT` | `apps/api`, `apps/mcp-server` | Unset; a local [Phoenix](docs/rag.md#monitoring-with-phoenix) (e.g. `http://localhost:6006`) to send search and indexing traces to. They carry patients' text: never point it elsewhere |
+| `PHOENIX_TRACING` | Docker Compose | Unset; `on` sends the containers' traces to the `phoenix` service (`--profile monitoring`) |
 | `RAG_RERANKER` | `apps/mcp-server` | `local`; re-orders search results with a local cross-encoder (`mxbai-rerank-xsmall-v1`, about 550 MB of memory once loaded), or `off`. Only used with `RAG_EMBEDDER=local` |
 | `RAG_MODEL_DIR` | `packages/rag` | `data/models`; where the embedding model and the reranker are downloaded (relative to the repo root) |
 | `IMAGING_DIR` | `apps/api` | `data/imaging`; where the PNG slices of uploaded studies are stored (relative to the repo root) |

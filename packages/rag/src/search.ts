@@ -1,8 +1,10 @@
 import type { HealthDb } from "@health-mcp/db";
 import type { ChunkSourceType } from "@health-mcp/shared";
+import { trace } from "@opentelemetry/api";
 
 import type { Embedder } from "./embedder.js";
 import type { Reranker } from "./reranker.js";
+import { documentAttributes, embeddingTextAttributes, inSpan, SC, SpanKind } from "./telemetry.js";
 
 /*
  * Hybrid search over one patient's chunks. Vector search finds passages with
@@ -85,33 +87,121 @@ interface ChunkRow {
   text: string;
 }
 
-export async function searchPatientChunks(
+export function searchPatientChunks(
   db: HealthDb,
   embedder: Embedder,
   patientId: string,
   query: string,
   { k = 5, sources, minSimilarity = DEFAULT_MIN_SIMILARITY, reranker }: SearchOptions = {},
 ): Promise<SearchResult[]> {
+  return inSpan(
+    "rag.search",
+    SpanKind.RETRIEVER,
+    {
+      [SC.INPUT_VALUE]: query,
+      "rag.patient_id": patientId,
+      "rag.k": k,
+      "rag.min_similarity": minSimilarity,
+      ...(sources && { "rag.sources": sources.join(",") }),
+    },
+    async (span) => {
+      const results = await search(db, embedder, patientId, query, {
+        k,
+        sources,
+        minSimilarity,
+        reranker,
+      });
+      span.setAttributes({
+        "rag.results": results.length,
+        ...documentAttributes(
+          SC.RETRIEVAL_DOCUMENTS,
+          results.map((result) => ({
+            id: result.chunkId,
+            content: result.text,
+            score: result.rerankScore ?? result.score,
+            metadata: {
+              sourceType: result.sourceType,
+              sourceId: result.sourceId,
+              sourceDate: result.sourceDate,
+              similarity: result.similarity,
+              matchedBy: result.matchedBy,
+              rrfScore: result.score,
+              rerankScore: result.rerankScore,
+            },
+          })),
+        ),
+      });
+      return results;
+    },
+  );
+}
+
+/** {@link SearchOptions} with the defaults filled in. */
+interface ResolvedOptions {
+  k: number;
+  sources: readonly ChunkSourceType[] | undefined;
+  minSimilarity: number;
+  reranker: Reranker | undefined;
+}
+
+async function search(
+  db: HealthDb,
+  embedder: Embedder,
+  patientId: string,
+  query: string,
+  { k, sources, minSimilarity, reranker }: ResolvedOptions,
+): Promise<SearchResult[]> {
   const sqlite = db.$client;
-  const vector = await embedder.embedQuery(query);
+  const vector = await inSpan(
+    "rag.embed_query",
+    SpanKind.EMBEDDING,
+    embeddingTextAttributes(embedder.model, [query]),
+    () => embedder.embedQuery(query),
+  );
 
   // Nearest neighbours among this patient's vectors only (patient_id is the partition key).
-  const nearest = sqlite
-    .prepare(
-      "select rowid as id, distance from vec_chunks " +
-        "where embedding match ? and k = ? and patient_id = ? order by distance",
-    )
-    .all(vector, CANDIDATES, patientId) as { id: number; distance: number }[];
+  const nearest = await inSpan("rag.vector_search", SpanKind.RETRIEVER, {}, (span) => {
+    const rows = sqlite
+      .prepare(
+        "select rowid as id, distance from vec_chunks " +
+          "where embedding match ? and k = ? and patient_id = ? order by distance",
+      )
+      .all(vector, CANDIDATES, patientId) as { id: number; distance: number }[];
+    const kept = rows.filter(({ distance }) => 1 - distance >= minSimilarity).length;
+    span.setAttributes({
+      "rag.candidates": rows.length,
+      "rag.kept": kept,
+      "rag.below_min_similarity": rows.length - kept,
+      ...(rows[0] && { "rag.best_similarity": 1 - rows[0].distance }),
+      ...documentAttributes(
+        SC.RETRIEVAL_DOCUMENTS,
+        rows.map(({ id, distance }) => ({ id, score: 1 - distance })),
+      ),
+    });
+    return rows;
+  });
 
   const words = keywordQuery(query);
-  const keywordHits = words
-    ? (sqlite
-        .prepare(
-          "select c.id from chunks_fts f join record_chunks c on c.id = f.rowid " +
-            "where chunks_fts match ? and c.patient_id = ? order by bm25(chunks_fts) limit ?",
-        )
-        .all(words, patientId, CANDIDATES) as { id: number }[])
-    : [];
+  const keywordHits = await inSpan(
+    "rag.keyword_search",
+    SpanKind.RETRIEVER,
+    { "rag.fts_query": words ?? "" },
+    (span) => {
+      const rows = words
+        ? (sqlite
+            .prepare(
+              "select c.id from chunks_fts f join record_chunks c on c.id = f.rowid " +
+                "where chunks_fts match ? and c.patient_id = ? order by bm25(chunks_fts) limit ?",
+            )
+            .all(words, patientId, CANDIDATES) as { id: number }[])
+        : [];
+      span.setAttributes({
+        "rag.hits": rows.length,
+        ...documentAttributes(SC.RETRIEVAL_DOCUMENTS, rows),
+      });
+      return rows;
+    },
+  );
 
   const merged = new Map<number, Pick<SearchResult, "score" | "similarity" | "matchedBy">>();
   nearest.forEach(({ id, distance }, rank) => {
@@ -124,6 +214,12 @@ export async function searchPatientChunks(
     entry.score += 1 / (RRF_K + rank + 1);
     entry.matchedBy.push("keyword");
     merged.set(id, entry);
+  });
+  const parent = trace.getActiveSpan();
+  parent?.setAttributes({
+    "rag.merged": merged.size,
+    "rag.found_by_both": [...merged.values()].filter((entry) => entry.matchedBy.length === 2)
+      .length,
   });
   if (merged.size === 0) return [];
 
@@ -149,12 +245,39 @@ export async function searchPatientChunks(
   if (!reranker || ranked.length === 0) return ranked.slice(0, k);
 
   const candidates = ranked.slice(0, RERANK_CANDIDATES);
-  const scores = await reranker.rerank(
-    query,
-    candidates.map((result) => result.text),
+  return inSpan(
+    "rag.rerank",
+    SpanKind.RERANKER,
+    {
+      [SC.RERANKER_QUERY]: query,
+      [SC.RERANKER_MODEL_NAME]: reranker.model,
+      [SC.RERANKER_TOP_K]: k,
+      ...documentAttributes(
+        SC.RERANKER_INPUT_DOCUMENTS,
+        candidates.map((result) => ({
+          id: result.chunkId,
+          content: result.text,
+          score: result.score,
+        })),
+      ),
+    },
+    async (span) => {
+      const scores = await reranker.rerank(
+        query,
+        candidates.map((result) => result.text),
+      );
+      const reranked = candidates
+        .map((result, index) => ({ ...result, rerankScore: scores[index]! }))
+        .sort((a, b) => b.rerankScore - a.rerankScore || b.score - a.score)
+        .slice(0, k);
+      span.setAttributes({
+        "rag.top_changed": reranked[0]?.chunkId !== candidates[0]?.chunkId,
+        ...documentAttributes(
+          SC.RERANKER_OUTPUT_DOCUMENTS,
+          reranked.map((result) => ({ id: result.chunkId, score: result.rerankScore })),
+        ),
+      });
+      return reranked;
+    },
   );
-  return candidates
-    .map((result, index) => ({ ...result, rerankScore: scores[index]! }))
-    .sort((a, b) => b.rerankScore - a.rerankScore || b.score - a.score)
-    .slice(0, k);
 }

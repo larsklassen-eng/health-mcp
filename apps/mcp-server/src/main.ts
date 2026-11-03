@@ -4,11 +4,15 @@ import { randomBytes } from "node:crypto";
 
 import { createDb, resolveDatabasePath } from "@health-mcp/db";
 import { HashingEmbedder, LocalEmbedder, LocalReranker } from "@health-mcp/rag";
+import { startTracing } from "@health-mcp/rag/tracing";
 
 import { createApp, MCP_PATH } from "./app.js";
 import { loadEnv } from "./env.js";
 
 const env = loadEnv();
+const tracing = env.PHOENIX_COLLECTOR_ENDPOINT
+  ? startTracing({ endpoint: env.PHOENIX_COLLECTOR_ENDPOINT, serviceName: "mcp-server" })
+  : undefined;
 // Tables are created by `yarn db:migrate`, not on startup.
 const connection = createDb({ path: resolveDatabasePath(env) });
 
@@ -34,12 +38,16 @@ const app = createApp({ db: connection.db, authToken, embedder, reranker });
 const server = app.listen(env.MCP_PORT, env.MCP_HOST, () => {
   console.log(
     `MCP server listening on http://${env.MCP_HOST}:${env.MCP_PORT}${MCP_PATH} ` +
-      `(database: ${connection.path})`,
+      `(database: ${connection.path})` +
+      (env.PHOENIX_COLLECTOR_ENDPOINT ? `, tracing to ${env.PHOENIX_COLLECTOR_ENDPOINT}` : ""),
   );
 });
 
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.once(signal, () => {
-    server.close(() => connection.close());
+    server.close(() => {
+      connection.close();
+      void tracing?.shutdown();
+    });
   });
 }

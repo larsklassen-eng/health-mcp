@@ -21,6 +21,7 @@ import {
   type TextSource,
 } from "./sources.js";
 import { indexSource } from "./store.js";
+import { inSpan, SpanKind } from "./telemetry.js";
 
 /*
  * Keeps a patient's search index in step with their records by comparing
@@ -71,7 +72,29 @@ export function patientSources(db: HealthDb, patientId: string): TextSource[] {
 }
 
 /** Brings one patient's index up to date. */
-export async function syncPatientIndex(
+export function syncPatientIndex(
+  db: HealthDb,
+  embedder: Embedder,
+  patientId: string,
+  options?: ChunkOptions,
+): Promise<SyncResult> {
+  return inSpan(
+    "rag.sync_patient",
+    SpanKind.CHAIN,
+    { "rag.patient_id": patientId },
+    async (span) => {
+      const result = await syncPatientIndexUntraced(db, embedder, patientId, options);
+      span.setAttributes({
+        "rag.records_indexed": result.indexed,
+        "rag.records_removed": result.removed,
+        "rag.records_unchanged": result.unchanged,
+      });
+      return result;
+    },
+  );
+}
+
+async function syncPatientIndexUntraced(
   db: HealthDb,
   embedder: Embedder,
   patientId: string,
