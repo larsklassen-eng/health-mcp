@@ -278,6 +278,9 @@ tr:last-child td {
 .profile dd {
   margin: 0;
 }
+.report-text {
+  white-space: pre-wrap;
+}
 .patient-access {
   display: grid;
   gap: 12px;

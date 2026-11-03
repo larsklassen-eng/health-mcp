@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { api, ApiUnavailableError } from "@/lib/api-client";
 import { formatDate, modalityLabel, seriesSummary } from "@/lib/format";
+import { isPatient } from "@/lib/session";
 
 import { ApiUnavailable } from "../../../api-unavailable";
 import { deleteImagingStudyAction, updateImagingStudyAction } from "../actions";
@@ -18,9 +19,13 @@ export default async function ImagingStudyPage({
   params: Promise<{ id: string; studyId: string }>;
 }) {
   const { id, studyId } = await params;
-  let patient, study;
+  let patient, study, session;
   try {
-    [patient, study] = await Promise.all([api.getPatient(id), api.getImagingStudy(id, studyId)]);
+    [patient, study, session] = await Promise.all([
+      api.getPatient(id),
+      api.getImagingStudy(id, studyId),
+      api.getSession(),
+    ]);
   } catch (error) {
     if (error instanceof ApiUnavailableError) return <ApiUnavailable />;
     throw error;
@@ -30,6 +35,8 @@ export default async function ImagingStudyPage({
   const dashboardPath = `/patients/${encodeURIComponent(patient.id)}/dashboard`;
   const bodyPart = study.bodyPart ? ` ${study.bodyPart.toLowerCase()}` : "";
   const title = `${modalityLabel(study.modality)}${bodyPart}`;
+  // A patient reads their own report; only doctors edit or delete studies.
+  const patientView = isPatient(session);
   return (
     <>
       <p>
@@ -59,21 +66,34 @@ export default async function ImagingStudyPage({
 
       <section className="dashboard-section" aria-label="Report">
         <h2>Report</h2>
-        <StudyReportForm
-          action={updateImagingStudyAction.bind(null, patient.id, study.id)}
-          initial={{
-            ...(study.description && { description: study.description }),
-            ...(study.impression && { impression: study.impression }),
-            ...(study.report && { report: study.report }),
-          }}
-        />
+        {patientView ? (
+          <div className="study-report">
+            {study.impression && (
+              <p>
+                <strong>Impression:</strong> {study.impression}
+              </p>
+            )}
+            <p className="report-text">{study.report ?? "No report yet."}</p>
+          </div>
+        ) : (
+          <StudyReportForm
+            action={updateImagingStudyAction.bind(null, patient.id, study.id)}
+            initial={{
+              ...(study.description && { description: study.description }),
+              ...(study.impression && { impression: study.impression }),
+              ...(study.report && { report: study.report }),
+            }}
+          />
+        )}
       </section>
 
-      <section className="danger-zone card" aria-label="Delete study">
-        <h2>Delete study</h2>
-        <p className="muted">Deletes the study with its report and images.</p>
-        <DeleteStudyButton action={deleteImagingStudyAction.bind(null, patient.id, study.id)} />
-      </section>
+      {!patientView && (
+        <section className="danger-zone card" aria-label="Delete study">
+          <h2>Delete study</h2>
+          <p className="muted">Deletes the study with its report and images.</p>
+          <DeleteStudyButton action={deleteImagingStudyAction.bind(null, patient.id, study.id)} />
+        </section>
+      )}
     </>
   );
 }

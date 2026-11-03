@@ -67,6 +67,10 @@ describe("UserMenu", () => {
 
     rerender(<UserMenu user={{ ...ana, firstName: "", lastName: "" }} />);
     expect(screen.getByText("ana@example.com")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Change password" })).toHaveAttribute(
+      "href",
+      "/account/password",
+    );
     const form = screen.getByRole("button", { name: "Sign out" }).closest("form")!;
     expect(form).toHaveAttribute("action", "/auth/logout");
     expect(form).toHaveAttribute("method", "post");

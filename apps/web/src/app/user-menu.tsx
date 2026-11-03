@@ -1,4 +1,5 @@
 import type { AuthUser } from "@health-mcp/shared";
+import Link from "next/link";
 
 /** The signed-in user and a sign-out button, in the header. */
 export function UserMenu({ user }: { user: AuthUser }) {
@@ -9,6 +10,9 @@ export function UserMenu({ user }: { user: AuthUser }) {
       <span className="muted" title={user.email}>
         {name || user.email}
       </span>
+      <Link href="/account/password" className="small">
+        Change password
+      </Link>
       <button type="submit" className="link-button">
         Sign out
       </button>

@@ -5,6 +5,7 @@ import {
   type AuthSessionResponse,
   AuthSessionResponseSchema,
   ChatHistoryResponseSchema,
+  type ChangePasswordInput,
   type ChatMessage,
   type CreatePatientAccountInput,
   type CreatePatientInput,
@@ -152,6 +153,17 @@ export const api = {
       body: JSON.stringify(input),
       session: null,
       redirectWhenSignedOut: false,
+    });
+  },
+
+  /**
+   * Replaces the signed-in user's password; answers with a new session (every
+   * earlier one ends). Throws `ApiRequestError` 400 (what to fix) or 429.
+   */
+  changePassword(input: ChangePasswordInput): Promise<LoginResponse> {
+    return request(API_ROUTES.authPassword, LoginResponseSchema, {
+      method: "POST",
+      body: JSON.stringify(input),
     });
   },
 

@@ -93,3 +93,73 @@ describe("proxy", () => {
     expect(response.headers.get("x-middleware-next")).toBe("1");
   });
 });
+
+describe("proxy, for patients and temporary passwords", () => {
+  const user = (overrides: Record<string, unknown> = {}) => ({
+    mode: "password",
+    user: {
+      email: "pat@example.com",
+      firstName: "Pat",
+      lastName: "Test",
+      role: "patient",
+      patientId: "p1",
+      mustChangePassword: false,
+      ...overrides,
+    },
+  });
+  const visit = async (path: string, session: unknown, accept = "text/html") => {
+    getSession.mockResolvedValueOnce(session);
+    return proxy(request(path, { cookies: { hm_session: "valid" }, accept }));
+  };
+
+  it("lets a patient open only their own record's pages", async () => {
+    for (const path of [
+      "/patients/p1",
+      "/patients/p1/dashboard",
+      "/patients/p1/imaging/s1",
+      "/patients/p1/imaging/s1/series/r1/images/3",
+      "/account/password",
+    ])
+      expect((await visit(path, user())).headers.get("x-middleware-next")).toBe("1");
+
+    for (const path of [
+      "/",
+      "/patients",
+      "/dashboard",
+      "/patients/p2/dashboard",
+      "/patients/p1/chat",
+      "/patients/p1/edit",
+      "/patients/p1/imaging/upload",
+    ]) {
+      const response = await visit(path, user());
+      expect({ path, location: response.headers.get("location") }).toEqual({
+        path,
+        location: "http://localhost:3000/patients/p1/dashboard",
+      });
+    }
+  });
+
+  it("answers 403 to a patient's other requests", async () => {
+    const response = await visit("/patients/p1/chat/stream", user(), "text/event-stream");
+
+    expect(response.status).toBe(403);
+    expect(await response.json()).toMatchObject({ message: "Patient accounts cannot use this." });
+  });
+
+  it("allows only the password page until a temporary password is replaced", async () => {
+    for (const session of [
+      user({ mustChangePassword: true }),
+      user({ role: "doctor", patientId: undefined, mustChangePassword: true }),
+    ]) {
+      expect((await visit("/patients/p1/dashboard", session)).headers.get("location")).toBe(
+        "http://localhost:3000/account/password",
+      );
+      expect((await visit("/account/password", session)).headers.get("x-middleware-next")).toBe(
+        "1",
+      );
+    }
+    const response = await visit("/patients", user({ mustChangePassword: true }), "*/*");
+    expect(response.status).toBe(403);
+    expect(await response.json()).toMatchObject({ message: "Choose a new password first." });
+  });
+});

@@ -21,6 +21,7 @@ import {
   seriesSummary,
   VITAL_LABELS,
 } from "@/lib/format";
+import { isPatient } from "@/lib/session";
 
 import { ApiUnavailable } from "../../api-unavailable";
 import { StatusBadge } from "../../patients-table";
@@ -35,8 +36,9 @@ export default async function PatientDashboardPage({
 }) {
   const { id } = await params;
   let dashboard: PatientDashboard | null;
+  let session;
   try {
-    dashboard = await api.getPatientDashboard(id);
+    [dashboard, session] = await Promise.all([api.getPatientDashboard(id), api.getSession()]);
   } catch (error) {
     if (error instanceof ApiUnavailableError) return <ApiUnavailable />;
     throw error;
@@ -45,12 +47,16 @@ export default async function PatientDashboardPage({
 
   const { patient } = dashboard;
   const patientPath = `/patients/${encodeURIComponent(patient.id)}`;
+  // A patient sees their own dashboard, without the doctor's links (chat, upload).
+  const patientView = isPatient(session);
 
   return (
     <>
-      <p>
-        <Link href="/dashboard">← Dashboard</Link>
-      </p>
+      {!patientView && (
+        <p>
+          <Link href="/dashboard">← Dashboard</Link>
+        </p>
+      )}
       <div className="page-header">
         <div>
           <div className="title-row">
@@ -68,9 +74,11 @@ export default async function PatientDashboardPage({
           <Link className="button secondary" href={patientPath}>
             Profile
           </Link>
-          <Link className="button" href={`${patientPath}/chat`}>
-            Chat
-          </Link>
+          {!patientView && (
+            <Link className="button" href={`${patientPath}/chat`}>
+              Chat
+            </Link>
+          )}
         </div>
       </div>
 
@@ -106,11 +114,13 @@ export default async function PatientDashboardPage({
       >
         <Imaging patientPath={patientPath} studies={dashboard.imagingStudies} />
       </Section>
-      <p>
-        <Link className="button secondary" href={`${patientPath}/imaging/upload`}>
-          Upload DICOM images
-        </Link>
-      </p>
+      {!patientView && (
+        <p>
+          <Link className="button secondary" href={`${patientPath}/imaging/upload`}>
+            Upload DICOM images
+          </Link>
+        </p>
+      )}
     </>
   );
 }

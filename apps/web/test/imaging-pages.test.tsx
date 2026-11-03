@@ -4,16 +4,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ApiUnavailableError } from "@/lib/api-client";
 
-const { getPatient, getImagingStudy, notFound } = vi.hoisted(() => ({
+const { getPatient, getImagingStudy, getSession, notFound } = vi.hoisted(() => ({
   getPatient: vi.fn(),
   getImagingStudy: vi.fn(),
+  getSession: vi.fn(),
   notFound: vi.fn(() => {
     throw new Error("NOT_FOUND");
   }),
 }));
 vi.mock("@/lib/api-client", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api-client")>()),
-  api: { getPatient, getImagingStudy },
+  api: { getPatient, getImagingStudy, getSession },
 }));
 vi.mock("next/navigation", () => ({ notFound, redirect: vi.fn() }));
 vi.mock("@/app/patients/[id]/imaging/actions", () => ({
@@ -24,7 +25,10 @@ vi.mock("@/app/patients/[id]/imaging/actions", () => ({
 const { default: ImagingStudyPage } = await import("@/app/patients/[id]/imaging/[studyId]/page");
 const { default: DicomUploadPage } = await import("@/app/patients/[id]/imaging/upload/page");
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  getSession.mockResolvedValue({ mode: "off", user: null });
+});
 
 const patient = {
   id: "p1",
@@ -72,6 +76,30 @@ describe("/patients/[id]/imaging/[studyId]", () => {
       "href",
       "/patients/p1/dashboard",
     );
+  });
+
+  it("shows a patient their report read-only, without editing or deleting", async () => {
+    getPatient.mockResolvedValueOnce(patient);
+    getImagingStudy.mockResolvedValueOnce(study);
+    getSession.mockResolvedValueOnce({
+      mode: "password",
+      user: {
+        email: "ana@example.com",
+        firstName: "Ana",
+        lastName: "Test",
+        role: "patient",
+        patientId: "p1",
+        mustChangePassword: false,
+      },
+    });
+    render(await ImagingStudyPage({ params }));
+
+    expect(screen.getByText("No residual tumor.")).toBeInTheDocument();
+    expect(screen.getByText(study.report!)).toBeInTheDocument();
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Save report" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Delete study" })).not.toBeInTheDocument();
+    expect(screen.getByRole("img")).toBeInTheDocument();
   });
 
   it("shows an imported study without the image viewer", async () => {

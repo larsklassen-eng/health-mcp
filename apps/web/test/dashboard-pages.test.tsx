@@ -4,23 +4,27 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ApiUnavailableError } from "@/lib/api-client";
 
-const { getDashboardOverview, getPatientDashboard, notFound } = vi.hoisted(() => ({
+const { getDashboardOverview, getPatientDashboard, getSession, notFound } = vi.hoisted(() => ({
   getDashboardOverview: vi.fn(),
   getPatientDashboard: vi.fn(),
+  getSession: vi.fn(),
   notFound: vi.fn(() => {
     throw new Error("NOT_FOUND");
   }),
 }));
 vi.mock("@/lib/api-client", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api-client")>()),
-  api: { getDashboardOverview, getPatientDashboard },
+  api: { getDashboardOverview, getPatientDashboard, getSession },
 }));
 vi.mock("next/navigation", () => ({ notFound }));
 
 const { default: DashboardPage } = await import("@/app/dashboard/page");
 const { default: PatientDashboardPage } = await import("@/app/patients/[id]/dashboard/page");
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  getSession.mockResolvedValue({ mode: "off", user: null });
+});
 
 const row = {
   patientId: "p1",
@@ -229,6 +233,27 @@ describe("/patients/[id]/dashboard", () => {
     expect(screen.getByText(/Surgery Aug 16, 2026/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Profile" })).toHaveAttribute("href", "/patients/p1");
     expect(screen.getByRole("link", { name: "Chat" })).toHaveAttribute("href", "/patients/p1/chat");
+  });
+
+  it("shows a patient their own dashboard without the doctor's links", async () => {
+    getPatientDashboard.mockResolvedValueOnce(dashboard);
+    getSession.mockResolvedValueOnce({
+      mode: "password",
+      user: {
+        email: "ana@example.com",
+        firstName: "Ana",
+        lastName: "Test",
+        role: "patient",
+        patientId: "p1",
+        mustChangePassword: false,
+      },
+    });
+    render(await PatientDashboardPage({ params }));
+
+    expect(screen.getByRole("heading", { level: 1, name: "Ana Test" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Profile" })).toHaveAttribute("href", "/patients/p1");
+    for (const name of ["Chat", "Upload DICOM images", "← Dashboard"])
+      expect(screen.queryByRole("link", { name })).not.toBeInTheDocument();
   });
 
   it("shows each vital's latest value with its trend", async () => {

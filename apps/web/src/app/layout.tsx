@@ -4,7 +4,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { api } from "@/lib/api-client";
+import { homePath } from "@/lib/session";
 
+import { SiteNav } from "./site-nav";
 import { UserMenu } from "./user-menu";
 
 export const metadata: Metadata = {
@@ -15,21 +17,15 @@ export const metadata: Metadata = {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   // The api may be down; pages say so themselves.
   const session = await api.getSession().catch(() => undefined);
-  const signedOut = session?.mode === "password" && !session.user;
   return (
     <html lang="en">
       <body>
         <header className="header">
           <div className="header-inner">
-            <Link href="/patients" className="brand">
+            <Link href={homePath(session?.user)} className="brand">
               health-mcp
             </Link>
-            {!signedOut && (
-              <nav>
-                <Link href="/dashboard">Dashboard</Link>
-                <Link href="/patients">Patients</Link>
-              </nav>
-            )}
+            <SiteNav session={session} />
             {session?.user && <UserMenu user={session.user} />}
           </div>
         </header>
