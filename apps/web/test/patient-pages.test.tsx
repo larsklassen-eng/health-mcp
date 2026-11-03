@@ -3,26 +3,33 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ApiUnavailableError } from "@/lib/api-client";
 
-const { listPatients, getPatient, getChatHistory, notFound } = vi.hoisted(() => ({
-  listPatients: vi.fn(),
-  getPatient: vi.fn(),
-  getChatHistory: vi.fn(),
-  notFound: vi.fn(() => {
-    throw new Error("NOT_FOUND");
-  }),
-}));
+const { listPatients, getPatient, getChatHistory, getSession, getPatientAccount, notFound } =
+  vi.hoisted(() => ({
+    listPatients: vi.fn(),
+    getPatient: vi.fn(),
+    getChatHistory: vi.fn(),
+    getSession: vi.fn(),
+    getPatientAccount: vi.fn(),
+    notFound: vi.fn(() => {
+      throw new Error("NOT_FOUND");
+    }),
+  }));
 vi.mock("@/lib/api-client", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api-client")>()),
-  api: { listPatients, getPatient, getChatHistory },
+  api: { listPatients, getPatient, getChatHistory, getSession, getPatientAccount },
 }));
 vi.mock("next/navigation", () => ({ notFound }));
+vi.mock("@/app/patients/[id]/access-actions", () => ({ patientAccessAction: vi.fn() }));
 
 const { default: PatientsPage } = await import("@/app/patients/page");
 const { default: PatientPage } = await import("@/app/patients/[id]/page");
 const { default: PatientChatPage } = await import("@/app/patients/[id]/chat/page");
 const { default: EditPatientPage } = await import("@/app/patients/[id]/edit/page");
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  getSession.mockResolvedValue({ mode: "off", user: null });
+});
 
 const patient = {
   id: "p1",
@@ -67,6 +74,40 @@ describe("/patients", () => {
 
 describe("/patients/[id]", () => {
   const params = Promise.resolve({ id: "p1" });
+
+  it("lets a doctor manage the patient's own sign-in", async () => {
+    getPatient.mockResolvedValueOnce(patient);
+    getSession.mockResolvedValueOnce({
+      mode: "password",
+      user: {
+        email: "doc@example.com",
+        firstName: "Doc",
+        lastName: "Tor",
+        role: "doctor",
+        mustChangePassword: false,
+      },
+    });
+    getPatientAccount.mockResolvedValueOnce({
+      email: "ana@example.com",
+      mustChangePassword: true,
+      createdAt: "2026-11-01T10:00:00.000Z",
+    });
+
+    render(await PatientPage({ params }));
+
+    expect(getPatientAccount).toHaveBeenCalledWith("p1");
+    const section = screen.getByRole("region", { name: "Patient access" });
+    expect(section).toHaveTextContent("ana@example.com");
+    expect(section).toHaveTextContent("Waiting for the first sign-in");
+  });
+
+  it("has no patient access section with sign-in off", async () => {
+    getPatient.mockResolvedValueOnce(patient);
+    render(await PatientPage({ params }));
+
+    expect(screen.queryByRole("region", { name: "Patient access" })).not.toBeInTheDocument();
+    expect(getPatientAccount).not.toHaveBeenCalled();
+  });
 
   it("shows the profile, with a dash for missing optional fields", async () => {
     getPatient.mockResolvedValueOnce(patient);

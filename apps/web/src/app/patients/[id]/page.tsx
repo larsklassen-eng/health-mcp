@@ -6,19 +6,24 @@ import { api, ApiUnavailableError } from "@/lib/api-client";
 import { ApiUnavailable } from "../api-unavailable";
 
 import { StatusBadge } from "../patients-table";
+import { patientAccessAction } from "./access-actions";
+import { PatientAccess } from "./patient-access";
 
 export const dynamic = "force-dynamic";
 
 export default async function PatientPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  let patient;
+  let patient, session;
   try {
-    patient = await api.getPatient(id);
+    [patient, session] = await Promise.all([api.getPatient(id), api.getSession()]);
   } catch (error) {
     if (error instanceof ApiUnavailableError) return <ApiUnavailable />;
     throw error;
   }
   if (!patient) notFound();
+  // Patient accounts exist only with sign-in; doctors manage them.
+  const managesAccess = session.mode === "password" && session.user?.role === "doctor";
+  const account = managesAccess ? await api.getPatientAccount(id) : null;
 
   const rows: [string, React.ReactNode][] = [
     ["MRN", patient.mrn],
@@ -65,6 +70,13 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
           </div>
         ))}
       </dl>
+      {managesAccess && (
+        <PatientAccess
+          account={account}
+          patient={{ firstName: patient.firstName, lastName: patient.lastName }}
+          action={patientAccessAction.bind(null, patient.id)}
+        />
+      )}
     </>
   );
 }

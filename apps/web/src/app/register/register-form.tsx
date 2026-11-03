@@ -1,11 +1,9 @@
 "use client";
 
-import type * as PasswordRules from "@health-mcp/shared/password";
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useState } from "react";
 
+import { PasswordStrength, suggestFor, usePasswordRules } from "../password-strength";
 import { register, type RegisterState } from "./actions";
-
-const STRENGTH = ["Very weak", "Weak", "Fair", "Strong", "Very strong"] as const;
 
 /**
  * Sign-up: names, email and a password checked as it is typed, with the same
@@ -14,21 +12,13 @@ const STRENGTH = ["Very weak", "Weak", "Fair", "Strong", "Very strong"] as const
  */
 export function RegisterForm() {
   const [state, action, pending] = useActionState<RegisterState, FormData>(register, {});
-  const [rules, setRules] = useState<typeof PasswordRules>();
+  const rules = usePasswordRules();
   const [firstName, setFirstName] = useState(state.firstName ?? "");
   const [lastName, setLastName] = useState(state.lastName ?? "");
   const [email, setEmail] = useState(state.email ?? "");
   const [password, setPassword] = useState("");
   const [repeat, setRepeat] = useState("");
   const [shown, setShown] = useState(false);
-
-  useEffect(() => {
-    let mounted = true;
-    void import("@health-mcp/shared/password").then((module) => mounted && setRules(module));
-    return () => {
-      mounted = false;
-    };
-  }, []);
 
   const owner = { email, firstName, lastName };
   const check = rules && password ? rules.checkPassword(password, owner) : undefined;
@@ -37,8 +27,7 @@ export function RegisterForm() {
 
   function suggest() {
     if (!rules) return;
-    let suggestion = rules.suggestPassword();
-    while (!rules.checkPassword(suggestion, owner).ok) suggestion = rules.suggestPassword();
+    const suggestion = suggestFor(rules, owner);
     setPassword(suggestion);
     setRepeat(suggestion);
     setShown(true);
@@ -119,31 +108,14 @@ export function RegisterForm() {
             {shown ? "Hide" : "Show"}
           </button>
         </div>
-        <div id="register-password-help" className="password-help" aria-live="polite">
-          {check ? (
-            <>
-              <div className="password-strength">
-                <meter min={0} max={4} low={2} high={3} optimum={4} value={check.score} />
-                <span>{STRENGTH[check.score]}</span>
-              </div>
-              <p className={check.ok ? "muted small" : "field-error"}>
-                {check.ok ? "Good password." : check.problem}
-              </p>
-              {!check.ok && check.suggestions.length > 0 && (
-                <ul className="muted small">
-                  {check.suggestions.map((tip) => (
-                    <li key={tip}>{tip}</li>
-                  ))}
-                </ul>
-              )}
-            </>
-          ) : (
-            <p className="muted small">
-              At least 12 characters, hard to guess, without your name or email. Several unrelated
-              words work well.
-            </p>
-          )}
-        </div>
+        <PasswordStrength
+          id="register-password-help"
+          check={check}
+          hint={
+            "At least 12 characters, hard to guess, without your name or email. " +
+            "Several unrelated words work well."
+          }
+        />
       </div>
       <div className="field">
         <label htmlFor="register-repeat">Repeat the password</label>

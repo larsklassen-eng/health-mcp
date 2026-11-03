@@ -6,6 +6,7 @@ import {
   AuthSessionResponseSchema,
   ChatHistoryResponseSchema,
   type ChatMessage,
+  type CreatePatientAccountInput,
   type CreatePatientInput,
   type DashboardOverview,
   type ImagingStudy,
@@ -15,6 +16,9 @@ import {
   ImagingStudySchema,
   DashboardOverviewSchema,
   type Patient,
+  type PatientAccount,
+  PatientAccountResponseSchema,
+  PatientAccountSchema,
   type PatientDashboard,
   PatientDashboardSchema,
   type PatientImportResult,
@@ -23,6 +27,7 @@ import {
   PatientSchema,
   type PatientSummary,
   type RegisterInput,
+  type ResetPatientPasswordInput,
   type ToolCall,
   type ToolCallDecisionRequest,
   ToolCallSchema,
@@ -243,6 +248,42 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify(input),
     });
+  },
+
+  /** The patient's own account, or null when they have none. */
+  async getPatientAccount(patientId: string): Promise<PatientAccount | null> {
+    return (await request(API_ROUTES.patientAccount(patientId), PatientAccountResponseSchema))
+      .account;
+  },
+
+  /** Throws `ApiRequestError` 400 (what to fix) or 409 (has an account, or the email is taken). */
+  createPatientAccount(
+    patientId: string,
+    input: CreatePatientAccountInput,
+  ): Promise<PatientAccount> {
+    return request(API_ROUTES.patientAccount(patientId), PatientAccountSchema, {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  },
+
+  /** A new temporary password; ends the patient's sessions. */
+  resetPatientPassword(
+    patientId: string,
+    input: ResetPatientPasswordInput,
+  ): Promise<PatientAccount> {
+    return request(API_ROUTES.patientAccountPassword(patientId), PatientAccountSchema, {
+      method: "PUT",
+      body: JSON.stringify(input),
+    });
+  },
+
+  async removePatientAccount(patientId: string): Promise<void> {
+    await request(
+      API_ROUTES.patientAccount(patientId),
+      { parse: () => undefined },
+      { method: "DELETE" },
+    );
   },
 
   /** Deletes the patient with all of their records and chat history. */

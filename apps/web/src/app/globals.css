@@ -278,6 +278,32 @@ tr:last-child td {
 .profile dd {
   margin: 0;
 }
+.patient-access {
+  display: grid;
+  gap: 12px;
+  margin-top: 24px;
+  max-width: 560px;
+}
+.patient-access h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+.patient-access p {
+  margin: 0;
+}
+.alert .issued {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 16px;
+  margin: 8px 0 12px;
+}
+.alert .issued dt {
+  color: var(--muted);
+}
+.alert .issued dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
 
 .chat {
   list-style: none;
