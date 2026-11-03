@@ -55,6 +55,16 @@ export const RegisterInputSchema = z.object({
   password: z.string().max(PASSWORD_MAX_LENGTH),
 });
 
+/**
+ * `POST /auth/password`: the signed-in user picks a new password (required
+ * after a temporary one). Answers with a fresh session ({@link
+ * LoginResponseSchema}): the change ends every earlier session.
+ */
+export const ChangePasswordInputSchema = z.object({
+  currentPassword: z.string().max(PASSWORD_MAX_LENGTH),
+  newPassword: z.string().max(PASSWORD_MAX_LENGTH),
+});
+
 export const LoginResponseSchema = z.object({
   /** Signed session token; apps/web keeps it in an HTTP-only cookie. */
   session: z.string().min(1),
@@ -74,5 +84,6 @@ export type UserRole = z.infer<typeof UserRoleSchema>;
 export type AuthUser = z.infer<typeof AuthUserSchema>;
 export type LoginInput = z.infer<typeof LoginInputSchema>;
 export type RegisterInput = z.infer<typeof RegisterInputSchema>;
+export type ChangePasswordInput = z.infer<typeof ChangePasswordInputSchema>;
 export type LoginResponse = z.infer<typeof LoginResponseSchema>;
 export type AuthSessionResponse = z.infer<typeof AuthSessionResponseSchema>;

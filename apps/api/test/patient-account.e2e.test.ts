@@ -219,15 +219,14 @@ describe("a patient's account, managed by their doctor", () => {
     expect((await login("pat@example.com", TEMPORARY)).status).toBe(401);
   });
 
-  it("cannot use the api yet, beyond signing in", async () => {
+  it("must replace the temporary password before anything else", async () => {
     const patient = await createPatient();
     await createAccount(patient.id);
     const session = await signIn("pat@example.com", TEMPORARY);
 
+    // After the change, patients still reach nothing yet (see change-password.e2e.test.ts).
     for (const path of [API_ROUTES.patients, API_ROUTES.patient(patient.id)])
-      expect(errorOf(await call("GET", path, session), 403)).toBe(
-        "Patient accounts cannot use this yet.",
-      );
+      expect(errorOf(await call("GET", path, session), 403)).toBe("Choose a new password first.");
     expect((await call("GET", API_ROUTES.authSession, session)).status).toBe(200);
     errorOf(await call("POST", API_ROUTES.patients, session, newPatient({ mrn: "FAKE-9" })), 403);
   });

@@ -8,6 +8,7 @@ import {
 import { Reflector } from "@nestjs/core";
 
 import { DatabaseService } from "../database/database.service.js";
+import { ALLOW_PATIENTS, ALLOW_TEMPORARY_PASSWORD } from "./access.decorator.js";
 import { AuthService } from "./auth.service.js";
 import { checkPatientAccess, type PatientScope, type ScopedRequest } from "./patient-scope.js";
 import { IS_PUBLIC } from "./public.decorator.js";
@@ -20,7 +21,8 @@ export function bearerToken(header: string | undefined): string | undefined {
 /**
  * Applied to every route (see AuthModule). With sign-in on, a route needs a
  * valid session unless it is marked `@Public()`, and reaches only the
- * signed-in doctor's patients (see patient-scope.ts).
+ * signed-in doctor's patients (see patient-scope.ts). A temporary password
+ * and a patient account each need the route to allow them (access.decorator.ts).
  */
 @Injectable()
 export class AuthGuard implements CanActivate {
@@ -31,11 +33,10 @@ export class AuthGuard implements CanActivate {
   ) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
-    if (isPublic) return true;
+    const marked = (key: string) =>
+      this.reflector.getAllAndOverride<boolean>(key, [context.getHandler(), context.getClass()]) ??
+      false;
+    if (marked(IS_PUBLIC)) return true;
 
     const request = context.switchToHttp().getRequest<ScopedRequest>();
     let scope: PatientScope = "all";
@@ -43,9 +44,11 @@ export class AuthGuard implements CanActivate {
       const token = bearerToken(request.headers.authorization);
       const user = token && this.auth.verifySession(token);
       if (!user) throw new UnauthorizedException("Sign in to continue.");
-      // Patients reach nothing yet: what they may read is decided route by route (next step).
-      if (user.role === "patient")
+      if (user.mustChangePassword && !marked(ALLOW_TEMPORARY_PASSWORD))
+        throw new ForbiddenException("Choose a new password first.");
+      if (user.role === "patient" && !marked(ALLOW_PATIENTS))
         throw new ForbiddenException("Patient accounts cannot use this yet.");
+      request.sessionUser = user;
       scope = { ownerId: user.id };
     }
     request.patientScope = scope;

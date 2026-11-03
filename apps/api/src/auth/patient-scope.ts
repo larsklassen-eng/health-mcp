@@ -3,6 +3,8 @@ import { createParamDecorator, type ExecutionContext, NotFoundException } from "
 import { and, eq, type SQL, sql } from "drizzle-orm";
 import type { Request } from "express";
 
+import type { SessionUser } from "./auth.service.js";
+
 /**
  * Which patients a request may reach: those of the signed-in doctor, or
  * everyone's when sign-in is off (`yarn dev`, tests). AuthGuard sets it on
@@ -10,7 +12,11 @@ import type { Request } from "express";
  */
 export type PatientScope = { readonly ownerId: string } | "all";
 
-export type ScopedRequest = Request & { patientScope?: PatientScope };
+export type ScopedRequest = Request & {
+  patientScope?: PatientScope;
+  /** The signed-in user (set by AuthGuard); undefined with sign-in off. */
+  sessionUser?: SessionUser;
+};
 
 /** The request's {@link PatientScope}, as a controller parameter. */
 export const Scope = createParamDecorator(

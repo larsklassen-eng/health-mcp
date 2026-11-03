@@ -5,6 +5,7 @@ export const API_ROUTES = {
   health: "/health",
   authLogin: "/auth/login",
   authRegister: "/auth/register",
+  authPassword: "/auth/password",
   authSession: "/auth/session",
   patients: "/patients",
   patientsImport: "/patients/import",

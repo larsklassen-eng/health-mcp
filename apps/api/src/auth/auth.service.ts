@@ -1,5 +1,11 @@
-import type { UserRow } from "@health-mcp/db";
-import type { AuthUser, LoginInput, LoginResponse, RegisterInput } from "@health-mcp/shared";
+import { users, type UserRow } from "@health-mcp/db";
+import type {
+  AuthUser,
+  ChangePasswordInput,
+  LoginInput,
+  LoginResponse,
+  RegisterInput,
+} from "@health-mcp/shared";
 import {
   BadRequestException,
   ConflictException,
@@ -10,6 +16,7 @@ import {
   Injectable,
   UnauthorizedException,
 } from "@nestjs/common";
+import { eq } from "drizzle-orm";
 
 import { isUniqueViolation } from "../common/sqlite-errors.js";
 
@@ -17,7 +24,7 @@ import { ENV } from "../config/config.module.js";
 import type { Env } from "../config/env.js";
 import { DatabaseService } from "../database/database.service.js";
 import { LoginThrottle } from "./login-throttle.js";
-import { UNKNOWN_USER_HASH, verifyPassword } from "./password.js";
+import { hashPassword, UNKNOWN_USER_HASH, verifyPassword } from "./password.js";
 import { TokenSealer } from "./sealed-token.js";
 import { SignupLimit } from "./signup-limit.js";
 import {
@@ -127,6 +134,47 @@ export class AuthService {
     }
     this.signups.record();
     return this.startSession(this.sealer, user);
+  }
+
+  /**
+   * The signed-in user replaces their password (a temporary one, or their
+   * own). A wrong current password counts as a failed sign-in for the
+   * throttle. Ends every earlier session and answers with a new one.
+   */
+  async changePassword(
+    session: SessionUser | undefined,
+    { currentPassword, newPassword }: ChangePasswordInput,
+  ): Promise<LoginResponse> {
+    if (!session || !this.sealer) throw new UnauthorizedException("Sign-in is off.");
+    const user = findUserById(this.database.db, session.id);
+    if (!user) throw new UnauthorizedException("Sign in to continue.");
+    const wait = this.throttle.retryAfter(user.email);
+    if (wait > 0)
+      throw new HttpException(
+        `Too many failed attempts. Try again in ${Math.ceil(wait / 60_000)} minutes.`,
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    if (!(await verifyPassword(currentPassword, user.passwordHash))) {
+      this.throttle.fail(user.email);
+      throw new BadRequestException("The current password is incorrect.");
+    }
+    this.throttle.succeed(user.email);
+    if (newPassword === currentPassword)
+      throw new BadRequestException("Choose a password different from the current one.");
+    const problem = passwordProblem(newPassword, user);
+    if (problem) throw new BadRequestException(problem);
+
+    const updated = this.database.db
+      .update(users)
+      .set({
+        passwordHash: await hashPassword(newPassword),
+        passwordChangedAt: new Date().toISOString(),
+        mustChangePassword: false,
+      })
+      .where(eq(users.id, user.id))
+      .returning()
+      .get();
+    return this.startSession(this.sealer, updated);
   }
 
   private startSession(sealer: TokenSealer, user: UserRow): LoginResponse {
