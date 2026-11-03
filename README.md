@@ -8,7 +8,7 @@ An AI health-recovery assistant. Clinicians manage patients, review dashboards, 
 
 ![RAG architecture](docs/rag.png)
 
-This branch adds RAG over each patient's records, for learning: their free text is embedded on this machine, stored in a vector index in SQLite, and searched by the model through an MCP tool. New parts are dashed magenta; a green check marks what is built. The editable source is [`docs/rag.svg`](docs/rag.svg), and [`docs/rag.md`](docs/rag.md) has the design, the plan and the eval results. The architecture without RAG is in [`docs/architecture.png`](docs/architecture.png).
+This branch adds RAG over each patient's records, for learning: their free text is embedded on this machine, stored in a vector index in SQLite, and searched by the model through an MCP tool. New parts are dashed magenta; a green check marks what is built. The editable source is [`docs/rag.svg`](docs/rag.svg), and [`docs/rag.md`](docs/rag.md) has the design, the plan and the eval results; [`docs/vector-search.png`](docs/vector-search.png) shows how the vector index is filled and searched, step by step. The architecture without RAG is in [`docs/architecture.png`](docs/architecture.png).
 
 ### Components
 
@@ -63,6 +63,7 @@ docs/
   architecture.svg    Diagram source
   rag.md              RAG design and plan
   rag.png, rag.svg    RAG architecture diagram and its source
+  vector-search.png, vector-search.svg   How the vector index is filled and searched
 ```
 
 ## Status

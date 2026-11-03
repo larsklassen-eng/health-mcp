@@ -21,6 +21,12 @@ The diagram builds on today's architecture ([architecture.png](architecture.png)
 | **Answer format** | The model cites the record (report, note, date) a passage came from; the chat's tool card shows the passages |
 | **Infrastructure** | One SQLite extension and one npm model package |
 
+### How indexing and search work
+
+![Vector search: indexing and search](vector-search.png)
+
+How records become vectors and how a question finds them, as built. **Indexing:** after a record is saved, its patient's texts are compared with what is stored; a changed record is split into chunks (paragraphs, then sentences, up to 800 characters with 100 of overlap), each chunk is embedded with `bge-small-en-v1.5`, and the chunk goes to `record_chunks` and its vector to `vec_chunks` (partitioned by patient). Triggers keep the FTS5 keyword index `chunks_fts` in step and remove vectors and keywords with their chunk. **Search:** the question is embedded with the same model; the 30 nearest vectors (kept only at cosine similarity 0.57 or more) and the 30 best keyword matches, both from this patient only, are merged by reciprocal rank fusion; a cross-encoder (`mxbai-rerank-xsmall-v1`) re-orders the best 20, and the top `k` (5) go back to the model with their source and date. The editable source is [`vector-search.svg`](vector-search.svg); the numbers are in `packages/rag/src` (`chunker.ts`, `search.ts`).
+
 ## What it teaches
 
 Chunking real records, local embeddings, metadata filtering for multi-tenant isolation, keeping an index consistent with its source (insert, update, delete), hybrid search, and agentic retrieval through MCP. It answers questions the structured tools cannot, such as "Has she mentioned dizziness before?" or "What did the reports say about the cavity over time?".
