@@ -1,6 +1,7 @@
 import { type DashboardOverview, IdSchema, type PatientDashboard } from "@health-mcp/shared";
 import { Controller, Get, Param } from "@nestjs/common";
 
+import { AllowPatients } from "../auth/access.decorator.js";
 import { type PatientScope, Scope } from "../auth/patient-scope.js";
 import { DashboardsService } from "./dashboards.service.js";
 
@@ -15,6 +16,7 @@ export class DashboardsController {
   }
 
   @Get("patients/:id")
+  @AllowPatients()
   patient(@Param("id", { schema: IdSchema }) id: string): PatientDashboard {
     return this.dashboards.patient(id);
   }

@@ -23,6 +23,7 @@ import {
   Post,
 } from "@nestjs/common";
 
+import { AllowPatients } from "../auth/access.decorator.js";
 import { type PatientScope, Scope } from "../auth/patient-scope.js";
 import { IndexingService } from "../rag/indexing.service.js";
 import { PatientImportService } from "./patient-import.service.js";
@@ -68,6 +69,7 @@ export class PatientsController {
   }
 
   @Get(":id")
+  @AllowPatients()
   get(@Param("id", idParam) id: string): Patient {
     return this.patients.get(id);
   }

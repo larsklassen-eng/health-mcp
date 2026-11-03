@@ -141,7 +141,7 @@ describe("a temporary password", () => {
     expect((await call("GET", API_ROUTES.patients, changed.session)).status).toBe(200);
   });
 
-  it("must be replaced by a patient, who then still reaches nothing else (yet)", async () => {
+  it("must be replaced by a patient before reading their record", async () => {
     await start();
     const doctor = await signIn("ana@example.com", PASSWORD);
     const patient = PatientSchema.parse(
@@ -161,9 +161,7 @@ describe("a temporary password", () => {
     );
 
     expect(changed.user).toMatchObject({ role: "patient", mustChangePassword: false });
-    expect(errorOf(await call("GET", API_ROUTES.patient(patient.id), changed.session), 403)).toBe(
-      "Patient accounts cannot use this yet.",
-    );
+    expect((await call("GET", API_ROUTES.patient(patient.id), changed.session)).status).toBe(200);
     const account = await call("GET", API_ROUTES.patientAccount(patient.id), doctor);
     expect(account.body).toMatchObject({ account: { mustChangePassword: false } });
   });

@@ -47,9 +47,10 @@ export class AuthGuard implements CanActivate {
       if (user.mustChangePassword && !marked(ALLOW_TEMPORARY_PASSWORD))
         throw new ForbiddenException("Choose a new password first.");
       if (user.role === "patient" && !marked(ALLOW_PATIENTS))
-        throw new ForbiddenException("Patient accounts cannot use this yet.");
+        throw new ForbiddenException("Patient accounts cannot use this.");
       request.sessionUser = user;
-      scope = { ownerId: user.id };
+      // A patient account is always linked to its record (a database check).
+      scope = user.role === "patient" ? { patientId: user.patientId! } : { ownerId: user.id };
     }
     request.patientScope = scope;
     checkPatientAccess(this.database.db, request, scope);

@@ -224,7 +224,7 @@ describe("a patient's account, managed by their doctor", () => {
     await createAccount(patient.id);
     const session = await signIn("pat@example.com", TEMPORARY);
 
-    // After the change, patients still reach nothing yet (see change-password.e2e.test.ts).
+    // What patients may read afterwards: patient-access.e2e.test.ts.
     for (const path of [API_ROUTES.patients, API_ROUTES.patient(patient.id)])
       expect(errorOf(await call("GET", path, session), 403)).toBe("Choose a new password first.");
     expect((await call("GET", API_ROUTES.authSession, session)).status).toBe(200);

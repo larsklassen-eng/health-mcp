@@ -33,6 +33,7 @@ import {
 } from "@nestjs/common";
 import type { Request, Response } from "express";
 
+import { AllowPatients } from "../auth/access.decorator.js";
 import { IndexingService } from "../rag/indexing.service.js";
 import { DicomImportService } from "./dicom-import.service.js";
 import { ImagingService } from "./imaging.service.js";
@@ -71,6 +72,7 @@ export class ImagingController {
   ) {}
 
   @Get(":id/imaging")
+  @AllowPatients()
   list(@Param("id", idParam) patientId: string): ImagingStudyListResponse {
     return { studies: this.imaging.list(patientId) };
   }
@@ -104,6 +106,7 @@ export class ImagingController {
   }
 
   @Get(":id/imaging/:studyId")
+  @AllowPatients()
   get(
     @Param("id", idParam) patientId: string,
     @Param("studyId", idParam) studyId: string,
@@ -134,6 +137,7 @@ export class ImagingController {
 
   /** One slice as PNG. Slices never change, so browsers may cache them. */
   @Get(":id/imaging/:studyId/series/:seriesId/images/:position")
+  @AllowPatients()
   image(
     @Param("id", idParam) patientId: string,
     @Param("studyId", idParam) studyId: string,

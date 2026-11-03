@@ -6,11 +6,12 @@ import type { Request } from "express";
 import type { SessionUser } from "./auth.service.js";
 
 /**
- * Which patients a request may reach: those of the signed-in doctor, or
- * everyone's when sign-in is off (`yarn dev`, tests). AuthGuard sets it on
- * every route that needs a session.
+ * Which patients a request may reach: those of the signed-in doctor, a
+ * patient's own record (on the few routes open to patients, see
+ * access.decorator.ts), or everyone's when sign-in is off (`yarn dev`,
+ * tests). AuthGuard sets it on every route that needs a session.
  */
-export type PatientScope = { readonly ownerId: string } | "all";
+export type PatientScope = { readonly ownerId: string } | { readonly patientId: string } | "all";
 
 export type ScopedRequest = Request & {
   patientScope?: PatientScope;
@@ -29,18 +30,27 @@ export const Scope = createParamDecorator(
 );
 
 /** Condition on `patients` for the scope; undefined (no condition) for everyone's. */
-export const ownedBy = (scope: PatientScope): SQL | undefined =>
-  scope === "all" ? undefined : eq(patients.ownerId, scope.ownerId);
+export function ownedBy(scope: PatientScope): SQL | undefined {
+  if (scope === "all") return undefined;
+  return "patientId" in scope
+    ? eq(patients.id, scope.patientId)
+    : eq(patients.ownerId, scope.ownerId);
+}
 
 /** Condition on a `patient_id` column for the scope, for raw SQL. */
-export const patientIdIn = (scope: PatientScope): SQL =>
-  scope === "all"
-    ? sql`1 = 1`
+export function patientIdIn(scope: PatientScope): SQL {
+  if (scope === "all") return sql`1 = 1`;
+  return "patientId" in scope
+    ? sql`patient_id = ${scope.patientId}`
     : sql`patient_id in (select id from ${patients} where owner_id = ${scope.ownerId})`;
+}
 
-/** The owner of patients created in the scope. */
-export const ownerFor = (scope: PatientScope): string | null =>
-  scope === "all" ? null : scope.ownerId;
+/** The owner of patients created in the scope. Patients create none. */
+export function ownerFor(scope: PatientScope): string | null {
+  if (scope === "all") return null;
+  if ("patientId" in scope) throw new Error("Patient accounts cannot create patients.");
+  return scope.ownerId;
+}
 
 /** Routes about one patient: `/patients/:id...` and `/dashboards/patients/:id`. */
 const PATIENT_ROUTE = /\/patients\/:id(\/|$)/;
