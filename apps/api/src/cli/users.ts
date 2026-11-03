@@ -130,10 +130,11 @@ async function main(): Promise<number> {
         if (rows.length === 0) console.log("No users yet. Add one with `yarn user add <email>`.");
         for (const user of rows) {
           const name = `${user.firstName} ${user.lastName}`.trim();
-          const owned = patientCount(counts.get(user.id) ?? 0);
-          console.log(
-            `${user.email}${name ? ` (${name})` : ""}, ${owned}, since ${user.createdAt}`,
-          );
+          const role =
+            user.role === "patient"
+              ? "patient account"
+              : `doctor, ${patientCount(counts.get(user.id) ?? 0)}`;
+          console.log(`${user.email}${name ? ` (${name})` : ""}, ${role}, since ${user.createdAt}`);
         }
         const unowned = counts.get(null) ?? 0;
         if (unowned > 0)

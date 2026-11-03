@@ -173,20 +173,24 @@ const toOpenRouterTool = ({ name, description, parameters }: LlmToolDefinition) 
   function: { name, description, parameters },
 });
 
+/**
+ * The SDK's errors carry the request, with the API key in its headers, so
+ * they are never kept as a `cause`: logging the LlmError would print them.
+ * The message keeps what is useful (status and OpenRouter's answer).
+ */
 function toLlmError(error: unknown): LlmError {
   if (error instanceof LlmError) return error;
   if (
     error instanceof RequestAbortedError ||
     (error instanceof Error && error.name === "AbortError")
   ) {
-    return new LlmError("LLM request was aborted", { aborted: true, cause: error });
+    return new LlmError("LLM request was aborted", { aborted: true });
   }
   if (error instanceof OpenRouterError) {
     return new LlmError(`OpenRouter request failed (${error.statusCode}): ${error.body}`, {
       status: error.statusCode,
-      cause: error,
     });
   }
-  const message = error instanceof Error ? error.message : String(error);
-  return new LlmError(`OpenRouter request failed: ${message}`, { cause: error });
+  const message = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+  return new LlmError(`OpenRouter request failed: ${message}`);
 }

@@ -326,3 +326,69 @@ describe("patient owners", () => {
     expect(row?.ownerId).toBeNull();
   });
 });
+
+describe("user roles", () => {
+  const doctor = () =>
+    connection.db
+      .insert(users)
+      .values({
+        email: "ana@example.com",
+        firstName: "Ana",
+        lastName: "Example",
+        passwordHash: "h",
+      })
+      .returning()
+      .get();
+  const patientAccount = (patientId: string | null, email = "pat@example.com") =>
+    connection.db
+      .insert(users)
+      .values({
+        email,
+        firstName: "Pat",
+        lastName: "Test",
+        passwordHash: "h",
+        role: "patient",
+        patientId,
+        mustChangePassword: true,
+      })
+      .returning()
+      .get();
+  const rawInsert = (role: string, patientId: string | null) =>
+    connection.db.$client
+      .prepare(
+        "insert into users (id, email, first_name, last_name, password_hash, role, patient_id) " +
+          "values ('u', 'x@example.com', 'X', 'Y', 'h', ?, ?)",
+      )
+      .run(role, patientId);
+
+  it("makes users doctors by default, without a temporary password", () => {
+    expect(doctor()).toMatchObject({ role: "doctor", patientId: null, mustChangePassword: false });
+  });
+
+  it("ties a patient account to exactly one patient record, and deletes it with it", () => {
+    const patient = insertPatient(connection, { ownerId: doctor().id });
+
+    expect(patientAccount(patient.id)).toMatchObject({ role: "patient", mustChangePassword: true });
+    expect(sqliteErrorCode(() => patientAccount(patient.id, "other@example.com"))).toBe(
+      "SQLITE_CONSTRAINT_UNIQUE",
+    );
+
+    connection.db.delete(patients).where(eq(patients.id, patient.id)).run();
+    expect(
+      connection.db
+        .select()
+        .from(users)
+        .all()
+        .map((user) => user.role),
+    ).toEqual(["doctor"]);
+  });
+
+  it("rejects bad roles and links, even from raw SQL", () => {
+    const patient = insertPatient(connection);
+
+    expect(sqliteErrorCode(() => rawInsert("patient", null))).toBe("SQLITE_CONSTRAINT_CHECK");
+    expect(sqliteErrorCode(() => rawInsert("doctor", patient.id))).toBe("SQLITE_CONSTRAINT_CHECK");
+    expect(sqliteErrorCode(() => rawInsert("admin", null))).toBe("SQLITE_CONSTRAINT_CHECK");
+    expect(rawInsert("patient", patient.id).changes).toBe(1);
+  });
+});

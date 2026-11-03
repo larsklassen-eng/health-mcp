@@ -58,7 +58,13 @@ describe("the session in api requests", () => {
   });
 });
 
-const ANA = { email: "ana@example.com", firstName: "Ana", lastName: "Example" };
+const ANA = {
+  email: "ana@example.com",
+  firstName: "Ana",
+  lastName: "Example",
+  role: "doctor",
+  mustChangePassword: false,
+};
 
 describe("sign-in calls", () => {
   it("reads the session, treating 401 as signed out", async () => {

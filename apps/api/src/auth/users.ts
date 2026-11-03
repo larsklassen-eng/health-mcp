@@ -110,7 +110,7 @@ export function countPatientsByOwner(db: HealthDb): Map<string | null, number> {
  * Gives the patients without an owner (from before owners existed, or whose
  * doctor was removed) to the doctor with `email`. A patient whose MRN that
  * doctor already has is skipped, since MRNs are unique per doctor. Returns
- * undefined for unknown emails.
+ * undefined for unknown emails; throws for a patient account.
  */
 export function assignUnownedPatients(
   db: HealthDb,
@@ -118,6 +118,7 @@ export function assignUnownedPatients(
 ): { assigned: number; skippedMrns: string[] } | undefined {
   const user = findUserByEmail(db, email);
   if (!user) return undefined;
+  if (user.role !== "doctor") throw new Error(`${user.email} is a patient account, not a doctor.`);
   return db.transaction((tx) => {
     const taken = new Set(
       tx

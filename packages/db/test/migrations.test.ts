@@ -59,3 +59,24 @@ describe("0005_users_names_and_patient_owners", () => {
     expect(connection.db.all(sql`select owner_id from patients`)).toEqual([{ owner_id: null }]);
   });
 });
+
+describe("0007_user_roles", () => {
+  it("keeps existing users as doctors and leaves patients' owners alone", () => {
+    connection = createDb({ path: ":memory:" });
+    folder = migrationsUpTo("0006_mrn_unique_per_owner");
+    migrate(connection.db, { migrationsFolder: folder });
+    connection.db.run(sql`
+      insert into users (id, email, first_name, last_name, password_hash)
+      values ('d1', 'ana@example.com', 'Ana', 'Example', 'h')`);
+    connection.db.run(sql`
+      insert into patients (id, mrn, first_name, last_name, date_of_birth, sex, diagnosis, owner_id)
+      values ('p1', 'FAKE-001', 'Pat', 'Test', '1980-01-01', 'female', 'Synthetic', 'd1')`);
+
+    migrateDb(connection.db);
+
+    expect(
+      connection.db.all(sql`select id, role, patient_id, must_change_password from users`),
+    ).toEqual([{ id: "d1", role: "doctor", patient_id: null, must_change_password: 0 }]);
+    expect(connection.db.all(sql`select owner_id from patients`)).toEqual([{ owner_id: "d1" }]);
+  });
+});

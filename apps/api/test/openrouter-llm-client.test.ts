@@ -1,5 +1,6 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
+import { inspect } from "node:util";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
@@ -324,6 +325,10 @@ describe("OpenRouterLlmClient", () => {
     expect(error).toBeInstanceOf(LlmError);
     expect((error as LlmError).status).toBe(status);
     expect((error as LlmError).aborted).toBe(false);
+    // Logged errors must not carry the request: its headers hold the API key.
+    expect((error as LlmError).cause).toBeUndefined();
+    expect(inspect(error, { depth: Infinity })).not.toContain("sk-or-test");
+    expect((error as LlmError).message).toContain(body);
   });
 
   it("turns an error reported mid-stream into an LlmError", async () => {

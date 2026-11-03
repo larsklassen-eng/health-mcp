@@ -25,6 +25,7 @@ import {
   PatientStatusSchema,
   SexSchema,
   type ToolCall,
+  UserRoleSchema,
   VitalTypeSchema,
 } from "@health-mcp/shared";
 import { type SQL, sql } from "drizzle-orm";
@@ -290,8 +291,15 @@ export const recordChunks = sqliteTable(
 // ---------------------------------------------------------------------- users
 
 /**
- * Doctors who may sign in (AUTH_MODE=password). Each sees only the patients
- * they own. Created with the api's users command.
+ * People who may sign in (AUTH_MODE=password). Doctors see only the patients
+ * they own; they sign up, or are added with the api's users command. A patient
+ * account belongs to one patient record (created by its doctor) and is
+ * deleted with it.
+ *
+ * The role's CHECK and "patient_id is set exactly for patients" are kept by
+ * migration 0007 and the api, not declared here: declaring a table check
+ * makes drizzle-kit rebuild the table, which would clear every patient's
+ * owner (ON DELETE SET NULL) while the old table is dropped.
  */
 export const users = sqliteTable(
   "users",
@@ -301,6 +309,17 @@ export const users = sqliteTable(
     email: text("email").notNull(),
     firstName: text("first_name").notNull(),
     lastName: text("last_name").notNull(),
+    role: text("role", { enum: values(UserRoleSchema) })
+      .notNull()
+      .default("doctor"),
+    /** The patient this account belongs to; only for `patient`. */
+    patientId: text("patient_id").references((): AnySQLiteColumn => patients.id, {
+      onDelete: "cascade",
+    }),
+    /** A temporary password (set by a doctor) must be changed before anything else. */
+    mustChangePassword: integer("must_change_password", { mode: "boolean" })
+      .notNull()
+      .default(false),
     /** scrypt hash with its parameters and salt (see apps/api/src/auth/password.ts). */
     passwordHash: text("password_hash").notNull(),
     /** Sessions issued before this are refused, so a new password signs out everywhere. */
@@ -309,6 +328,8 @@ export const users = sqliteTable(
   },
   (t) => [
     uniqueIndex("users_email_unique").on(t.email),
+    // At most one account per patient.
+    uniqueIndex("users_patient_unique").on(t.patientId),
     check("users_email_lowercase", sql`${t.email} = lower(${t.email})`),
   ],
 );

@@ -33,10 +33,18 @@ import {
 /** A signed-in user, with the id the api scopes their patients by. */
 export type SessionUser = AuthUser & { id: string };
 
-export const toAuthUser = ({ email, firstName, lastName }: AuthUser): AuthUser => ({
-  email,
-  firstName,
-  lastName,
+type UserFields = Pick<
+  UserRow,
+  "email" | "firstName" | "lastName" | "role" | "patientId" | "mustChangePassword"
+>;
+
+export const toAuthUser = (user: UserFields | SessionUser): AuthUser => ({
+  email: user.email,
+  firstName: user.firstName,
+  lastName: user.lastName,
+  role: user.role,
+  ...(user.patientId && { patientId: user.patientId }),
+  mustChangePassword: user.mustChangePassword,
 });
 
 /**

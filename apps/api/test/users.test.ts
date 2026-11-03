@@ -1,4 +1,4 @@
-import { createDb, migrateDb, patients } from "@health-mcp/db";
+import { createDb, migrateDb, patients, users } from "@health-mcp/db";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { verifyPassword } from "../src/auth/password.js";
@@ -139,6 +139,29 @@ describe("patients without an owner", () => {
     expect(owners()).toMatchObject({ "FAKE-001": ana.id, "FAKE-003": ana.id, "FAKE-009": ben.id });
     expect(assignUnownedPatients(db, "ben@example.com")).toEqual({ assigned: 1, skippedMrns: [] });
     expect(countPatientsByOwner(db).get(null)).toBeUndefined();
+  });
+
+  it("refuses to give patients to a patient account", async () => {
+    const password = "long enough password";
+    const ana = await createUser(db, { ...NAMES, email: "ana@example.com", password });
+    addPatient("FAKE-001", ana.id);
+    const [patient] = db.select().from(patients).all();
+    db.insert(users)
+      .values({
+        email: "pat@example.com",
+        firstName: "Pat",
+        lastName: "Test",
+        passwordHash: "h",
+        role: "patient",
+        patientId: patient!.id,
+      })
+      .run();
+    addPatient("FAKE-002");
+
+    expect(() => assignUnownedPatients(db, "pat@example.com")).toThrow(
+      "pat@example.com is a patient account, not a doctor.",
+    );
+    expect(countPatientsByOwner(db).get(null)).toBe(1);
   });
 
   it("does nothing for an unknown email", () => {

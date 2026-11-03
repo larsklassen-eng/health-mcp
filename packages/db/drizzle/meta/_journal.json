@@ -50,6 +50,13 @@
       "when": 1793638483389,
       "tag": "0006_mrn_unique_per_owner",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1793740507028,
+      "tag": "0007_user_roles",
+      "breakpoints": true
     }
   ]
 }

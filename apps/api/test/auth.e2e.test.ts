@@ -93,6 +93,8 @@ describe("with sign-in on", () => {
       email: "ana@example.com",
       firstName: "Ana",
       lastName: "Example",
+      role: "doctor",
+      mustChangePassword: false,
     });
     const hours = (Date.parse(signedIn.expiresAt) - Date.now()) / 3_600_000;
     expect(hours).toBeGreaterThan(11.9);
@@ -185,6 +187,8 @@ describe("sign-up", () => {
       email: "ben@example.com",
       firstName: "Ben",
       lastName: "Example",
+      role: "doctor",
+      mustChangePassword: false,
     });
     const patients = await call("GET", API_ROUTES.patients, { token: signedUp.session });
     expect(patients).toEqual({ status: 200, body: { patients: [] } });

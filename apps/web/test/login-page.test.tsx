@@ -55,7 +55,13 @@ describe("login page", () => {
 
 describe("UserMenu", () => {
   it("shows the user's name, or the email, and a sign-out button", () => {
-    const ana = { email: "ana@example.com", firstName: "Ana", lastName: "Example" };
+    const ana = {
+      email: "ana@example.com",
+      firstName: "Ana",
+      lastName: "Example",
+      role: "doctor" as const,
+      mustChangePassword: false,
+    };
     const { rerender } = render(<UserMenu user={ana} />);
     expect(screen.getByText("Ana Example")).toHaveAttribute("title", "ana@example.com");
 
