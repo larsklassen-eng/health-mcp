@@ -9,6 +9,8 @@ export const API_ROUTES = {
   patients: "/patients",
   patientsImport: "/patients/import",
   patient: patientPath,
+  patientAccount: (patientId: string) => `${patientPath(patientId)}/account`,
+  patientAccountPassword: (patientId: string) => `${patientPath(patientId)}/account/password`,
   patientChat: (patientId: string) => `${patientPath(patientId)}/chat`,
   toolCallDecision: (patientId: string, toolCallId: string) =>
     `${patientPath(patientId)}/chat/tool-calls/${encodeURIComponent(toolCallId)}/decision`,

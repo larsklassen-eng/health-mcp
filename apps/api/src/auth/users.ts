@@ -44,9 +44,19 @@ export const findUserById = (db: HealthDb, id: string): UserRow | undefined =>
 export const listUsers = (db: HealthDb): UserRow[] =>
   db.select().from(users).orderBy(asc(users.email)).all();
 
+/**
+ * Creates a user: a doctor by default, or with `patientId` the account of
+ * that patient, whose password is temporary (`mustChangePassword`).
+ */
 export async function createUser(
   db: HealthDb,
-  input: { email: string; password: string; firstName: string; lastName: string },
+  input: {
+    email: string;
+    password: string;
+    firstName: string;
+    lastName: string;
+    patientId?: string;
+  },
 ): Promise<UserRow> {
   const problem =
     emailProblem(input.email) ??
@@ -62,6 +72,11 @@ export async function createUser(
       firstName: input.firstName.trim(),
       lastName: input.lastName.trim(),
       passwordHash: await hashPassword(input.password),
+      ...(input.patientId && {
+        role: "patient" as const,
+        patientId: input.patientId,
+        mustChangePassword: true,
+      }),
     })
     .returning()
     .get();

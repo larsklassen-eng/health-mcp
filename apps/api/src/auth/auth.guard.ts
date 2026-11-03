@@ -1,6 +1,7 @@
 import {
   type CanActivate,
   type ExecutionContext,
+  ForbiddenException,
   Injectable,
   UnauthorizedException,
 } from "@nestjs/common";
@@ -42,6 +43,9 @@ export class AuthGuard implements CanActivate {
       const token = bearerToken(request.headers.authorization);
       const user = token && this.auth.verifySession(token);
       if (!user) throw new UnauthorizedException("Sign in to continue.");
+      // Patients reach nothing yet: what they may read is decided route by route (next step).
+      if (user.role === "patient")
+        throw new ForbiddenException("Patient accounts cannot use this yet.");
       scope = { ownerId: user.id };
     }
     request.patientScope = scope;

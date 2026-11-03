@@ -151,7 +151,7 @@ Store timestamps as UTC ISO strings ending in `Z` (convert offsets before writin
 
 **Owners:** each patient has an `owner_id`, the doctor (user) it belongs to (see [Sign-in](#sign-in)); its MRN is unique among that doctor's patients. Removing a user keeps their patients, with no owner, and no doctor sees them until `yarn user assign <email>` gives them to one (skipping any whose MRN that doctor already has). Patients created before owners existed (migration `0005_users_names_and_patient_owners`) have none, and existing users' single name was split into a first and last name at the first space.
 
-**Roles:** users are `doctor`s (the default; everyone signed up or added so far) or `patient` accounts. A patient account belongs to exactly one patient record (`patient_id`, at most one account per patient) and is deleted with it; `must_change_password` marks a temporary password. The database enforces the role values and that `patient_id` is set exactly for patients, with column checks added by migration `0007_user_roles` (altering the table rather than rebuilding it, which would clear the patients' owners). Doctors creating these accounts, and what patients may see, come next.
+**Roles:** users are `doctor`s (the default; everyone signed up or added so far) or `patient` accounts. A patient account belongs to exactly one patient record (`patient_id`, at most one account per patient) and is deleted with it; `must_change_password` marks a temporary password. The database enforces the role values and that `patient_id` is set exactly for patients, with column checks added by migration `0007_user_roles` (altering the table rather than rebuilding it, which would clear the patients' owners). A doctor creates a patient's account (`/patients/:id/account`): an email and a temporary password, checked with the same rules (and the patient's names); the account takes the patient record's names, and resetting the password ends the patient's sessions. Until what patients may see is decided route by route (next), a patient can sign in but every other api route answers 403.
 
 After pulling a commit that adds a migration, run `yarn db:migrate`: the api does not migrate on startup.
 
@@ -312,6 +312,10 @@ Chat answers stream through a proxy route, `POST /patients/:id/chat/stream` (`sr
 |---|---|---|---|
 | `GET` | `/health` | | `HealthCheckResponse` (never needs a session) |
 | `POST` | `/auth/login` | `LoginInput` (email, password) | `LoginResponse` (session token, user, expiry); `401` wrong email or password, `429` too many attempts |
+| `GET` | `/patients/:id/account` | | `PatientAccountResponse`: the patient's own account (email, whether the temporary password is still unchanged), or `null` |
+| `POST` | `/patients/:id/account` | `CreatePatientAccountInput` (email, temporary password) | `201` `PatientAccount`; `400` what to fix, `409` the patient has an account or the email is taken |
+| `PUT` | `/patients/:id/account/password` | `ResetPatientPasswordInput` (temporary password) | `PatientAccount`; ends the patient's sessions; `404` no account |
+| `DELETE` | `/patients/:id/account` | | `204`; the patient record stays; `404` no account |
 | `POST` | `/auth/register` | `RegisterInput` (first name, last name, email, password) | `201` `LoginResponse`, signed in; `400` what to fix, `409` the email has an account, `429` too many new accounts this hour, `403` sign-up closed |
 | `GET` | `/auth/session` | | `AuthSessionResponse`: the mode (`password` or `off`) and the session's user; `401` without a valid session |
 | `GET` | `/patients` | | `PatientListResponse` (summaries, sorted by last name) |
