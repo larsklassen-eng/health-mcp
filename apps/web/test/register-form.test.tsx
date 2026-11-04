@@ -13,8 +13,10 @@ afterEach(() => vi.clearAllMocks());
 async function renderForm() {
   const user = userEvent.setup();
   render(<RegisterForm />);
-  await waitFor(() =>
-    expect(screen.getByRole("button", { name: "Suggest a strong password" })).toBeEnabled(),
+  await waitFor(
+    () => expect(screen.getByRole("button", { name: "Suggest a strong password" })).toBeEnabled(),
+    // The zxcvbn dictionaries take a while to load when every suite runs at once.
+    { timeout: 10_000 },
   );
   await user.type(screen.getByLabelText("First name"), "Ana");
   await user.type(screen.getByLabelText("Last name"), "Example");

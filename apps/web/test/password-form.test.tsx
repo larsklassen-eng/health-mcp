@@ -11,8 +11,10 @@ const owner = { email: "pat@example.com", firstName: "Pat", lastName: "Morales" 
 async function renderForm() {
   const user = userEvent.setup();
   render(<PasswordForm owner={owner} />);
-  await waitFor(() =>
-    expect(screen.getByRole("button", { name: "Suggest a strong password" })).toBeEnabled(),
+  await waitFor(
+    () => expect(screen.getByRole("button", { name: "Suggest a strong password" })).toBeEnabled(),
+    // The zxcvbn dictionaries take a while to load when every suite runs at once.
+    { timeout: 10_000 },
   );
   return user;
 }

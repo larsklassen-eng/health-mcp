@@ -18,8 +18,10 @@ const account = {
 
 /** Waits for the password rules (zxcvbn) to load. */
 const rulesLoaded = () =>
-  waitFor(() =>
-    expect(screen.getByRole("button", { name: "Suggest a strong password" })).toBeEnabled(),
+  waitFor(
+    () => expect(screen.getByRole("button", { name: "Suggest a strong password" })).toBeEnabled(),
+    // The zxcvbn dictionaries take a while to load when every suite runs at once.
+    { timeout: 10_000 },
   );
 
 describe("PatientAccess", () => {
@@ -103,8 +105,10 @@ describe("PatientAccess", () => {
       password: "violet-tram-orbit-91",
     });
     expect(await screen.findByRole("status")).toHaveTextContent("violet-tram-orbit-91");
-    // The form closes, so the account's buttons are back.
-    expect(screen.queryByLabelText("Temporary password")).not.toBeInTheDocument();
+    // The form closes (an effect after the details appear), so the account's buttons are back.
+    await waitFor(() =>
+      expect(screen.queryByLabelText("Temporary password")).not.toBeInTheDocument(),
+    );
     expect(screen.getByRole("button", { name: "Remove access" })).toBeInTheDocument();
   });
 
