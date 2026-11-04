@@ -52,7 +52,7 @@ Traces appear in Phoenix's `health-mcp` project. What each span records (`packag
 
 Things to watch: searches returning nothing (and the best similarity they had, to tune the floor), how often the reranker changes the top passage, the time each step takes (the reranker is the slowest), and records re-indexed on every save (which would mean their chunks are not stable). Phoenix's 2D views of embeddings take datasets loaded with its Python client, not traces, so they are not part of this setup.
 
-Spans carry patients' text, so `PHOENIX_COLLECTOR_ENDPOINT` must only point at a Phoenix on the same machine (Compose publishes it on `127.0.0.1` only), with synthetic data as everywhere in this repo. The tracing setup is `startTracing()` in `packages/rag/src/start-tracing.ts` (`@health-mcp/rag/tracing`), called by apps/api (indexing) and apps/mcp-server (search) when the variable is set; without it the spans cost nothing.
+Spans carry patients' text, so `PHOENIX_COLLECTOR_ENDPOINT` must only point at a Phoenix on the same machine (Compose publishes it on `127.0.0.1` only), with synthetic data as everywhere in this repo. In AWS, Phoenix runs on the app server on demand, at its own CloudFront URL behind its login, and the apps send their traces with `PHOENIX_API_KEY` (see [infra/README.md](../infra/README.md#rag-monitoring-phoenix)). The tracing setup is `startTracing()` in `packages/rag/src/start-tracing.ts` (`@health-mcp/rag/tracing`), called by apps/api (indexing) and apps/mcp-server (search) when the variable is set; without it the spans cost nothing.
 
 ## What it teaches
 

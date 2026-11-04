@@ -27,9 +27,9 @@ Apply a deployment from its own branch, so the `rag` deployment runs the RAG cod
 | `network.tf` | Looks up the existing VPC and subnets (they are not managed here); the deployment's name prefix |
 | `registry.tf` | ECR repositories for the three images (`health-mcp-<deployment>-api`, `-mcp-server`, `-web`), keeping the last 10 images each |
 | `server.tf` | The app server: a `t4g.small` (ARM) in a private subnet, its IAM role (with the permissions boundary), security group, and a separate encrypted data disk |
-| `server/` | What runs on the server: the boot script (Docker, Compose, swap, data disk, systemd service), the Compose file and `deploy.sh` |
+| `server/` | What runs on the server: the boot script (Docker, Compose, swap, data disk, systemd service), the Compose file, `deploy.sh` and `monitoring.sh` (Phoenix) |
 | `cdn.tf` | The public URL: a CloudFront distribution reaching the server through a VPC origin, and the security group rule that lets CloudFront in |
-| `secrets.tf` | SSM parameters under `/health-mcp/<deployment>/`: `MCP_AUTH_TOKEN` and `SESSION_SECRET` (generated) and `OPENROUTER_API_KEY` (set by hand) |
+| `secrets.tf` | SSM parameters under `/health-mcp/<deployment>/`: `MCP_AUTH_TOKEN`, `SESSION_SECRET` and `PHOENIX_API_KEY` (generated), `OPENROUTER_API_KEY` (set by hand), and Phoenix's own secrets under `phoenix/` (generated) |
 | `outputs.tf` | The deployment, the VPC's CIDR, each subnet's availability zone and CIDR, the image repositories, the secret names, the app's URL and the server's files for the rollout |
 | `environments/sandbox.tfvars` | The sandbox account's values and the deployments |
 | `environments/sandbox.s3.tfbackend` | Where the state lives: S3 (one file per deployment), encrypted with KMS, locked by S3 |
@@ -136,6 +136,41 @@ the session cookie `Secure`.
   about 20 minutes.
 
 Creating the VPC origin and the distribution takes up to 15 minutes each.
+
+## RAG monitoring (Phoenix)
+
+[Phoenix](../docs/rag.md#monitoring-with-phoenix) shows each search and indexing run with its
+passages, scores and timings. It runs on the server but is **off by default**: it needs about 730 MB
+of memory, and the server has 2 GB. Start it when you want to look, stop it after; only searches
+made while it runs are traced (the api and the MCP server always send their traces to it, and drop
+them while it is off).
+
+```sh
+export AWS_PROFILE=health-mcp-sandbox
+aws ssm start-session --target <server_instance_id>
+sudo /srv/health-mcp/monitoring.sh start    # or stop, or status (with memory use)
+```
+
+It has its own URL, the `phoenix_url` output (also in the Deploy run's summary): a second CloudFront
+distribution to port 6006 through its own VPC origin, open to CloudFront only like the app (Phoenix
+serves from `/` only, so it cannot share the app's URL under a path). While Phoenix is stopped that
+URL answers with an error.
+
+**Sign-in:** Phoenix's login is on. Sign in as `admin@localhost` with the generated initial
+password, then change it in Phoenix (its strong password policy is on, and it locks an account after
+repeated failures):
+
+```sh
+aws ssm get-parameter --with-decryption --query Parameter.Value --output text \
+  --name /health-mcp/rag/phoenix/PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD
+```
+
+The initial password only applies to a new Phoenix database; after a change in Phoenix, that one
+counts. Traces need `PHOENIX_API_KEY` (Phoenix's admin secret), which the api and the MCP server
+read from `app.env`; Phoenix's own secrets are under `/health-mcp/rag/phoenix/`, which `deploy.sh`
+writes to `phoenix.env` only. Traces are kept 14 days, on the data disk
+(`/srv/health-mcp/data/phoenix`), and a deploy keeps Phoenix running (and updates it) when it was
+started. Traces carry the patients' text: synthetic data only, as everywhere.
 
 ## Usage
 

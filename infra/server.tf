@@ -21,10 +21,15 @@ locals {
   # Written to the server by each rollout (see the deploy workflow), not at boot, so changing
   # them does not replace the instance.
   compose_file = templatefile("${path.module}/server/compose.yml.tftpl", {
-    registry    = local.registry
-    name_prefix = local.name_prefix
-    data_dir    = local.data_dir
-    web_origin  = local.web_origin
+    registry        = local.registry
+    name_prefix     = local.name_prefix
+    data_dir        = local.data_dir
+    web_origin      = local.web_origin
+    phoenix_version = "version-20.27.0"
+    phoenix_origin  = local.phoenix_origin
+  })
+  monitoring_script = templatefile("${path.module}/server/monitoring.sh.tftpl", {
+    phoenix_origin = local.phoenix_origin
   })
   deploy_script = templatefile("${path.module}/server/deploy.sh.tftpl", {
     region           = var.region

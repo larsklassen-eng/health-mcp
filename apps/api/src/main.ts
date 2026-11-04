@@ -20,7 +20,11 @@ async function bootstrap(): Promise<void> {
   const env = app.get<Env>(ENV);
   // Indexing spans go to Phoenix every few seconds; the last ones are lost when the api stops.
   if (env.PHOENIX_COLLECTOR_ENDPOINT)
-    startTracing({ endpoint: env.PHOENIX_COLLECTOR_ENDPOINT, serviceName: "api" });
+    startTracing({
+      endpoint: env.PHOENIX_COLLECTOR_ENDPOINT,
+      serviceName: "api",
+      apiKey: env.PHOENIX_API_KEY,
+    });
   configureApp(app, env);
   await app.listen(env.PORT);
   new Logger("Bootstrap").log(`api listening on http://localhost:${env.PORT}`);

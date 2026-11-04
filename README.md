@@ -237,6 +237,7 @@ It prints ✓/✗ per check with the expected passage's rank (failures list what
 | `DATABASE_PATH` | `packages/db`, `apps/api`, `apps/mcp-server` | `data/health.db` |
 | `RAG_EMBEDDER` | `apps/api`, `apps/mcp-server` | `local`; embedding model for the search index and for search queries (both must use the same one): `local` (bge-small on this machine), `hashing` (word-hashing stand-in, used by the tests) or `off` |
 | `PHOENIX_COLLECTOR_ENDPOINT` | `apps/api`, `apps/mcp-server` | Unset; a local [Phoenix](docs/rag.md#monitoring-with-phoenix) (e.g. `http://localhost:6006`) to send search and indexing traces to. They carry patients' text: never point it elsewhere |
+| `PHOENIX_API_KEY` | `apps/api`, `apps/mcp-server` | Unset; sent with the traces when Phoenix's login is on (as in AWS, from Parameter Store) |
 | `PHOENIX_TRACING` | Docker Compose | Unset; `on` sends the containers' traces to the `phoenix` service (`--profile monitoring`) |
 | `RAG_RERANKER` | `apps/mcp-server` | `local`; re-orders search results with a local cross-encoder (`mxbai-rerank-xsmall-v1`, about 550 MB of memory once loaded), or `off`. Only used with `RAG_EMBEDDER=local` |
 | `RAG_MODEL_DIR` | `packages/rag` | `data/models`; where the embedding model and the reranker are downloaded (relative to the repo root) |

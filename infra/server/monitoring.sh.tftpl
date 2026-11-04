@@ -1,0 +1,32 @@
+#!/bin/bash
+# Phoenix, the RAG monitoring UI: /srv/health-mcp/monitoring.sh start|stop|status.
+# Off by default: it needs about 730 MB of memory, and the server has 2 GB. While
+# it is off, the api and the MCP server drop their traces. Written by each rollout.
+set -euo pipefail
+cd /srv/health-mcp
+
+running() { [ -n "$(docker compose --profile monitoring ps -q phoenix)" ]; }
+
+case "$${1:-status}" in
+  start)
+    docker compose --profile monitoring up -d --wait --wait-timeout 300 phoenix
+    echo "Phoenix is running at ${phoenix_origin} (sign in as admin@localhost)."
+    ;;
+  stop)
+    docker compose --profile monitoring rm --stop --force phoenix
+    echo "Phoenix is stopped; its traces stay on the data disk."
+    ;;
+  status)
+    if running; then
+      echo "Phoenix is running at ${phoenix_origin}."
+      docker stats --no-stream --format '{{.Name}}: {{.MemUsage}}'
+    else
+      echo "Phoenix is stopped. Start it with: monitoring.sh start"
+    fi
+    free -m | head -3
+    ;;
+  *)
+    echo "Usage: monitoring.sh start|stop|status" >&2
+    exit 2
+    ;;
+esac

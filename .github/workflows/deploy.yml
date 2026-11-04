@@ -79,7 +79,10 @@ jobs:
             echo "instance-id=$(terraform output -raw server_instance_id)"
             echo "server-files=$(terraform output -json server_files | jq -c .)"
           } >> "$GITHUB_OUTPUT"
-          echo "### App URL: $(terraform output -raw app_url)" >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "### App URL: $(terraform output -raw app_url)"
+            echo "Phoenix (RAG monitoring, when started): $(terraform output -raw phoenix_url)"
+          } >> "$GITHUB_STEP_SUMMARY"
 
   images:
     name: Build and push images (ARM)
@@ -178,7 +181,7 @@ jobs:
           echo "::error::$INSTANCE_ID did not come online in SSM."
           exit 1
 
-      # Waits for the first-boot setup, writes the Compose file and deploy.sh rendered by
+      # Waits for the first-boot setup, writes the Compose file and scripts rendered by
       # Terraform, then pulls this commit's images and restarts.
       - name: Deploy ${{ github.sha }}
         run: |
@@ -186,7 +189,7 @@ jobs:
             ["cloud-init status --wait > /dev/null"]
             + [$files | to_entries[]
                 | "echo " + .value + " | base64 -d > /srv/health-mcp/" + .key]
-            + ["chmod 0755 /srv/health-mcp/deploy.sh", "/srv/health-mcp/deploy.sh " + $sha]
+            + ["chmod 0755 /srv/health-mcp/*.sh", "/srv/health-mcp/deploy.sh " + $sha]
           )}')
           command_id=$(aws ssm send-command --instance-ids "$INSTANCE_ID" \
             --document-name AWS-RunShellScript --timeout-seconds 900 \

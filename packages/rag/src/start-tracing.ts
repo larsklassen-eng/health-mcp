@@ -10,18 +10,22 @@ export interface TracingOptions {
   serviceName: string;
   /** Phoenix project the traces are grouped under. */
   projectName?: string;
+  /** Phoenix API key, when its login is on (as in AWS); sent as a bearer token. */
+  apiKey?: string | undefined;
 }
 
 /**
  * Sends this process's spans (search and indexing, see telemetry.ts) to
  * Phoenix over OTLP. Call once at startup, only when a collector is set:
- * spans carry patients' text, so they must go to a local Phoenix only.
+ * spans carry patients' text, so they must go to a Phoenix on this machine
+ * (locally, or the one beside the app in AWS, behind its login).
  * `shutdown` sends what is still buffered.
  */
 export function startTracing({
   endpoint,
   serviceName,
   projectName = "health-mcp",
+  apiKey,
 }: TracingOptions): { shutdown: () => Promise<void> } {
   const provider = new NodeTracerProvider({
     resource: resourceFromAttributes({
@@ -30,7 +34,10 @@ export function startTracing({
     }),
     spanProcessors: [
       new BatchSpanProcessor(
-        new OTLPTraceExporter({ url: `${endpoint.replace(/\/$/, "")}/v1/traces` }),
+        new OTLPTraceExporter({
+          url: `${endpoint.replace(/\/$/, "")}/v1/traces`,
+          ...(apiKey && { headers: { Authorization: `Bearer ${apiKey}` } }),
+        }),
       ),
     ],
   });

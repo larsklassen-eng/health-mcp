@@ -52,10 +52,16 @@ output "app_url" {
   value       = local.web_origin
 }
 
+output "phoenix_url" {
+  description = "Phoenix (RAG monitoring), when started on the server; sign in as admin@localhost."
+  value       = local.phoenix_origin
+}
+
 output "server_files" {
-  description = "The app's Compose file and deploy script, base64-encoded; the rollout writes them."
+  description = "The app's Compose file and scripts, base64-encoded; the rollout writes them."
   value = {
-    "compose.yml" = base64encode(local.compose_file)
-    "deploy.sh"   = base64encode(local.deploy_script)
+    "compose.yml"   = base64encode(local.compose_file)
+    "deploy.sh"     = base64encode(local.deploy_script)
+    "monitoring.sh" = base64encode(local.monitoring_script)
   }
 }

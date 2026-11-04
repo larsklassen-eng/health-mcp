@@ -50,6 +50,11 @@ export const EnvSchema = z.object({
     .optional()
     .transform((value) => value?.trim() || undefined)
     .pipe(z.url().optional()),
+  /** Phoenix's API key, when its login is on (AWS); sent with the traces. */
+  PHOENIX_API_KEY: z
+    .string()
+    .optional()
+    .transform((value) => value?.trim() || undefined),
   /** SQLite file; relative paths resolve from the repo root (see @health-mcp/db). */
   DATABASE_PATH: z.string().min(1).optional(),
 });

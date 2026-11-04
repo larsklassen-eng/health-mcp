@@ -50,6 +50,11 @@ const BaseEnvSchema = z.object({
     .optional()
     .transform((value) => value?.trim() || undefined)
     .pipe(z.url().optional()),
+  /** Phoenix's API key, when its login is on (AWS); sent with the traces. */
+  PHOENIX_API_KEY: z
+    .string()
+    .optional()
+    .transform((value) => value?.trim() || undefined),
   /** Let the provider cache prompts for a few minutes, so repeated input costs less. */
   OPENROUTER_PROMPT_CACHING: z.stringbool().default(true),
   /** Override the OpenRouter API base URL, e.g. a local fake server for a dry run of the evals. */

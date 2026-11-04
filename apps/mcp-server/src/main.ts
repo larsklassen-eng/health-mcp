@@ -11,7 +11,11 @@ import { loadEnv } from "./env.js";
 
 const env = loadEnv();
 const tracing = env.PHOENIX_COLLECTOR_ENDPOINT
-  ? startTracing({ endpoint: env.PHOENIX_COLLECTOR_ENDPOINT, serviceName: "mcp-server" })
+  ? startTracing({
+      endpoint: env.PHOENIX_COLLECTOR_ENDPOINT,
+      serviceName: "mcp-server",
+      apiKey: env.PHOENIX_API_KEY,
+    })
   : undefined;
 // Tables are created by `yarn db:migrate`, not on startup.
 const connection = createDb({ path: resolveDatabasePath(env) });
@@ -47,7 +51,8 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.once(signal, () => {
     server.close(() => {
       connection.close();
-      void tracing?.shutdown();
+      // Phoenix may be off (on demand in AWS): the last traces are then dropped.
+      tracing?.shutdown().catch(() => undefined);
     });
   });
 }

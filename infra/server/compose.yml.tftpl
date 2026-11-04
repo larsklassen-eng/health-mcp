@@ -1,7 +1,8 @@
 # The app on the server: /srv/health-mcp/compose.yml, written by each rollout
 # (see the deploy workflow). IMAGE_TAG comes from .env next to this file (set
 # by deploy.sh); secrets come from app.env, read from Parameter Store.
-# WEB_ORIGIN is the CloudFront URL (cdn.tf).
+# WEB_ORIGIN is the CloudFront URL (cdn.tf). Phoenix (RAG monitoring) runs only
+# when started with monitoring.sh; until then the traces sent to it are dropped.
 name: health-mcp
 
 x-api-image: &api-image
@@ -27,6 +28,8 @@ services:
       WEB_ORIGIN: ${web_origin}
       AUTH_MODE: password
       RAG_EMBEDDER: local
+      # Indexing traces, with PHOENIX_API_KEY from app.env.
+      PHOENIX_COLLECTOR_ENDPOINT: http://phoenix:6006
     volumes: [${data_dir}:/app/data]
     healthcheck:
       test:
@@ -47,6 +50,8 @@ services:
     env_file: [app.env]
     environment:
       RAG_EMBEDDER: local
+      # Search traces, with PHOENIX_API_KEY from app.env.
+      PHOENIX_COLLECTOR_ENDPOINT: http://phoenix:6006
     volumes: [${data_dir}:/app/data]
     depends_on:
       api: { condition: service_started }
@@ -62,4 +67,24 @@ services:
     ports: ["3000:3000"]
     depends_on:
       api: { condition: service_healthy }
+    restart: unless-stopped
+
+  # RAG monitoring, off by default (about 730 MB of memory): monitoring.sh
+  # start|stop. Its login is on; secrets come from phoenix.env (deploy.sh).
+  # Traces stay 14 days, on the data disk. Open to CloudFront only, at its own
+  # URL (the phoenix distribution in cdn.tf).
+  phoenix:
+    <<: *logging
+    image: arizephoenix/phoenix:${phoenix_version}
+    profiles: [monitoring]
+    env_file: [phoenix.env]
+    environment:
+      PHOENIX_WORKING_DIR: /mnt/data
+      PHOENIX_ENABLE_AUTH: "true"
+      PHOENIX_ENABLE_STRONG_PASSWORD_POLICY: "true"
+      PHOENIX_USE_SECURE_COOKIES: "true"
+      PHOENIX_CSRF_TRUSTED_ORIGINS: ${phoenix_origin}
+      PHOENIX_DEFAULT_RETENTION_POLICY_DAYS: "14"
+    volumes: [${data_dir}/phoenix:/mnt/data]
+    ports: ["6006:6006"]
     restart: unless-stopped

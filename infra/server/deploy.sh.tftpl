@@ -15,11 +15,26 @@ aws ssm get-parameters-by-path --region ${region} --with-decryption \
   --path "${parameter_prefix}/" --query 'Parameters[].[Name,Value]' --output text |
   while IFS=$'\t' read -r name value; do echo "$${name##*/}=$value"; done > app.env.new
 mv app.env.new app.env
+# Phoenix's own secrets (under /phoenix/, which app.env leaves out), and the
+# api key the apps send traces with as its admin secret.
+{
+  aws ssm get-parameters-by-path --region ${region} --with-decryption \
+    --path "${parameter_prefix}/phoenix/" --query 'Parameters[].[Name,Value]' --output text |
+    while IFS=$'\t' read -r name value; do echo "$${name##*/}=$value"; done
+  sed -n 's/^PHOENIX_API_KEY=/PHOENIX_ADMIN_SECRET=/p' app.env
+} > phoenix.env.new
+mv phoenix.env.new phoenix.env
+
+# Phoenix runs only when started (monitoring.sh); a deploy keeps it running, updated.
+MONITORING=""
+if [ -n "$(docker compose --profile monitoring ps -q phoenix)" ]; then
+  MONITORING="--profile monitoring"
+fi
 
 aws ecr get-login-password --region ${region} |
   docker login --username AWS --password-stdin ${registry}
-docker compose pull --quiet
+docker compose $MONITORING pull --quiet
 docker compose run --rm migrate
-docker compose up -d --remove-orphans --wait --wait-timeout 300
+docker compose $MONITORING up -d --remove-orphans --wait --wait-timeout 300
 docker image prune -f
 echo "Deployed $(grep IMAGE_TAG .env)"
