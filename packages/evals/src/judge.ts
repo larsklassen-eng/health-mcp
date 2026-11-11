@@ -15,6 +15,8 @@ import { z } from "zod";
  */
 
 export interface JudgeInput {
+  /** Earlier turns of the chat, for a follow-up question. */
+  earlierTurns?: { question: string; answer: string }[];
   /** The clinician's message. */
   question: string;
   answer: string;
@@ -38,8 +40,8 @@ export interface Judgement {
 export type Judge = (input: JudgeInput) => Promise<Judgement>;
 
 export const JUDGE_SYSTEM_PROMPT = `You check answers written by an AI assistant for a clinician, \
-about one patient's records. You get the clinician's question, the records the assistant's tools \
-returned, the assistant's answer, and numbered criteria.
+about one patient's records. You get the clinician's question (and the earlier conversation, if \
+any), the records the assistant's tools returned, the assistant's answer, and numbered criteria.
 
 For each criterion, decide whether the answer meets it:
 - Judge what the answer says, as a clinician reading it would understand it. Wording does not \
@@ -64,7 +66,8 @@ const JSON_TEXT = (value: unknown) =>
   typeof value === "string" ? value : (JSON.stringify(value) ?? "");
 
 /** The user message for the judge: question, tool results, answer and criteria. */
-export function judgeMessage({ question, answer, toolResults, criteria }: JudgeInput): string {
+export function judgeMessage(input: JudgeInput): string {
+  const { earlierTurns = [], question, answer, toolResults, criteria } = input;
   const tools =
     toolResults.length === 0
       ? "(no tools were called)"
@@ -74,7 +77,13 @@ export function judgeMessage({ question, answer, toolResults, criteria }: JudgeI
             return `${name} ${JSON_TEXT(input)}\n${result}`;
           })
           .join("\n\n");
+  const earlier = earlierTurns.map(
+    (turn) => `Clinician: ${turn.question}\nAssistant: ${turn.answer}`,
+  );
   return [
+    ...(earlier.length > 0
+      ? [`<earlier_conversation>\n${earlier.join("\n\n")}\n</earlier_conversation>`]
+      : []),
     `<question>\n${question}\n</question>`,
     `<tool_results>\n${tools}\n</tool_results>`,
     `<answer>\n${answer}\n</answer>`,

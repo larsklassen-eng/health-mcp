@@ -13,6 +13,7 @@ import {
 import { CASES } from "./cases.js";
 import { type EvalCase, EvalCaseSchema, type EvalResult, type Transcript } from "./eval-case.js";
 import { grade } from "./grade.js";
+import { sourceText } from "./grounding.js";
 import { type Judge, judgeFailures, judgeFromEnv } from "./judge.js";
 import { parseOptions } from "./cli.js";
 import { FIXTURE, missingEmbeddingModel, request, RESULTS_DIR, startStack } from "./stack.js";
@@ -42,13 +43,30 @@ function promptContext(bundle: PatientImportBundle, evalCase: EvalCase): string[
   return [JSON.stringify(bundle.patient), labTests.join(", "), today, evalCase.userMessage];
 }
 
+/** Sends one message in a patient's chat and reads the streamed answer. */
+async function ask(apiUrl: string, patientId: string, message: string): Promise<Transcript> {
+  try {
+    const response = await call(`${apiUrl}${API_ROUTES.patientChat(patientId)}`, {
+      method: "POST",
+      body: JSON.stringify({ message }),
+    });
+    return parseChatStream(await response.text());
+  } catch (error) {
+    return { answer: "", toolCalls: [], error: String(error) };
+  }
+}
+
 async function runCase(
   apiUrl: string,
-  bundle: PatientImportBundle,
+  fixtureBundle: PatientImportBundle,
   evalCase: EvalCase,
   attempt: number,
   judge: Judge | undefined,
 ): Promise<EvalResult> {
+  const bundle = {
+    ...fixtureBundle,
+    symptoms: [...(fixtureBundle.symptoms ?? []), ...evalCase.addSymptoms],
+  };
   // A fresh copy of the patient per case, so no case sees another's chat.
   const imported = PatientImportResultSchema.parse(
     await (
@@ -61,23 +79,38 @@ async function runCase(
   const patientId = imported.imported[0]!.patientId;
 
   const started = performance.now();
-  let transcript: Transcript;
-  try {
-    const response = await call(`${apiUrl}${API_ROUTES.patientChat(patientId)}`, {
-      method: "POST",
-      body: JSON.stringify({ message: evalCase.userMessage }),
-    });
-    transcript = parseChatStream(await response.text());
-  } catch (error) {
-    transcript = { answer: "", toolCalls: [], error: String(error) };
+  // Follow-up cases: the earlier messages first, in the same chat. Only the last answer is graded.
+  const earlier: { question: string; transcript: Transcript }[] = [];
+  let transcript: Transcript | undefined;
+  for (const question of evalCase.earlierMessages) {
+    const reply = await ask(apiUrl, patientId, question);
+    earlier.push({ question, transcript: reply });
+    if (reply.error) {
+      transcript = { ...reply, error: `Earlier message "${question}": ${reply.error}` };
+      break;
+    }
   }
+  transcript ??= await ask(apiUrl, patientId, evalCase.userMessage);
   const durationMs = Math.round(performance.now() - started);
 
   await call(`${apiUrl}${API_ROUTES.patient(patientId)}`, { method: "DELETE" });
-  const graded = grade(evalCase, transcript, promptContext(bundle, evalCase));
+  // The model also read the earlier answers and their tool results.
+  const context = [
+    ...promptContext(bundle, evalCase),
+    ...earlier.flatMap(({ question, transcript: t }) => [
+      question,
+      t.answer,
+      ...t.toolCalls.flatMap((call) => [sourceText(call.input), sourceText(call.output)]),
+    ]),
+  ];
+  const graded = grade(evalCase, transcript, context);
   if (judge && evalCase.rubric.length > 0 && transcript.answer.trim() !== "") {
     try {
       const { verdicts, usage } = await judge({
+        earlierTurns: earlier.map(({ question, transcript: t }) => ({
+          question,
+          answer: t.answer,
+        })),
         question: evalCase.userMessage,
         answer: transcript.answer,
         toolResults: transcript.toolCalls,
@@ -96,7 +129,10 @@ async function runCase(
     attempt,
     durationMs,
     toolInputs: transcript.toolCalls.map(({ name, input, output }) => ({ name, input, output })),
-    ...(transcript.usage && { usage: transcript.usage }),
+    // The earlier messages' cost counts too: the case cannot run without them.
+    ...(transcript.usage && {
+      usage: sumUsage([...earlier.map(({ transcript: t }) => t.usage), transcript.usage]),
+    }),
     answer: transcript.answer,
   };
 }

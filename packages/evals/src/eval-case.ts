@@ -1,4 +1,4 @@
-import { ChatUsageSchema, McpToolNameSchema } from "@health-mcp/shared";
+import { ChatUsageSchema, McpToolNameSchema, SymptomInputSchema } from "@health-mcp/shared";
 import { z } from "zod";
 
 /** A tool call a good answer makes. `args` must match the call's input (strings ignore case). */
@@ -21,6 +21,16 @@ export const EvalCaseSchema = z.object({
   /** MRN of a patient in the synthetic fixture. */
   patientMrn: z.string().startsWith("FAKE-"),
   userMessage: z.string().min(1),
+  /**
+   * Messages the clinician sends first, in the same chat, for follow-up
+   * questions. Their answers are not graded, but they cost model calls.
+   */
+  earlierMessages: z.array(z.string().min(1)).default([]),
+  /**
+   * Symptom entries added to this case's copy of the patient only, e.g. a note
+   * with a prompt injection. The shared fixture stays clean.
+   */
+  addSymptoms: z.array(SymptomInputSchema).default([]),
   expectedToolCalls: z.array(ExpectedToolCallSchema).default([]),
   forbiddenToolCalls: z.array(McpToolNameSchema).default([]),
   answerIncludes: z.array(AnswerTextSchema).default([]),

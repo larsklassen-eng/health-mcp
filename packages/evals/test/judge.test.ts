@@ -47,6 +47,26 @@ No, it was stopped on 2026-08-30.
 </criteria>`);
   });
 
+  it("puts the earlier conversation of a follow-up before the question", () => {
+    const message = judgeMessage({
+      earlierTurns: [{ question: "Is he still on dexamethasone?", answer: "No, it was stopped." }],
+      question: "When did he stop it?",
+      answer: "On 2026-08-30.",
+      toolResults: [],
+      criteria,
+    });
+
+    expect(
+      message.startsWith(`<earlier_conversation>
+Clinician: Is he still on dexamethasone?
+Assistant: No, it was stopped.
+</earlier_conversation>
+
+<question>
+When did he stop it?`),
+    ).toBe(true);
+  });
+
   it("says when no tools were called", () => {
     expect(judgeMessage({ question: "Q", answer: "A", toolResults: [], criteria })).toContain(
       "(no tools were called)",

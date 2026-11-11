@@ -15,9 +15,15 @@ const fixture = PatientImportFileSchema.parse(
   ),
 );
 const cases = CASES.map((input) => EvalCaseSchema.parse(input));
-/** All of a fixture patient's data as lowercase text, to check that expected values exist. */
-const patientText = (mrn: string) =>
-  JSON.stringify(fixture.patients.find((bundle) => bundle.patient.mrn === mrn)).toLowerCase();
+/**
+ * All of a case's patient data as lowercase text (the fixture plus the case's own
+ * added symptoms), to check that expected values exist.
+ */
+const patientText = ({ patientMrn, addSymptoms }: (typeof cases)[number]) =>
+  JSON.stringify([
+    fixture.patients.find((bundle) => bundle.patient.mrn === patientMrn),
+    addSymptoms,
+  ]).toLowerCase();
 
 describe("eval cases", () => {
   it("are valid and have unique ids", () => {
@@ -31,13 +37,13 @@ describe("eval cases", () => {
 
   // Single expected strings are facts from the data; lists of alternatives are wording.
   it.each(cases)("$id only expects values the patient's data contains", (c) => {
-    const text = patientText(c.patientMrn);
+    const text = patientText(c);
     for (const expected of c.answerIncludes)
       if (typeof expected === "string") expect(text).toContain(expected.toLowerCase());
   });
 
   it.each(cases)("$id only excludes values the patient's data does not contain", (c) => {
-    const text = patientText(c.patientMrn);
+    const text = patientText(c);
     for (const excluded of c.answerExcludes) expect(text).not.toContain(excluded.toLowerCase());
   });
 });
