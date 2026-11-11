@@ -32,13 +32,13 @@ describe("EvalCaseSchema", () => {
 });
 
 describe("EvalResultSchema", () => {
-  it("accepts a failed result with reasons", () => {
+  it("accepts a failed result with reasons, and no number warnings by default", () => {
     const result = {
       caseId: "labs-1",
       passed: false,
       toolCalls: [],
       failures: ["Expected a successful call to get_lab_results."],
     };
-    expect(EvalResultSchema.parse(result)).toEqual(result);
+    expect(EvalResultSchema.parse(result)).toEqual({ ...result, ungroundedNumbers: [] });
   });
 });

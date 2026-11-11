@@ -1,4 +1,5 @@
 import type { EvalCase, EvalResult, Transcript } from "./eval-case.js";
+import { sourceText, ungroundedNumbers } from "./grounding.js";
 
 const normalize = (text: string) => text.toLowerCase().replace(/\s+/g, " ");
 
@@ -14,8 +15,16 @@ function argsMatch(expected: Record<string, string | number>, input: Record<stri
 const describeCall = (name: string, args?: Record<string, string | number>) =>
   args ? `${name}(${JSON.stringify(args)})` : name;
 
-/** Checks a transcript against a case. Deterministic: no model judges the answer. */
-export function grade(evalCase: EvalCase, transcript: Transcript): EvalResult {
+/**
+ * Checks a transcript against a case. Deterministic: no model judges the answer.
+ * `context` is what the model read besides the tools (its profile, the
+ * clinician's message), for finding the numbers it states.
+ */
+export function grade(
+  evalCase: EvalCase,
+  transcript: Transcript,
+  context: readonly string[] = [],
+): EvalResult {
   const failures: string[] = [];
   const answer = normalize(transcript.answer);
 
@@ -52,10 +61,16 @@ export function grade(evalCase: EvalCase, transcript: Transcript): EvalResult {
     if (answer.includes(normalize(text))) failures.push(`The answer must not mention "${text}".`);
   }
 
+  const sources = [
+    ...context,
+    ...transcript.toolCalls.flatMap((call) => [sourceText(call.input), sourceText(call.output)]),
+  ];
+
   return {
     caseId: evalCase.id,
     passed: failures.length === 0,
     toolCalls: transcript.toolCalls.map((call) => call.name),
     failures,
+    ungroundedNumbers: ungroundedNumbers(transcript.answer, sources, evalCase.allowedNumbers),
   };
 }

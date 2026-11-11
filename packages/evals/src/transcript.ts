@@ -21,7 +21,10 @@ export function parseChatStream(body: string): Transcript {
         break;
       case "tool_call_result": {
         const call = transcript.toolCalls[ids.indexOf(event.toolCallId)];
-        if (call) call.isError = event.isError;
+        if (call) {
+          call.isError = event.isError;
+          call.output = event.output;
+        }
         break;
       }
       case "message_end":

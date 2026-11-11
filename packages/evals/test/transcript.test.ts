@@ -27,8 +27,8 @@ describe("parseChatStream", () => {
     expect(parseChatStream(body)).toEqual({
       answer: "Let me check. No results.",
       toolCalls: [
-        { name: "get_lab_results", input: { limit: 5 }, isError: false },
-        { name: "get_medications", input: {}, isError: true },
+        { name: "get_lab_results", input: { limit: 5 }, output: { results: [] }, isError: false },
+        { name: "get_medications", input: {}, output: "Patient not found.", isError: true },
       ],
       stopReason: "stop",
       usage: { modelCalls: 2, inputTokens: 900, outputTokens: 40, costUsd: 0.012 },

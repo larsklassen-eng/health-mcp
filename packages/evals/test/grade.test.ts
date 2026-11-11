@@ -13,7 +13,14 @@ const evalCase = (overrides: Partial<EvalCaseInput> = {}) =>
 
 const transcript = (overrides: Partial<Transcript> = {}): Transcript => ({
   answer: "Hemoglobin is 12.9 g/dL, which is low.",
-  toolCalls: [{ name: "get_lab_results", input: { test_name: "Hemoglobin" }, isError: false }],
+  toolCalls: [
+    {
+      name: "get_lab_results",
+      input: { test_name: "Hemoglobin" },
+      output: { results: [{ testName: "Hemoglobin", value: 12.9, unit: "g/dL" }] },
+      isError: false,
+    },
+  ],
   stopReason: "stop",
   ...overrides,
 });
@@ -38,6 +45,7 @@ describe("grade", () => {
       passed: true,
       toolCalls: ["get_lab_results"],
       failures: [],
+      ungroundedNumbers: [],
     });
   });
 
@@ -113,5 +121,19 @@ describe("grade", () => {
       "Stopped early: max_tool_rounds",
     ]);
     expect(failures(c, transcript({ answer: "  " }))).toEqual(["The answer is empty."]);
+  });
+
+  it("warns about numbers the answer states that no source has, without failing", () => {
+    const answer =
+      "Hemoglobin is 12.9 g/dL, down from 14.6 three weeks ago (grade 1 is below 13.5).";
+    const result = grade(evalCase(), transcript({ answer }), ['{"referenceLow":13.5}']);
+
+    expect(result.passed).toBe(true);
+    expect(result.ungroundedNumbers).toEqual([
+      { value: "14.6", context: expect.stringContaining("down from 14.6 three") },
+    ]);
+    expect(
+      grade(evalCase({ allowedNumbers: ["14.6"] }), transcript({ answer })).ungroundedNumbers,
+    ).toEqual([expect.objectContaining({ value: "13.5" })]);
   });
 });

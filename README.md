@@ -202,6 +202,7 @@ Tests use [Vitest](https://vitest.dev) and live in each workspace's `test/` fold
 yarn eval --list                 # list the cases (no model calls)
 yarn eval                        # run all cases
 yarn eval --case abnormal-labs   # run one case (repeat --case for more)
+yarn eval --repeat 3             # run each case 3 times (3× the cost), to find flaky cases
 ```
 
 The cases are in `packages/evals/src/cases.ts`. Grading is deterministic, with no model judging the answer. A case checks:
@@ -210,7 +211,11 @@ The cases are in `packages/evals/src/cases.ts`. Grading is deterministic, with n
 - text the answer must mention (case-insensitive; a list means any one of them), and text it must not mention, such as values the patient does not have;
 - that the model finished normally (not an error or the tool-round limit).
 
-Each run prints ✓/✗ per case with the reasons and the case's model calls, tokens and cost, then the totals. It writes a JSON report with the answers, each case's tool calls with their arguments and `usage`, and the run's total to `eval-results/` (git-ignored). The exit code is 1 if any case fails. CI does not run evals; `yarn test` checks the grader, the stream parsing, and that every expected value really is in the fixture. To try the runner without model calls, point `OPENROUTER_BASE_URL` at a local fake server.
+**Numbers in the answer.** Every number the answer states (10 or more, or with a decimal) is looked up in what the model read: the profile, the lab test names and today's date in the system prompt, the clinician's message, and each tool's input and result. A number found nowhere is printed as a ⚠ warning with the text around it, not a failure: it may be invented, but it is more often general knowledge ("grade 1 is ANC ≥ 1.5") or worked out ("an average of 3.2"). On 60 saved answers, 16 had such numbers, all legitimate, so a person reads them. A case can list `allowedNumbers` it expects the model to state.
+
+**Repeats.** The model answers differently each time, so one run of a case cannot tell a regression from bad luck. With `--repeat <n>` (up to 10) each case runs n times, and the run reports how many cases passed every attempt (pass^n, what a clinician who gets one answer can rely on), how many passed at least once (pass@n), and which were flaky.
+
+Each run prints ✓/✗ per attempt with the reasons, the warnings and the model calls, tokens and cost, then the totals. It writes a JSON report with the answers, each attempt's tool calls with their arguments and results, the warnings, `usage`, each case's passes and the run's totals to `eval-results/` (git-ignored). The exit code is 1 if any attempt fails. CI does not run evals; `yarn test` checks the grader, the number check, the repeat summary, the stream parsing, and that every expected value really is in the fixture. To try the runner without model calls, point `OPENROUTER_BASE_URL` at a local fake server.
 
 Five agent cases (`search-*`) ask about things only written in symptom notes, which only `search_patient_records` returns. Both runners use the local embedding model and reranker, so run `yarn rag:model` once first.
 
