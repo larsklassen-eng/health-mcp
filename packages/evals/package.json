@@ -15,12 +15,14 @@
     "clean": "rm -rf dist",
     "test": "vitest run",
     "eval": "node dist/run.js",
-    "eval:retrieval": "node dist/retrieval-run.js"
+    "eval:retrieval": "node dist/retrieval-run.js",
+    "eval:judge": "node dist/judge-run.js"
   },
   "dependencies": {
     "@health-mcp/db": "workspace:*",
     "@health-mcp/rag": "workspace:*",
     "@health-mcp/shared": "workspace:*",
+    "@openrouter/sdk": "^1.4.25",
     "zod": "^4.6.5"
   },
   "devDependencies": {

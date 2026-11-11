@@ -663,6 +663,7 @@ __metadata:
     "@health-mcp/db": "workspace:*"
     "@health-mcp/rag": "workspace:*"
     "@health-mcp/shared": "workspace:*"
+    "@openrouter/sdk": "npm:^1.4.25"
     "@types/node": "npm:^24.0.0"
     typescript: "npm:^7.0.2"
     vite: "npm:^8.3.4"

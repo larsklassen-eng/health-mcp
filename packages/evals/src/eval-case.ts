@@ -28,6 +28,12 @@ export const EvalCaseSchema = z.object({
   answerExcludes: z.array(z.string().min(1)).default([]),
   maxToolCalls: z.int().nonnegative().default(8),
   /**
+   * Yes/no statements about the answer that an LLM judge checks (see judge.ts),
+   * for what depends on meaning rather than wording, e.g. "Says he no longer
+   * takes dexamethasone." Costs a judge call per run of the case.
+   */
+  rubric: z.array(z.string().min(1)).default([]),
+  /**
    * Numbers the answer may state without reading them anywhere (see grounding.ts),
    * e.g. a threshold the case asks about. Only silences the warning.
    */
@@ -79,6 +85,12 @@ export const EvalResultSchema = z.object({
     )
     .optional(),
   usage: ChatUsageSchema.optional(),
+  /** The judge's verdict on each rubric statement; absent when the case has none. */
+  judgeVerdicts: z
+    .array(z.object({ criterion: z.string(), met: z.boolean(), reason: z.string() }))
+    .optional(),
+  /** The judge's own tokens and cost, kept apart from the answer's. */
+  judgeUsage: ChatUsageSchema.optional(),
   answer: z.string().optional(),
 });
 

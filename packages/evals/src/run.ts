@@ -13,6 +13,7 @@ import {
 import { CASES } from "./cases.js";
 import { type EvalCase, EvalCaseSchema, type EvalResult, type Transcript } from "./eval-case.js";
 import { grade } from "./grade.js";
+import { type Judge, judgeFailures, judgeFromEnv } from "./judge.js";
 import { parseOptions } from "./cli.js";
 import { FIXTURE, missingEmbeddingModel, request, RESULTS_DIR, startStack } from "./stack.js";
 import { summarizeAttempts } from "./summary.js";
@@ -23,7 +24,8 @@ import { formatUsage, sumUsage } from "./usage.js";
  * Runs the agent eval cases against the real stack: apps/api and
  * apps/mcp-server on a temporary database, and the model on OpenRouter.
  * Every case costs real model calls.
- * Usage: `yarn eval [--case <id>]... [--repeat <n>]`.
+ * Cases with a `rubric` also call the judge model (see judge.ts).
+ * Usage: `yarn eval [--case <id>]... [--repeat <n>] [--no-judge]`.
  */
 
 const CASE_TIMEOUT_MS = 180_000;
@@ -45,7 +47,8 @@ async function runCase(
   bundle: PatientImportBundle,
   evalCase: EvalCase,
   attempt: number,
-) {
+  judge: Judge | undefined,
+): Promise<EvalResult> {
   // A fresh copy of the patient per case, so no case sees another's chat.
   const imported = PatientImportResultSchema.parse(
     await (
@@ -71,8 +74,25 @@ async function runCase(
   const durationMs = Math.round(performance.now() - started);
 
   await call(`${apiUrl}${API_ROUTES.patient(patientId)}`, { method: "DELETE" });
+  const graded = grade(evalCase, transcript, promptContext(bundle, evalCase));
+  if (judge && evalCase.rubric.length > 0 && transcript.answer.trim() !== "") {
+    try {
+      const { verdicts, usage } = await judge({
+        question: evalCase.userMessage,
+        answer: transcript.answer,
+        toolResults: transcript.toolCalls,
+        criteria: evalCase.rubric,
+      });
+      graded.failures.push(...judgeFailures(verdicts));
+      graded.judgeVerdicts = verdicts;
+      if (usage) graded.judgeUsage = usage;
+    } catch (error) {
+      graded.failures.push(`Judge error: ${String(error)}`);
+    }
+    graded.passed = graded.failures.length === 0;
+  }
   return {
-    ...grade(evalCase, transcript, promptContext(bundle, evalCase)),
+    ...graded,
     attempt,
     durationMs,
     toolInputs: transcript.toolCalls.map(({ name, input, output }) => ({ name, input, output })),
@@ -88,6 +108,7 @@ function printResult(result: EvalResult, repeat: number) {
   const mark = result.passed ? "✓" : "✗";
   console.log(`${mark} ${result.caseId}${attempt} (${seconds}s; ${tools})`);
   console.log(`    ${formatUsage(result.usage)}`);
+  if (result.judgeUsage) console.log(`    Judge: ${formatUsage(result.judgeUsage)}`);
   for (const failure of result.failures) console.log(`    ${failure}`);
   for (const { value, context } of result.ungroundedNumbers)
     console.log(`    ⚠ ${value} is in no tool result or the profile: ${context}`);
@@ -107,9 +128,10 @@ async function main(): Promise<number> {
         case: { type: "string", multiple: true },
         list: { type: "boolean" },
         repeat: { type: "string" },
+        "no-judge": { type: "boolean" },
       },
     },
-    "yarn eval [--list] [--case <id>]... [--repeat <n>]",
+    "yarn eval [--list] [--case <id>]... [--repeat <n>] [--no-judge]",
   );
   if (!parsed) return 2;
   const { values } = parsed;
@@ -142,6 +164,18 @@ async function main(): Promise<number> {
     return 2;
   }
 
+  const withRubric = selected.filter((c) => c.rubric.length > 0).length;
+  let judge: Judge | undefined;
+  let judgeModel: string | undefined;
+  if (withRubric > 0 && !values["no-judge"]) {
+    const created = judgeFromEnv();
+    if (typeof created === "string") {
+      console.error(created);
+      return 2;
+    }
+    ({ judge, model: judgeModel } = created);
+  }
+
   const fixture = PatientImportFileSchema.parse(JSON.parse(readFileSync(FIXTURE, "utf8")));
   const bundles = new Map(fixture.patients.map((bundle) => [bundle.patient.mrn, bundle]));
 
@@ -154,7 +188,11 @@ async function main(): Promise<number> {
   const model = process.env.OPENROUTER_MODEL ?? "the api's default model";
   const count = `${selected.length} eval case${selected.length === 1 ? "" : "s"}`;
   const times = repeat > 1 ? `, ${repeat} times each` : "";
-  console.log(`Running ${count}${times} with ${model}. Each run of a case calls the model.\n`);
+  console.log(`Running ${count}${times} with ${model}. Each run of a case calls the model.`);
+  if (judgeModel) console.log(`${withRubric} of them are also judged by ${judgeModel}.`);
+  else if (withRubric > 0)
+    console.log(`--no-judge: the rubric of ${withRubric} of them is not checked.`);
+  console.log("");
 
   const stack = await startStack(databasePath);
   const results: EvalResult[] = [];
@@ -163,7 +201,7 @@ async function main(): Promise<number> {
       const bundle = bundles.get(evalCase.patientMrn);
       if (!bundle) throw new Error(`${evalCase.patientMrn} is not in ${FIXTURE}`);
       for (let attempt = 1; attempt <= repeat; attempt++) {
-        const result = await runCase(stack.apiUrl, bundle, evalCase, attempt);
+        const result = await runCase(stack.apiUrl, bundle, evalCase, attempt, judge);
         results.push(result);
         printResult(result, repeat);
       }
@@ -175,12 +213,17 @@ async function main(): Promise<number> {
 
   const summary = summarizeAttempts(results);
   const usage = sumUsage(results.map((r) => r.usage));
+  const judgeUsage = sumUsage(results.map((r) => r.judgeUsage));
   const warnings = results.reduce((sum, r) => sum + r.ungroundedNumbers.length, 0);
   mkdirSync(RESULTS_DIR, { recursive: true });
   const report = path.join(RESULTS_DIR, `${new Date().toISOString().replaceAll(":", "-")}.json`);
   writeFileSync(
     report,
-    `${JSON.stringify({ model, repeat, ...summary, warnings, usage, results }, null, 2)}\n`,
+    `${JSON.stringify(
+      { model, judgeModel, repeat, ...summary, warnings, usage, judgeUsage, results },
+      null,
+      2,
+    )}\n`,
   );
 
   console.log("");
@@ -195,6 +238,7 @@ async function main(): Promise<number> {
     );
   }
   console.log(`${summary.passed}/${summary.total} passed. Total: ${formatUsage(usage)}.`);
+  if (judgeModel) console.log(`Judge total: ${formatUsage(judgeUsage)}.`);
   if (warnings > 0)
     console.log(`${warnings} number${warnings === 1 ? "" : "s"} to check (⚠ above).`);
   console.log(`Report: ${path.relative(REPO_ROOT, report)}`);

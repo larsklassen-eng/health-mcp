@@ -2,6 +2,8 @@ export * from "./cases.js";
 export * from "./eval-case.js";
 export * from "./grade.js";
 export * from "./grounding.js";
+export * from "./judge.js";
+export * from "./judge-labels.js";
 export * from "./retrieval-case.js";
 export * from "./retrieval-cases.js";
 export * from "./summary.js";

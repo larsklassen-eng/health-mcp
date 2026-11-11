@@ -203,19 +203,26 @@ yarn eval --list                 # list the cases (no model calls)
 yarn eval                        # run all cases
 yarn eval --case abnormal-labs   # run one case (repeat --case for more)
 yarn eval --repeat 3             # run each case 3 times (3× the cost), to find flaky cases
+yarn eval --no-judge             # skip the judge (rubric statements are then not checked)
+yarn eval:judge                  # check the judge against labeled answers (a few cents)
 ```
 
-The cases are in `packages/evals/src/cases.ts`. Grading is deterministic, with no model judging the answer. A case checks:
+The cases are in `packages/evals/src/cases.ts`. Most checks are deterministic. A case checks:
 - which tools were called, with which arguments, without an error;
 - tools that must not be called, and the most tool calls allowed;
 - text the answer must mention (case-insensitive; a list means any one of them), and text it must not mention, such as values the patient does not have;
-- that the model finished normally (not an error or the tool-round limit).
+- that the model finished normally (not an error or the tool-round limit);
+- `rubric`: yes/no statements about the answer, decided by a judge model.
+
+**The judge.** Substring checks get meaning wrong both ways: "he has **not stopped** dexamethasone" contains "stopped", and "her records don't mention hearing problems" matched none of a list of phrases. So anything that depends on meaning (a negation, a refusal, a direction such as "pain went down") is a rubric statement, and a judge model reads the question, the tool results and the answer and decides each one, with a one-sentence reason. Facts with one spelling (a lab value, a drug name) stay substring checks: free, and never inconsistent. The judge is `anthropic/claude-sonnet-5.5` unless `EVAL_JUDGE_MODEL` says otherwise: a different model than the one answering, and cheaper. It costs one call per judged run of a case, shown apart from the answer's cost.
+
+A judge is only worth trusting once it agrees with a person. `packages/evals/src/judge-labels.ts` has labeled answers: real ones from runs, and written ones that are wrong in a way the old substring checks passed. `yarn eval:judge` runs the judge on them and lists every disagreement. Every rubric statement has a label that meets it and one that does not (`yarn test` checks this). When the judge and you disagree about a real answer, add it as a label.
 
 **Numbers in the answer.** Every number the answer states (10 or more, or with a decimal) is looked up in what the model read: the profile, the lab test names and today's date in the system prompt, the clinician's message, and each tool's input and result. A number found nowhere is printed as a ⚠ warning with the text around it, not a failure: it may be invented, but it is more often general knowledge ("grade 1 is ANC ≥ 1.5") or worked out ("an average of 3.2"). On 60 saved answers, 16 had such numbers, all legitimate, so a person reads them. A case can list `allowedNumbers` it expects the model to state.
 
 **Repeats.** The model answers differently each time, so one run of a case cannot tell a regression from bad luck. With `--repeat <n>` (up to 10) each case runs n times, and the run reports how many cases passed every attempt (pass^n, what a clinician who gets one answer can rely on), how many passed at least once (pass@n), and which were flaky.
 
-Each run prints ✓/✗ per attempt with the reasons, the warnings and the model calls, tokens and cost, then the totals. It writes a JSON report with the answers, each attempt's tool calls with their arguments and results, the warnings, `usage`, each case's passes and the run's totals to `eval-results/` (git-ignored). The exit code is 1 if any attempt fails. CI does not run evals; `yarn test` checks the grader, the number check, the repeat summary, the stream parsing, and that every expected value really is in the fixture. To try the runner without model calls, point `OPENROUTER_BASE_URL` at a local fake server.
+Each run prints ✓/✗ per attempt with the reasons, the warnings and the model calls, tokens and cost, then the totals. It writes a JSON report with the answers, each attempt's tool calls with their arguments and results, the warnings, `usage`, each case's passes and the run's totals to `eval-results/` (git-ignored). The exit code is 1 if any attempt fails. CI does not run evals; `yarn test` checks the grader, the number check, the repeat summary, the judge's prompt, reply parsing and request (against a fake server), the stream parsing, and that every expected value really is in the fixture. To try the runner without model calls, point `OPENROUTER_BASE_URL` at a local fake server.
 
 Five agent cases (`search-*`) ask about things only written in symptom notes, which only `search_patient_records` returns. Both runners use the local embedding model and reranker, so run `yarn rag:model` once first.
 

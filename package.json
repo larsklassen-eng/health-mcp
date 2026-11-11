@@ -15,6 +15,7 @@
     "test": "turbo run test",
     "eval": "turbo run build && yarn workspace @health-mcp/evals eval",
     "eval:retrieval": "turbo run build && yarn workspace @health-mcp/evals eval:retrieval",
+    "eval:judge": "turbo run build && yarn workspace @health-mcp/evals eval:judge",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "clean": "turbo run clean",
