@@ -18,6 +18,7 @@ import { type Judge, judgeFailures, judgeFromEnv } from "./judge.js";
 import { parseOptions } from "./cli.js";
 import { FIXTURE, missingEmbeddingModel, request, RESULTS_DIR, startStack } from "./stack.js";
 import { summarizeAttempts } from "./summary.js";
+import { provenance } from "./provenance.js";
 import { parseChatStream } from "./transcript.js";
 import { formatUsage, sumUsage } from "./usage.js";
 
@@ -230,6 +231,8 @@ async function main(): Promise<number> {
     console.log(`--no-judge: the rubric of ${withRubric} of them is not checked.`);
   console.log("");
 
+  // What produced this run, recorded before it starts (see provenance.ts).
+  const runProvenance = provenance();
   const stack = await startStack(databasePath);
   const results: EvalResult[] = [];
   try {
@@ -256,7 +259,17 @@ async function main(): Promise<number> {
   writeFileSync(
     report,
     `${JSON.stringify(
-      { model, judgeModel, repeat, ...summary, warnings, usage, judgeUsage, results },
+      {
+        model,
+        judgeModel,
+        repeat,
+        provenance: runProvenance,
+        ...summary,
+        warnings,
+        usage,
+        judgeUsage,
+        results,
+      },
       null,
       2,
     )}\n`,

@@ -16,6 +16,7 @@
     "eval": "turbo run build && yarn workspace @health-mcp/evals eval",
     "eval:retrieval": "turbo run build && yarn workspace @health-mcp/evals eval:retrieval",
     "eval:judge": "turbo run build && yarn workspace @health-mcp/evals eval:judge",
+    "eval:compare": "yarn workspace @health-mcp/evals build && node packages/evals/dist/compare-run.js",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "clean": "turbo run clean",

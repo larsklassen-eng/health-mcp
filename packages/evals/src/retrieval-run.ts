@@ -4,7 +4,9 @@ import path from "node:path";
 
 import { createDb, type HealthDb, migrateDb, REPO_ROOT } from "@health-mcp/db";
 import {
+  DEFAULT_EMBEDDING_MODEL,
   DEFAULT_MIN_SIMILARITY,
+  DEFAULT_RERANKER_MODEL,
   type Embedder,
   LocalEmbedder,
   LocalReranker,
@@ -22,6 +24,7 @@ import {
   type RetrievalSummary,
   summarizeRetrieval,
 } from "./retrieval-case.js";
+import { provenance } from "./provenance.js";
 import { RETRIEVAL_CASES } from "./retrieval-cases.js";
 import { FIXTURE, missingEmbeddingModel, request, RESULTS_DIR, startStack } from "./stack.js";
 
@@ -174,6 +177,7 @@ async function main(): Promise<number> {
 
   const results: RetrievalResult[] = [];
   let sweepRows: Awaited<ReturnType<typeof sweep>> | undefined;
+  const runProvenance = provenance();
   const stack = await startStack(databasePath);
   try {
     console.log("Importing and indexing the synthetic patients…");
@@ -212,14 +216,23 @@ async function main(): Promise<number> {
   const stamp = new Date().toISOString().replaceAll(":", "-");
   if (sweepRows) {
     const report = path.join(RESULTS_DIR, `retrieval-sweep-${stamp}.json`);
-    writeFileSync(report, `${JSON.stringify({ sweep: sweepRows }, null, 2)}\n`);
+    writeFileSync(
+      report,
+      `${JSON.stringify({ provenance: runProvenance, sweep: sweepRows }, null, 2)}\n`,
+    );
     console.log(`\nReport: ${path.relative(REPO_ROOT, report)}`);
     return 0;
   }
 
   const splits = summarizeSplits(selected, results);
   const report = path.join(RESULTS_DIR, `retrieval-${stamp}.json`);
-  writeFileSync(report, `${JSON.stringify({ ...splits, results }, null, 2)}\n`);
+  const settings = {
+    provenance: runProvenance,
+    embeddingModel: DEFAULT_EMBEDDING_MODEL,
+    rerankerModel: values["no-rerank"] ? null : DEFAULT_RERANKER_MODEL,
+    minSimilarity: DEFAULT_MIN_SIMILARITY,
+  };
+  writeFileSync(report, `${JSON.stringify({ ...settings, ...splits, results }, null, 2)}\n`);
   console.log("");
   for (const split of ["tuning", "holdout"] as const)
     if (splits[split].total > 0) console.log(describeSummary(split, splits[split]));

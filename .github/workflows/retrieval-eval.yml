@@ -1,0 +1,71 @@
+name: Retrieval eval
+
+# Runs `yarn eval:retrieval` (free: local embedding model and reranker, no LLM,
+# no API key) when anything that can change search results changes on
+# rag-option-a. ci.yml only runs on main, which has no RAG. The agent eval
+# (`yarn eval`) costs money per run, so it stays manual.
+on:
+  push:
+    branches: [rag-option-a]
+    paths:
+      - "packages/rag/**"
+      - "packages/evals/**"
+      - "packages/db/**"
+      - "packages/shared/**"
+      - "apps/api/**"
+      - "apps/mcp-server/**"
+      - "fixtures/**"
+      - "yarn.lock"
+      - ".github/workflows/retrieval-eval.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: retrieval-eval-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  retrieval:
+    name: Retrieval checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      TURBO_TELEMETRY_DISABLED: 1
+      NEXT_TELEMETRY_DISABLED: 1
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: yarn
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      # About 120 MB from Hugging Face; the key changes when a model name does.
+      - name: Cache the embedding model and reranker
+        uses: actions/cache@v6
+        with:
+          path: data/models
+          key: >-
+            rag-models-${{ hashFiles('packages/rag/src/embedder.ts',
+            'packages/rag/src/reranker.ts') }}
+
+      - name: Download the models (loaded from the cache when there)
+        run: yarn rag:model
+
+      - name: Run the retrieval checks
+        run: yarn eval:retrieval
+
+      # The report, to compare with a local one: `yarn eval:compare --retrieval <a> <b>`.
+      - name: Keep the report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: retrieval-report
+          path: eval-results/retrieval-*.json
+          if-no-files-found: ignore
+          retention-days: 30

@@ -222,7 +222,7 @@ A judge is only worth trusting once it agrees with a person. `packages/evals/src
 
 **Repeats.** The model answers differently each time, so one run of a case cannot tell a regression from bad luck. With `--repeat <n>` (up to 10) each case runs n times, and the run reports how many cases passed every attempt (pass^n, what a clinician who gets one answer can rely on), how many passed at least once (pass@n), and which were flaky.
 
-Each run prints ✓/✗ per attempt with the reasons, the warnings and the model calls, tokens and cost, then the totals. It writes a JSON report with the answers, each attempt's tool calls with their arguments and results, the warnings, `usage`, each case's passes and the run's totals to `eval-results/` (git-ignored). The exit code is 1 if any attempt fails. CI does not run evals; `yarn test` checks the grader, the number check, the repeat summary, the judge's prompt, reply parsing and request (against a fake server), the stream parsing, and that every expected value really is in the fixture. To try the runner without model calls, point `OPENROUTER_BASE_URL` at a local fake server.
+Each run prints ✓/✗ per attempt with the reasons, the warnings and the model calls, tokens and cost, then the totals. It writes a JSON report with the answers, each attempt's tool calls with their arguments and results, the warnings, `usage`, each case's passes and the run's totals to `eval-results/` (git-ignored). The exit code is 1 if any attempt fails. CI does not run the agent eval, since it costs money; `yarn test` checks the grader, the number check, the repeat summary, the judge's prompt, reply parsing and request (against a fake server), the stream parsing, and that every expected value really is in the fixture. To try the runner without model calls, point `OPENROUTER_BASE_URL` at a local fake server.
 
 Besides single questions, some cases test what is harder:
 - **Follow-up questions** (`follow-up-*`): `earlierMessages` are sent first in the same chat, and only the last answer is graded ("And the one before that?"). Their cost counts in the case's usage.
@@ -247,6 +247,20 @@ yarn eval:retrieval --case vertigo
 yarn eval:retrieval --no-rerank   # without the reranker, to compare
 yarn eval:retrieval --sweep       # every check at similarity cutoffs from 0.50 to 0.64
 ```
+
+The retrieval checks run in GitHub Actions (`.github/workflows/retrieval-eval.yml`) on every push to `rag-option-a` that changes the search, the indexing, the evals, the api, the MCP server or the fixture. The models are cached between runs, and the report is kept as the `retrieval-report` artifact for 30 days.
+
+#### Comparing runs
+
+Every report records what produced it: the git commit (and whether there were uncommitted changes), a hash of the system prompt's source and a hash of the tool definitions as the model sees them (names, descriptions, argument schemas); agent reports also the model, the judge model and `--repeat`, and retrieval reports the embedding model, the reranker and the similarity cutoff. `yarn eval:compare` puts two reports side by side: what differed between the runs, and which cases changed. Changes are listed by what needs attention first: **broke** (passed every attempt, no longer does), **worse**, **fixed**, **better**; added and removed cases on one line each. For retrieval, rank and recall changes too. It calls no model.
+
+```sh
+yarn eval:compare                          # the two latest agent reports
+yarn eval:compare --retrieval              # the two latest retrieval reports
+yarn eval:compare eval-results/<a>.json eval-results/<b>.json   # older first
+```
+
+Compare runs with the same `--repeat`: a case that passed 1/1 and then 2/3 is not necessarily worse, it was just measured more often. Reports from before 2026-11-11 do not record the code, the prompt or the tools.
 
 `--sweep` shows the cutoff's trade-off: lower finds more relevant passages, higher returns nothing for more off-topic questions. On 2026-11-11 (40 checks, reranked): off-topic questions all came back empty from 0.54 up, and every tuning check passed up to 0.57; at 0.58 two tuning checks lost their passage. The current 0.57 is at the top of that window, with no margin on that side.
 
