@@ -32,18 +32,44 @@ function sourceTexts(mrn: string, source: string): string[] {
   }
 }
 
+/** All of a fixture patient's indexed text, lowercase. */
+const allTexts = (mrn: string) =>
+  ["patient_notes", "symptom", "imaging_report"].flatMap((source) =>
+    sourceTexts(mrn, source).map((t) => t.toLowerCase()),
+  );
+
 describe("retrieval cases", () => {
-  it("are valid, have unique ids and include cases where nothing is relevant", () => {
-    expect(cases.length).toBeGreaterThanOrEqual(10);
+  it("are valid, have unique ids and cover every kind of check in both splits", () => {
     expect(new Set(cases.map((c) => c.id)).size).toBe(cases.length);
-    expect(cases.some((c) => !c.expected)).toBe(true);
+    for (const split of ["tuning", "holdout"] as const) {
+      const inSplit = cases.filter((c) => c.split === split);
+      expect(inSplit.filter((c) => c.relevant.length > 0).length).toBeGreaterThanOrEqual(10);
+      expect(inSplit.some((c) => c.offTopic)).toBe(true);
+    }
+    expect(cases.some((c) => c.relevant.length > 1)).toBe(true);
+    expect(cases.some((c) => c.otherPatientText.length > 0)).toBe(true);
   });
 
-  it.each(cases.filter((c) => c.expected))(
-    "$id expects a phrase that is in one of the patient's texts of that kind",
-    ({ patientMrn, expected }) => {
-      const texts = sourceTexts(patientMrn, expected!.source).map((t) => t.toLowerCase());
-      expect(texts.some((t) => t.includes(expected!.textIncludes.toLowerCase()))).toBe(true);
+  it.each(cases.filter((c) => c.relevant.length > 0))(
+    "$id expects phrases that are in the patient's texts of that kind",
+    ({ patientMrn, relevant }) => {
+      for (const { source, textIncludes } of relevant) {
+        const texts = sourceTexts(patientMrn, source).map((t) => t.toLowerCase());
+        expect(texts.some((t) => t.includes(textIncludes.toLowerCase()))).toBe(true);
+      }
+    },
+  );
+
+  it.each(cases.filter((c) => c.otherPatientText.length > 0))(
+    "$id guards text that another patient has and this one does not",
+    ({ patientMrn, otherPatientText }) => {
+      const others = fixture.patients
+        .filter((b) => b.patient.mrn !== patientMrn)
+        .flatMap((b) => allTexts(b.patient.mrn));
+      for (const text of otherPatientText.map((t) => t.toLowerCase())) {
+        expect(allTexts(patientMrn).some((t) => t.includes(text))).toBe(false);
+        expect(others.some((t) => t.includes(text))).toBe(true);
+      }
     },
   );
 });

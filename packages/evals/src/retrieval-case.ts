@@ -1,20 +1,43 @@
 import { ChunkSourceTypeSchema } from "@health-mcp/shared";
 import { z } from "zod";
 
+/** A passage in a patient's index: its source and a phrase from it. */
+export const PassageSchema = z.object({
+  source: ChunkSourceTypeSchema,
+  textIncludes: z.string().min(1),
+});
+
 /**
  * One retrieval check: a search over a synthetic patient's indexed text, and
- * the passage that must come back in the top `k`. Runs with the real embedding
- * model and no LLM, so it is free (`yarn eval:retrieval`).
+ * what must (or must not) come back in the top `k`. Runs with the real
+ * embedding model and no LLM, so it is free (`yarn eval:retrieval`).
  */
-export const RetrievalCaseSchema = z.object({
-  id: z.string().regex(/^[a-z0-9-]+$/),
-  /** MRN of a patient in the synthetic fixture. */
-  patientMrn: z.string().startsWith("FAKE-"),
-  query: z.string().min(2),
-  /** The passage to find: its source and a phrase from it. Omit when nothing is relevant. */
-  expected: z.object({ source: ChunkSourceTypeSchema, textIncludes: z.string().min(1) }).optional(),
-  k: z.int().min(1).max(10).default(5),
-});
+export const RetrievalCaseSchema = z
+  .object({
+    id: z.string().regex(/^[a-z0-9-]+$/),
+    /** MRN of a patient in the synthetic fixture. */
+    patientMrn: z.string().startsWith("FAKE-"),
+    query: z.string().min(2),
+    /** Every passage that answers the query. At least one must be in the top k. */
+    relevant: z.array(PassageSchema).default([]),
+    /** Nothing in the records is relevant: the search must return nothing. */
+    offTopic: z.boolean().default(false),
+    /** Text only another patient has, which must never come back (patient isolation). */
+    otherPatientText: z.array(z.string().min(1)).default([]),
+    /**
+     * `tuning`: used to choose the chunk size, the similarity cutoff and the
+     * models, so its scores flatter the search. `holdout`: never tuned on; the
+     * honest measure. Keep tuning on `tuning` only.
+     */
+    split: z.enum(["tuning", "holdout"]),
+    k: z.int().min(1).max(10).default(5),
+  })
+  .refine((c) => c.relevant.length > 0 || c.offTopic || c.otherPatientText.length > 0, {
+    message: "A case needs relevant passages, offTopic or otherPatientText.",
+  })
+  .refine((c) => !(c.offTopic && c.relevant.length > 0), {
+    message: "An off-topic case has no relevant passages.",
+  });
 
 export type RetrievalCase = z.infer<typeof RetrievalCaseSchema>;
 export type RetrievalCaseInput = z.input<typeof RetrievalCaseSchema>;
@@ -24,13 +47,17 @@ export interface RetrievedPassage {
   sourceType: string;
   text: string;
   similarity?: number;
+  /** The patient whose index the passage is in (looked up by the runner). */
+  patientId?: string;
 }
 
 export interface RetrievalResult {
   caseId: string;
   passed: boolean;
-  /** Position of the expected passage (1 = first); absent when it was not found. */
+  /** Position of the first relevant passage (1 = first); absent when none was found. */
   rank?: number;
+  /** Share of the relevant passages found in the top k; absent without relevant passages. */
+  recall?: number;
   failures: string[];
   /** What came back, best first: source, similarity and the start of the text. */
   retrieved: string[];
@@ -44,58 +71,93 @@ const describePassage = ({ sourceType, text, similarity }: RetrievedPassage) => 
   return `${sourceType} (${score}): ${body.length > 80 ? `${body.slice(0, 80)}…` : body}`;
 };
 
-/** Checks one search's results against a case. */
+const matches = (passage: RetrievedPassage, expected: z.infer<typeof PassageSchema>) =>
+  passage.sourceType === expected.source &&
+  normalize(passage.text).includes(normalize(expected.textIncludes));
+
+/** Checks one search's results against a case. `patientId` is the patient searched. */
 export function gradeRetrieval(
   retrievalCase: RetrievalCase,
   results: RetrievedPassage[],
+  patientId?: string,
 ): RetrievalResult {
-  const { expected, k } = retrievalCase;
+  const { relevant, offTopic, otherPatientText, k } = retrievalCase;
   const top = results.slice(0, k);
   const failures: string[] = [];
   let rank: number | undefined;
+  let recall: number | undefined;
 
-  if (expected) {
-    const index = top.findIndex(
-      (passage) =>
-        passage.sourceType === expected.source &&
-        normalize(passage.text).includes(normalize(expected.textIncludes)),
-    );
-    if (index === -1)
+  if (relevant.length > 0) {
+    const ranks = relevant
+      .map((expected) => top.findIndex((passage) => matches(passage, expected)))
+      .filter((index) => index !== -1)
+      .map((index) => index + 1);
+    recall = ranks.length / relevant.length;
+    if (ranks.length > 0) rank = Math.min(...ranks);
+    else if (relevant.length === 1)
       failures.push(
-        `Expected a ${expected.source} passage with "${expected.textIncludes}" in the top ${k}.`,
+        `Expected a ${relevant[0]!.source} passage with "${relevant[0]!.textIncludes}" ` +
+          `in the top ${k}.`,
       );
-    else rank = index + 1;
-  } else if (top.length > 0) {
-    failures.push(`Expected no passages, got ${top.length}.`);
+    else
+      failures.push(
+        `Expected at least one of ${relevant.length} relevant passages in the top ${k}.`,
+      );
+  }
+  if (offTopic && top.length > 0) failures.push(`Expected no passages, got ${top.length}.`);
+
+  // Patient isolation, checked on every search: the strongest guarantee, so never skipped.
+  for (const [i, passage] of top.entries()) {
+    if (patientId !== undefined && passage.patientId !== patientId)
+      failures.push(`Passage ${i + 1} belongs to another patient.`);
+    const leaked = otherPatientText.find((text) =>
+      normalize(passage.text).includes(normalize(text)),
+    );
+    if (leaked) failures.push(`Passage ${i + 1} has another patient's text: "${leaked}".`);
   }
 
   return {
     caseId: retrievalCase.id,
     passed: failures.length === 0,
     ...(rank !== undefined && { rank }),
+    ...(recall !== undefined && { recall }),
     failures,
     retrieved: top.map(describePassage),
   };
 }
 
-/**
- * Hit rate (share of cases with an expected passage that found it in the top k)
- * and mean reciprocal rank (1 when it is always first, 0 when never found).
- */
-export function summarizeRetrieval(cases: RetrievalCase[], results: RetrievalResult[]) {
-  const withExpected = results.filter((result) =>
-    cases.some((c) => c.id === result.caseId && c.expected),
-  );
-  const hits = withExpected.filter((result) => result.rank !== undefined).length;
-  const reciprocal = withExpected.reduce(
-    (sum, result) => sum + (result.rank ? 1 / result.rank : 0),
-    0,
-  );
-  const count = withExpected.length;
+export interface RetrievalSummary {
+  passed: number;
+  total: number;
+  /** Share of cases with relevant passages that found at least one in the top k. */
+  hitRate: number;
+  /** Mean share of each case's relevant passages found in the top k. */
+  recall: number;
+  /** Mean reciprocal rank of the first relevant passage (1 = always first, 0 = never found). */
+  meanReciprocalRank: number;
+  /** Off-topic cases that correctly returned nothing, of all off-topic cases. */
+  offTopicPassed: number;
+  offTopicTotal: number;
+}
+
+/** The measures over a set of cases (all, or one split). */
+export function summarizeRetrieval(
+  cases: readonly RetrievalCase[],
+  results: readonly RetrievalResult[],
+): RetrievalSummary {
+  const byId = new Map(cases.map((c) => [c.id, c]));
+  const mine = results.filter((result) => byId.has(result.caseId));
+  const withRelevant = mine.filter((result) => byId.get(result.caseId)!.relevant.length > 0);
+  const offTopic = mine.filter((result) => byId.get(result.caseId)!.offTopic);
+  const mean = (values: number[]) =>
+    values.length === 0 ? 0 : values.reduce((sum, value) => sum + value, 0) / values.length;
   return {
-    passed: results.filter((result) => result.passed).length,
-    total: results.length,
-    hitRate: count === 0 ? 0 : hits / count,
-    meanReciprocalRank: count === 0 ? 0 : reciprocal / count,
+    passed: mine.filter((result) => result.passed).length,
+    total: mine.length,
+    hitRate: mean(withRelevant.map((result) => (result.rank === undefined ? 0 : 1))),
+    recall: mean(withRelevant.map((result) => result.recall ?? 0)),
+    meanReciprocalRank: mean(withRelevant.map((result) => (result.rank ? 1 / result.rank : 0))),
+    offTopicPassed: offTopic.filter((result) => result.passed).length,
+    offTopicTotal: offTopic.length,
   };
 }
