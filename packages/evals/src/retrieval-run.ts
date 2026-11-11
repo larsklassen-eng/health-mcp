@@ -1,7 +1,6 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { parseArgs } from "node:util";
 
 import { createDb, migrateDb, REPO_ROOT } from "@health-mcp/db";
 import { LocalEmbedder, LocalReranker, searchPatientChunks } from "@health-mcp/rag";
@@ -14,6 +13,7 @@ import {
   summarizeRetrieval,
 } from "./retrieval-case.js";
 import { RETRIEVAL_CASES } from "./retrieval-cases.js";
+import { parseOptions } from "./cli.js";
 import { FIXTURE, missingEmbeddingModel, request, RESULTS_DIR, startStack } from "./stack.js";
 
 /*
@@ -33,14 +33,19 @@ function printResult(result: RetrievalResult, verbose: boolean) {
 }
 
 async function main(): Promise<number> {
-  const { values } = parseArgs({
-    options: {
-      case: { type: "string", multiple: true },
-      list: { type: "boolean" },
-      verbose: { type: "boolean" },
-      "no-rerank": { type: "boolean" },
+  const parsed = parseOptions(
+    {
+      options: {
+        case: { type: "string", multiple: true },
+        list: { type: "boolean" },
+        verbose: { type: "boolean" },
+        "no-rerank": { type: "boolean" },
+      },
     },
-  });
+    "yarn eval:retrieval [--list] [--case <id>]... [--verbose] [--no-rerank]",
+  );
+  if (!parsed) return 2;
+  const { values } = parsed;
   const cases = RETRIEVAL_CASES.map((input) => RetrievalCaseSchema.parse(input));
   if (values.list) {
     for (const c of cases) console.log(`${c.id}: ${c.query}`);

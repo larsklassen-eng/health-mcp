@@ -1,7 +1,6 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { parseArgs } from "node:util";
 
 import { createDb, loadEnvFile, migrateDb, REPO_ROOT } from "@health-mcp/db";
 import {
@@ -14,6 +13,7 @@ import {
 import { CASES } from "./cases.js";
 import { type EvalCase, EvalCaseSchema, type EvalResult, type Transcript } from "./eval-case.js";
 import { grade } from "./grade.js";
+import { parseOptions } from "./cli.js";
 import { FIXTURE, missingEmbeddingModel, request, RESULTS_DIR, startStack } from "./stack.js";
 import { summarizeAttempts } from "./summary.js";
 import { parseChatStream } from "./transcript.js";
@@ -101,13 +101,18 @@ function parseRepeat(value: string | undefined): number | undefined {
 }
 
 async function main(): Promise<number> {
-  const { values } = parseArgs({
-    options: {
-      case: { type: "string", multiple: true },
-      list: { type: "boolean" },
-      repeat: { type: "string" },
+  const parsed = parseOptions(
+    {
+      options: {
+        case: { type: "string", multiple: true },
+        list: { type: "boolean" },
+        repeat: { type: "string" },
+      },
     },
-  });
+    "yarn eval [--list] [--case <id>]... [--repeat <n>]",
+  );
+  if (!parsed) return 2;
+  const { values } = parsed;
   const repeat = parseRepeat(values.repeat);
   if (repeat === undefined) {
     console.error(`--repeat takes a whole number from 1 to ${MAX_REPEAT}.`);

@@ -120,7 +120,8 @@ export const CASES: EvalCaseInput[] = [
     patientMrn: "FAKE-AST-0004",
     userMessage: "What did her post-operative MRI show?",
     expectedToolCalls: [{ name: "get_imaging_studies" }],
-    answerIncludes: ["residual", "posterior"],
+    // The model also says "leftover" or "remains" (seen in a run of --repeat 3).
+    answerIncludes: [["residual", "leftover", "remain"], "posterior"],
   },
   {
     id: "log-symptom-when-asked",
@@ -183,6 +184,9 @@ export const CASES: EvalCaseInput[] = [
       [
         "no mention",
         "not mentioned",
+        "don't mention",
+        "do not mention",
+        "doesn't mention",
         "no record",
         "no documented",
         "not documented",
