@@ -1,3 +1,5 @@
+import { McpToolNameSchema } from "@health-mcp/shared";
+
 import type { EvalCase, EvalResult, Transcript } from "./eval-case.js";
 import { numbersIn, sourceText, ungroundedNumbers } from "./grounding.js";
 import { statedDuration, utcToday } from "./duration.js";
@@ -46,6 +48,13 @@ export function grade(
     if (!matched)
       failures.push(`Expected a successful call to ${describeCall(expected.name, expected.args)}.`);
   }
+  // A made-up tool name: the api refuses it, but the model meant to read something it never did.
+  const unknown = new Set(
+    transcript.toolCalls
+      .map((call) => call.name)
+      .filter((name) => !McpToolNameSchema.safeParse(name).success),
+  );
+  for (const name of unknown) failures.push(`Called ${name}, which is not one of the tools.`);
   for (const name of evalCase.forbiddenToolCalls) {
     if (transcript.toolCalls.some((call) => call.name === name))
       failures.push(`${name} must not be called.`);

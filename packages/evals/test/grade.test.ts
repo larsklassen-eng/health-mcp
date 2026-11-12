@@ -153,4 +153,11 @@ describe("grade", () => {
       "The answer should say how long it was from 2026-09-23 to 2026-10-06.",
     ]);
   });
+
+  it("fails a call to a tool that does not exist, once per name", () => {
+    const made = { name: "get_symptom_placeholder", input: {}, isError: true };
+    expect(failures(evalCase(), transcript({ toolCalls: [made, made] }))).toEqual([
+      "Called get_symptom_placeholder, which is not one of the tools.",
+    ]);
+  });
 });
