@@ -3,9 +3,10 @@ region  = "us-east-1"
 project = "health-mcp"
 owner   = "736"
 pillar  = "general"
+# One deployment, `rag`, deployed from main. Its name dates from when the RAG code
+# lived on the rag-option-a branch; renaming it would recreate every resource.
 deployments = {
-  main = "main"
-  rag  = "rag-option-a"
+  rag = "main"
 }
 permissions_boundary_arn = "arn:aws:iam::986608278121:policy/health-mcp-DeployerPolicy"
 

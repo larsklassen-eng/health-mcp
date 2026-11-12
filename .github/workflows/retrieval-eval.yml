@@ -1,12 +1,11 @@
 name: Retrieval eval
 
 # Runs `yarn eval:retrieval` (free: local embedding model and reranker, no LLM,
-# no API key) when anything that can change search results changes on
-# rag-option-a. ci.yml only runs on main, which has no RAG. The agent eval
-# (`yarn eval`) costs money per run, so it stays manual.
+# no API key) when anything that can change search results changes on main.
+# The agent eval (`yarn eval`) costs money per run, so it stays manual.
 on:
   push:
-    branches: [rag-option-a]
+    branches: [main]
     paths:
       - "packages/rag/**"
       - "packages/evals/**"

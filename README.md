@@ -252,7 +252,7 @@ yarn eval:retrieval --no-rerank   # without the reranker, to compare
 yarn eval:retrieval --sweep       # every check at similarity cutoffs from 0.50 to 0.64
 ```
 
-The retrieval checks run in GitHub Actions (`.github/workflows/retrieval-eval.yml`) on every push to `rag-option-a` that changes the search, the indexing, the evals, the api, the MCP server or the fixture. The models are cached between runs, and the report is kept as the `retrieval-report` artifact for 30 days.
+The retrieval checks run in GitHub Actions (`.github/workflows/retrieval-eval.yml`) on every push to `main` that changes the search, the indexing, the evals, the api, the MCP server or the fixture. The models are cached between runs, and the report is kept as the `retrieval-report` artifact for 30 days.
 
 #### Comparing runs
 
@@ -281,7 +281,7 @@ It prints ✓/✗ per check with the expected passage's rank (failures list what
 
 ### Continuous integration
 
-`.github/workflows/ci.yml` runs on every push to `main` (and manually from the Actions tab): install with a locked `yarn.lock`, check formatting, build, type-check, test. A second job checks the Terraform in `infra/` (`terraform fmt -check`, `terraform validate`), without AWS access, and a third builds the three Docker images. `.github/workflows/deploy.yml` deploys `rag-option-a` to its AWS sandbox deployment on every push to this branch (see [infra/README.md](infra/README.md)). There are no pull requests in this repo, so a red run means `main` is broken.
+`.github/workflows/ci.yml` runs on every push to `main` (and manually from the Actions tab): install with a locked `yarn.lock`, check formatting, build, type-check, test. A second job checks the Terraform in `infra/` (`terraform fmt -check`, `terraform validate`), without AWS access, and a third builds the three Docker images. `.github/workflows/deploy.yml` deploys `main` to the AWS sandbox on every push (see [infra/README.md](infra/README.md)). There are no pull requests in this repo, so a red run means `main` is broken.
 
 ### Environment variables
 

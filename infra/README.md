@@ -1,15 +1,18 @@
 # Infrastructure (AWS)
 
-Terraform for the Factored AWS sandbox account (`us-east-1`), with one independent deployment
-per branch. For now only `rag-option-a` is deployed (deployment `rag`), step by step: its image
-repositories, secrets, app server and its public URL (CloudFront).
+Terraform for the Factored AWS sandbox account (`us-east-1`). One deployment, `rag`, deployed
+from `main`: its image repositories, secrets, app server and its public URL (CloudFront). The
+configuration supports one independent deployment per branch, should another one be needed.
 
 ## Deployments
 
 | Deployment (workspace) | Branch | State in S3 | Resource names |
 |---|---|---|---|
-| `main` | `main` (not deployed yet) | `health-mcp/main/terraform.tfstate` | `health-mcp-main-*` |
-| `rag` | `rag-option-a` | `health-mcp/rag/terraform.tfstate` | `health-mcp-rag-*` |
+| `rag` | `main` | `health-mcp/rag/terraform.tfstate` | `health-mcp-rag-*` |
+
+The deployment is called `rag` because this code used to live on the `rag-option-a` branch, which
+became `main` on 2026-11-12. Renaming it would recreate every resource (and its data disk), so the
+name stays.
 
 The Terraform workspace picks the deployment. Each one has its own state, its own resources
 (named with `local.name_prefix` and tagged with `deployment`) and, once the app is deployed, its
@@ -17,7 +20,7 @@ own URL, database, secrets and login, so access to one never gives access to the
 is shared between them except the account's VPC. The default workspace is refused, and the
 deployments are listed in `environments/sandbox.tfvars`.
 
-Apply a deployment from its own branch, so the `rag` deployment runs the RAG code.
+Apply the `rag` deployment from `main`, the branch it runs.
 
 | File | What it holds |
 |---|---|
@@ -174,7 +177,7 @@ started. Traces carry the patients' text: synthetic data only, as everywhere.
 
 ## Usage
 
-`.github/workflows/deploy.yml` deploys `rag-option-a` on every push to that branch, or by hand
+`.github/workflows/deploy.yml` deploys `main` on every push to that branch, or by hand
 from the Actions tab ("Deploy" → "Run workflow"). It runs only in `factoredai/health-mcp`, so
 pushes to personal copies skip it.
 

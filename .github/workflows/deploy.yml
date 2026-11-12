@@ -1,13 +1,13 @@
 name: Deploy
 
-# Deploys rag-option-a to its AWS sandbox deployment (Terraform workspace
-# `rag`): applies infra/, builds the images for ARM (Graviton), pushes them to
-# ECR and has the server pull and start them (through SSM). Only GitHub Actions
-# in factoredai/health-mcp may use the deployer role, so this runs here, not
-# locally. main is not deployed yet.
+# Deploys main to its AWS sandbox deployment (Terraform workspace `rag`, named
+# when this code lived on the rag-option-a branch): applies infra/, builds the
+# images for ARM (Graviton), pushes them to ECR and has the server pull and
+# start them (through SSM). Only GitHub Actions in factoredai/health-mcp may use
+# the deployer role, so this runs here, not locally.
 on:
   push:
-    branches: [rag-option-a]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
