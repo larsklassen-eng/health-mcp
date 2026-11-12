@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 import { REPO_ROOT } from "@health-mcp/db";
@@ -12,6 +12,7 @@ import {
   RetrievalReportSchema,
   type SettingChange,
 } from "./compare.js";
+import { kindOf, reportFiles } from "./reports.js";
 import { RESULTS_DIR } from "./stack.js";
 
 /*
@@ -21,12 +22,6 @@ import { RESULTS_DIR } from "./stack.js";
  */
 
 type Kind = "agent" | "retrieval";
-
-function kindOf(file: string): Kind | "sweep" {
-  const name = path.basename(file);
-  if (name.startsWith("retrieval-sweep-")) return "sweep";
-  return name.startsWith("retrieval-") ? "retrieval" : "agent";
-}
 
 const read = (file: string): unknown => JSON.parse(readFileSync(file, "utf8"));
 
@@ -46,16 +41,7 @@ function caseSet(file: string): string | undefined {
  * failing that, the one just before. Names start with the time, so they sort.
  */
 function latestTwo(kind: Kind): string[] {
-  let names: string[];
-  try {
-    names = readdirSync(RESULTS_DIR);
-  } catch {
-    return [];
-  }
-  const files = names
-    .filter((name) => name.endsWith(".json") && kindOf(name) === kind)
-    .sort()
-    .map((name) => path.join(RESULTS_DIR, name));
+  const files = reportFiles(kind);
   if (files.length < 2) return files;
   const newest = files.at(-1)!;
   const earlier = files.slice(0, -1);

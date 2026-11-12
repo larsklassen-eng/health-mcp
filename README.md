@@ -266,6 +266,15 @@ yarn eval:compare eval-results/<a>.json eval-results/<b>.json   # older first
 
 Compare runs with the same `--repeat`: a case that passed 1/1 and then 2/3 is not necessarily worse, it was just measured more often. Reports from before 2026-11-11 do not record the code, the prompt or the tools.
 
+To browse runs in [Phoenix](docs/rag.md#monitoring-with-phoenix) instead, `yarn eval:phoenix` uploads agent reports as experiments. It calls no model, so it costs nothing. The cases become a dataset (`health-mcp agent eval`, one example per case, a new version when the cases change), each report an experiment named by model and time, and each answer a run with its tool calls and four evaluations: `passed`, `judge` (share of rubric statements met), `ungrounded numbers` and `cost (USD)`. The experiment's metadata holds the report's name, commit, prompt and tool hashes, and costs. A report already uploaded is skipped, and cases no longer in `cases.ts` are left out. Reports contain the synthetic patients' records, so upload them only to a local Phoenix, the same one the traces go to (`PHOENIX_COLLECTOR_ENDPOINT`, default `http://localhost:6006`).
+
+```sh
+docker compose --profile monitoring up -d phoenix
+yarn eval:phoenix                          # the latest agent report
+yarn eval:phoenix --all                    # every agent report not uploaded yet
+yarn eval:phoenix eval-results/<a>.json    # chosen reports
+```
+
 `--sweep` shows the cutoff's trade-off: lower finds more relevant passages, higher returns nothing for more off-topic questions. On 2026-11-11 (40 checks, reranked): off-topic questions all came back empty from 0.54 up, and every tuning check passed up to 0.57; at 0.58 two tuning checks lost their passage. The current 0.57 is at the top of that window, with no margin on that side.
 
 It prints ✓/✗ per check with the expected passage's rank (failures list what came back), then the hit rate (expected passages found in the top 5) and the mean reciprocal rank (1 when the expected passage is always first). The checks are in `packages/evals/src/retrieval-cases.ts`; the report goes to `eval-results/retrieval-*.json`.
@@ -280,8 +289,8 @@ It prints ✓/✗ per check with the expected passage's rank (failures list what
 |---|---|---|
 | `DATABASE_PATH` | `packages/db`, `apps/api`, `apps/mcp-server` | `data/health.db` |
 | `RAG_EMBEDDER` | `apps/api`, `apps/mcp-server` | `local`; embedding model for the search index and for search queries (both must use the same one): `local` (bge-small on this machine), `hashing` (word-hashing stand-in, used by the tests) or `off` |
-| `PHOENIX_COLLECTOR_ENDPOINT` | `apps/api`, `apps/mcp-server` | Unset; a local [Phoenix](docs/rag.md#monitoring-with-phoenix) (e.g. `http://localhost:6006`) to send search and indexing traces to. They carry patients' text: never point it elsewhere |
-| `PHOENIX_API_KEY` | `apps/api`, `apps/mcp-server` | Unset; sent with the traces when Phoenix's login is on (as in AWS, from Parameter Store) |
+| `PHOENIX_COLLECTOR_ENDPOINT` | `apps/api`, `apps/mcp-server`, `yarn eval:phoenix` | Unset; a local [Phoenix](docs/rag.md#monitoring-with-phoenix) (e.g. `http://localhost:6006`) to send search and indexing traces to. They carry patients' text: never point it elsewhere |
+| `PHOENIX_API_KEY` | `apps/api`, `apps/mcp-server`, `yarn eval:phoenix` | Unset; sent with the traces when Phoenix's login is on (as in AWS, from Parameter Store) |
 | `PHOENIX_TRACING` | Docker Compose | Unset; `on` sends the containers' traces to the `phoenix` service (`--profile monitoring`) |
 | `RAG_RERANKER` | `apps/mcp-server` | `local`; re-orders search results with a local cross-encoder (`mxbai-rerank-xsmall-v1`, about 550 MB of memory once loaded), or `off`. Only used with `RAG_EMBEDDER=local` |
 | `RAG_MODEL_DIR` | `packages/rag` | `data/models`; where the embedding model and the reranker are downloaded (relative to the repo root) |

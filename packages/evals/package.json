@@ -17,7 +17,8 @@
     "eval": "node dist/run.js",
     "eval:retrieval": "node dist/retrieval-run.js",
     "eval:judge": "node dist/judge-run.js",
-    "eval:compare": "node dist/compare-run.js"
+    "eval:compare": "node dist/compare-run.js",
+    "eval:phoenix": "node dist/phoenix-run.js"
   },
   "dependencies": {
     "@health-mcp/db": "workspace:*",

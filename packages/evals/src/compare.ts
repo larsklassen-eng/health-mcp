@@ -6,7 +6,7 @@ import { z } from "zod";
  * reports loosely, so reports written before a field existed still compare.
  */
 
-const ProvenanceSchema = z
+export const ProvenanceSchema = z
   .object({
     gitCommit: z.string().optional(),
     gitDirty: z.boolean().optional(),
