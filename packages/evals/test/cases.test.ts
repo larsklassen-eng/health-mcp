@@ -42,6 +42,14 @@ describe("eval cases", () => {
       if (typeof expected === "string") expect(text).toContain(expected.toLowerCase());
   });
 
+  it.each(cases.filter((c) => c.answerStatesDuration))(
+    "$id measures a duration from dates in the patient's data",
+    (c) => {
+      const { from, to } = c.answerStatesDuration!;
+      for (const date of [from, ...(to ? [to] : [])]) expect(patientText(c)).toContain(date);
+    },
+  );
+
   it.each(cases)("$id only excludes values the patient's data does not contain", (c) => {
     const text = patientText(c);
     for (const excluded of c.answerExcludes) expect(text).not.toContain(excluded.toLowerCase());

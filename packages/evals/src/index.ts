@@ -9,5 +9,6 @@ export * from "./provenance.js";
 export * from "./retrieval-case.js";
 export * from "./retrieval-cases.js";
 export * from "./summary.js";
+export * from "./duration.js";
 export * from "./transcript.js";
 export * from "./usage.js";

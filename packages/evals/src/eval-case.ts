@@ -1,4 +1,9 @@
-import { ChatUsageSchema, McpToolNameSchema, SymptomInputSchema } from "@health-mcp/shared";
+import {
+  ChatUsageSchema,
+  IsoDateSchema,
+  McpToolNameSchema,
+  SymptomInputSchema,
+} from "@health-mcp/shared";
 import { z } from "zod";
 
 /** A tool call a good answer makes. `args` must match the call's input (strings ignore case). */
@@ -34,6 +39,12 @@ export const EvalCaseSchema = z.object({
   expectedToolCalls: z.array(ExpectedToolCallSchema).default([]),
   forbiddenToolCalls: z.array(McpToolNameSchema).default([]),
   answerIncludes: z.array(AnswerTextSchema).default([]),
+  /**
+   * For "how long" questions: the answer must state the time from `from` to
+   * `to` (dates in the record, `YYYY-MM-DD`), in any unit (see duration.ts).
+   * Without `to`, until today, worked out when the eval runs.
+   */
+  answerStatesDuration: z.object({ from: IsoDateSchema, to: IsoDateSchema.optional() }).optional(),
   /** Text that must not appear, e.g. values the patient does not have. */
   answerExcludes: z.array(z.string().min(1)).default([]),
   maxToolCalls: z.int().nonnegative().default(8),

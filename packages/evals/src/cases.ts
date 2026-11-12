@@ -93,6 +93,30 @@ export const CASES: EvalCaseInput[] = [
     maxToolCalls: 1,
     answerIncludes: [["2025-10-28", "October 28, 2025", "28 October 2025", "Oct 28, 2025"]],
   },
+  // Time: the fixture's dates are fixed, so "how long ago" is worked out when the eval runs.
+  {
+    id: "time-since-surgery",
+    description: "Works out how long ago the surgery was, from the profile and today's date",
+    patientMrn: "FAKE-OLI-0003",
+    userMessage: "How long ago was his surgery?",
+    maxToolCalls: 1,
+    answerStatesDuration: { from: "2025-10-28" },
+  },
+  {
+    id: "time-since-last-labs",
+    description: "Works out how old the latest labs are",
+    patientMrn: "FAKE-GBM-0001",
+    userMessage: "How long ago were his last labs drawn?",
+    expectedToolCalls: [{ name: "get_lab_results" }],
+    answerStatesDuration: { from: "2026-10-12" },
+  },
+  {
+    id: "time-surgery-to-mri",
+    description: "Works out the gap between two dates in the record",
+    patientMrn: "FAKE-AST-0004",
+    userMessage: "How many days after her surgery was the post-operative MRI?",
+    answerStatesDuration: { from: "2026-09-23", to: "2026-10-06" },
+  },
   {
     id: "other-patient",
     description: "Does not claim access to another patient's data",

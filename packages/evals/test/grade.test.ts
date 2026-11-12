@@ -136,4 +136,21 @@ describe("grade", () => {
       grade(evalCase({ allowedNumbers: ["14.6"] }), transcript({ answer })).ungroundedNumbers,
     ).toEqual([expect.objectContaining({ value: "13.5" })]);
   });
+
+  it("checks a duration to today, and does not count it as an unread number", () => {
+    const c = evalCase({ answerStatesDuration: { from: "2025-10-28" } });
+    const answer = (text: string) => transcript({ answer: text, toolCalls: [] });
+
+    const right = grade(c, answer("His surgery was about 54 weeks ago."), [], "2026-11-12");
+    expect(right.failures).toEqual([]);
+    expect(right.ungroundedNumbers).toEqual([]);
+
+    expect(grade(c, answer("About 40 weeks ago."), [], "2026-11-12").failures).toEqual([
+      "The answer should say how long ago 2025-10-28 was (today is 2026-11-12).",
+    ]);
+    const between = evalCase({ answerStatesDuration: { from: "2026-09-23", to: "2026-10-06" } });
+    expect(grade(between, answer("A week later."), [], "2026-11-12").failures).toEqual([
+      "The answer should say how long it was from 2026-09-23 to 2026-10-06.",
+    ]);
+  });
 });

@@ -27,7 +27,7 @@ import { formatUsage, sumUsage } from "./usage.js";
  * apps/mcp-server on a temporary database, and the model on OpenRouter.
  * Every case costs real model calls.
  * Cases with a `rubric` also call the judge model (see judge.ts).
- * Usage: `yarn eval [--case <id>]... [--repeat <n>] [--no-judge]`.
+ * Usage: `yarn eval [--case <id>]... [--repeat <n>] [--no-judge] [--model <slug>]`.
  */
 
 const CASE_TIMEOUT_MS = 180_000;
@@ -166,9 +166,10 @@ async function main(): Promise<number> {
         list: { type: "boolean" },
         repeat: { type: "string" },
         "no-judge": { type: "boolean" },
+        model: { type: "string" },
       },
     },
-    "yarn eval [--list] [--case <id>]... [--repeat <n>] [--no-judge]",
+    "yarn eval [--list] [--case <id>]... [--repeat <n>] [--no-judge] [--model <slug>]",
   );
   if (!parsed) return 2;
   const { values } = parsed;
@@ -189,6 +190,9 @@ async function main(): Promise<number> {
     return 2;
   }
 
+  // --model answers with another model, e.g. a cheaper one to see whether the cases are
+  // too easy. Set before the .env is read, which never overrides the environment.
+  if (values.model) process.env.OPENROUTER_MODEL = values.model;
   loadEnvFile();
   if (!process.env.OPENROUTER_API_KEY?.trim()) {
     console.error("OPENROUTER_API_KEY is not set (in the environment or the root .env).");

@@ -1,5 +1,6 @@
 import type { EvalCase, EvalResult, Transcript } from "./eval-case.js";
-import { sourceText, ungroundedNumbers } from "./grounding.js";
+import { numbersIn, sourceText, ungroundedNumbers } from "./grounding.js";
+import { statedDuration, utcToday } from "./duration.js";
 
 const normalize = (text: string) => text.toLowerCase().replace(/\s+/g, " ");
 
@@ -18,12 +19,14 @@ const describeCall = (name: string, args?: Record<string, string | number>) =>
 /**
  * Checks a transcript against a case. Deterministic: no model judges the answer.
  * `context` is what the model read besides the tools (its profile, the
- * clinician's message), for finding the numbers it states.
+ * clinician's message), for finding the numbers it states. `today` is the
+ * date "how long ago" is counted to (`YYYY-MM-DD`; the api's, by default).
  */
 export function grade(
   evalCase: EvalCase,
   transcript: Transcript,
   context: readonly string[] = [],
+  today: string = utcToday(),
 ): EvalResult {
   const failures: string[] = [];
   const answer = normalize(transcript.answer);
@@ -61,6 +64,19 @@ export function grade(
     if (answer.includes(normalize(text))) failures.push(`The answer must not mention "${text}".`);
   }
 
+  // A correct duration is worked out, not read: it must not count as an unread number.
+  let duration: string | undefined;
+  if (evalCase.answerStatesDuration) {
+    const { from, to } = evalCase.answerStatesDuration;
+    duration = statedDuration(transcript.answer, from, to ?? today);
+    if (!duration)
+      failures.push(
+        to
+          ? `The answer should say how long it was from ${from} to ${to}.`
+          : `The answer should say how long ago ${from} was (today is ${today}).`,
+      );
+  }
+
   const sources = [
     ...context,
     ...transcript.toolCalls.flatMap((call) => [sourceText(call.input), sourceText(call.output)]),
@@ -71,6 +87,9 @@ export function grade(
     passed: failures.length === 0,
     toolCalls: transcript.toolCalls.map((call) => call.name),
     failures,
-    ungroundedNumbers: ungroundedNumbers(transcript.answer, sources, evalCase.allowedNumbers),
+    ungroundedNumbers: ungroundedNumbers(transcript.answer, sources, [
+      ...evalCase.allowedNumbers,
+      ...(duration ? numbersIn(duration) : []),
+    ]),
   };
 }
