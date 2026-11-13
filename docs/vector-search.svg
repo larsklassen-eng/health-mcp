@@ -91,7 +91,7 @@
 <rect class="box" x="860" y="342" width="380" height="78" rx="10"/>
 <text class="h" x="876" y="368">Vector: 30 nearest in vec_chunks</text>
 <text class="t" x="876" y="390">only this patient's partition</text>
-<text class="t" x="876" y="407">kept only if cosine similarity ≥ 0.57</text>
+<text class="t" x="876" y="407">kept only if cosine similarity ≥ 0.555</text>
 <rect class="box" x="860" y="440" width="380" height="78" rx="10"/>
 <text class="h" x="876" y="466">Keyword: 30 best in chunks_fts</text>
 <text class="t" x="876" y="488">bm25 ranking, this patient's chunks only</text>
@@ -105,7 +105,7 @@
 <text class="t" x="876" y="704">mxbai-rerank-xsmall-v1 (q8) cross-encoder,</text>
 <text class="t" x="876" y="721">on the server; reads question and passage</text>
 <text class="t" x="876" y="738">together (up to 512 tokens) and re-orders.</text>
-<text class="t" x="876" y="755">The 0.57 floor still decides what is relevant.</text>
+<text class="t" x="876" y="755">The 0.555 floor still decides what is relevant.</text>
 <text class="tag" x="1226" y="680" text-anchor="end">MODEL</text>
 <rect class="box" x="860" y="798" width="380" height="94" rx="10"/>
 <text class="h" x="876" y="824">Top k passages → the model</text>

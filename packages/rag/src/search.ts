@@ -50,13 +50,16 @@ export interface SearchResult {
 }
 
 /**
- * Removes passages for off-topic questions. Measured on the synthetic patients
- * with bge-small-en-v1.5: off-topic questions ("tell me a joke") reached at most
- * 0.561, the weakest real match 0.587 ("trouble seeing" → blurred vision). Between
- * related medical topics scores overlap (0.66 for "dizziness" → "trouble
- * concentrating"), so the model still judges relevance from the passages.
+ * Removes passages for off-topic questions. Set in the middle of the window
+ * `yarn eval:retrieval --sweep` measures with bge-small-en-v1.5 on the synthetic
+ * patients (2026-11-13): off-topic questions come back empty from 0.5376, and
+ * the weakest real match is lost above 0.5728 ("mobility aid" → walker), so
+ * about 0.018 either way. Scores differ in the third decimal between machines
+ * (0.57 failed in CI on Linux, passed on a Mac). Between related medical topics
+ * scores overlap (0.66 for "dizziness" → "trouble concentrating"), so the model
+ * still judges relevance from the passages.
  */
-export const DEFAULT_MIN_SIMILARITY = 0.57;
+export const DEFAULT_MIN_SIMILARITY = 0.555;
 /** Candidates taken from each search before merging. */
 const CANDIDATES = 30;
 /** The usual RRF constant: damps the difference between the first few ranks. */

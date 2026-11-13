@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  cutoffWindow,
   gradeRetrieval,
   type RetrievalCase,
   RetrievalCaseSchema,
@@ -173,5 +174,28 @@ describe("summarizeRetrieval", () => {
       total: 1,
       meanReciprocalRank: 0.5,
     });
+  });
+});
+
+describe("cutoffWindow", () => {
+  it("lies between the highest off-topic edge and the lowest real-match edge", () => {
+    const window = cutoffWindow([
+      { caseId: "a", kind: "passes up to", cutoff: 0.58 },
+      { caseId: "b", kind: "passes up to", cutoff: 0.571 },
+      { caseId: "c", kind: "passes from", cutoff: 0.53 },
+      { caseId: "d", kind: "passes from", cutoff: 0.539 },
+    ]);
+    expect(window).toMatchObject({ low: 0.539, high: 0.571 });
+    expect(window?.middle).toBeCloseTo(0.555);
+  });
+
+  it("is undefined when the edges overlap or one side has none", () => {
+    expect(
+      cutoffWindow([
+        { caseId: "a", kind: "passes up to", cutoff: 0.5 },
+        { caseId: "b", kind: "passes from", cutoff: 0.6 },
+      ]),
+    ).toBeUndefined();
+    expect(cutoffWindow([{ caseId: "a", kind: "passes up to", cutoff: 0.5 }])).toBeUndefined();
   });
 });

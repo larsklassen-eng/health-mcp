@@ -161,3 +161,26 @@ export function summarizeRetrieval(
     offTopicTotal: offTopic.length,
   };
 }
+
+/** Where a check starts or stops passing as the similarity cutoff rises (from `--sweep`). */
+export interface CutoffEdge {
+  caseId: string;
+  /** "passes up to": finds its passage up to `cutoff`. "passes from": off-topic, empty from it. */
+  kind: "passes up to" | "passes from";
+  cutoff: number;
+}
+
+/**
+ * The cutoffs at which every check with an edge passes: above the highest
+ * "passes from", up to the lowest "passes up to"; undefined when there is no
+ * such cutoff, or no edge on one side. The middle leaves the most margin both ways.
+ */
+export function cutoffWindow(edges: readonly CutoffEdge[]) {
+  const from = edges.filter((e) => e.kind === "passes from").map((e) => e.cutoff);
+  const upTo = edges.filter((e) => e.kind === "passes up to").map((e) => e.cutoff);
+  if (from.length === 0 || upTo.length === 0) return undefined;
+  const low = Math.max(...from);
+  const high = Math.min(...upTo);
+  if (low > high) return undefined;
+  return { low, high, middle: (low + high) / 2 };
+}

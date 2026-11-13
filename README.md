@@ -275,7 +275,7 @@ yarn eval:phoenix --all                    # every agent report not uploaded yet
 yarn eval:phoenix eval-results/<a>.json    # chosen reports
 ```
 
-`--sweep` shows the cutoff's trade-off: lower finds more relevant passages, higher returns nothing for more off-topic questions. On 2026-11-11 (40 checks, reranked): off-topic questions all came back empty from 0.54 up, and every tuning check passed up to 0.57; at 0.58 two tuning checks lost their passage. The current 0.57 is at the top of that window, with no margin on that side.
+`--sweep` shows the cutoff's trade-off: lower finds more relevant passages, higher returns nothing for more off-topic questions. It also finds each check's exact edge by bisection and prints the window in which every check passes, with the current cutoff's margin on each side. On 2026-11-13 (40 checks, reranked) the window was 0.5376 to 0.5728, and the cutoff sits in its middle, at 0.555. It used to be 0.57, which left 0.0028 above: enough on a Mac, but CI on Linux computes scores slightly differently and lost two passages. Re-run the sweep after changing the chunking, the models or the fixture, and keep the cutoff near the middle.
 
 It prints ✓/✗ per check with the expected passage's rank (failures list what came back), then the hit rate (expected passages found in the top 5) and the mean reciprocal rank (1 when the expected passage is always first). The checks are in `packages/evals/src/retrieval-cases.ts`; the report goes to `eval-results/retrieval-*.json`.
 

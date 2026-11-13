@@ -17,6 +17,8 @@ import { API_ROUTES, PatientImportFileSchema, PatientImportResultSchema } from "
 
 import { parseOptions } from "./cli.js";
 import {
+  type CutoffEdge,
+  cutoffWindow,
   gradeRetrieval,
   type RetrievalCase,
   RetrievalCaseSchema,
@@ -38,7 +40,7 @@ import { FIXTURE, missingEmbeddingModel, request, RESULTS_DIR, startStack } from
  */
 
 /** Similarity cutoffs `--sweep` tries, around the default. */
-const SWEEP = [0.5, 0.52, 0.54, 0.55, 0.56, 0.57, 0.58, 0.59, 0.6, 0.62, 0.64];
+const SWEEP = [0.5, 0.52, 0.54, 0.55, 0.555, 0.56, 0.57, 0.58, 0.59, 0.6, 0.62, 0.64];
 
 interface Search {
   db: HealthDb;
@@ -131,11 +133,66 @@ async function sweep(search: Search, cases: readonly RetrievalCase[]) {
       `${percent(x.hitRate).padStart(4)} / ${percent(x.recall).padStart(4)}`;
     const offTopic = `${all.offTopicPassed}/${all.offTopicTotal}`;
     console.log(
-      `${minSimilarity.toFixed(2)}${mark.padEnd(10)} | ${pair(tuning).padEnd(19)} | ` +
+      `${String(minSimilarity).padEnd(5)}${mark.padEnd(10)} | ${pair(tuning).padEnd(19)} | ` +
         `${pair(holdout).padEnd(20)} | ${offTopic.padEnd(15)} | ${other}`,
     );
   }
-  return rows;
+  const edges = await cutoffEdges(search, cases);
+  printEdges(edges);
+  return { rows, edges };
+}
+
+/** Where `--sweep` looks for each check's edge, and how finely (about 0.0003). */
+const EDGE_RANGE = [0.45, 0.75] as const;
+const EDGE_STEPS = 10;
+
+/**
+ * Each check's exact edge, found by bisection: a check that finds its passage
+ * passes up to some cutoff ("passes up to"); an off-topic check returns nothing
+ * from some cutoff on ("passes from"). Checks that pass or fail across the whole
+ * range (e.g. found by keywords alone) have no edge.
+ */
+async function cutoffEdges(search: Search, cases: readonly RetrievalCase[]) {
+  const edges: CutoffEdge[] = [];
+  for (const c of cases) {
+    const passes = async (cutoff: number) => (await runCase(search, c, cutoff)).passed;
+    let low: number = EDGE_RANGE[0];
+    let high: number = EDGE_RANGE[1];
+    const atLow = await passes(low);
+    if (atLow === (await passes(high))) continue;
+    // Invariant: the check's result at `low` is atLow, at `high` the opposite.
+    for (let step = 0; step < EDGE_STEPS; step++) {
+      const middle = (low + high) / 2;
+      if ((await passes(middle)) === atLow) low = middle;
+      else high = middle;
+    }
+    edges.push(
+      atLow
+        ? { caseId: c.id, kind: "passes up to", cutoff: round(low) }
+        : { caseId: c.id, kind: "passes from", cutoff: round(high) },
+    );
+  }
+  return edges;
+}
+
+const round = (value: number) => Math.round(value * 10_000) / 10_000;
+
+function printEdges(edges: CutoffEdge[]) {
+  const window = cutoffWindow(edges);
+  console.log("\nEdges (the exact cutoff where a check starts or stops passing):");
+  const show = (list: CutoffEdge[]) =>
+    list.map((e) => `${e.caseId} ${e.cutoff.toFixed(4)}`).join(", ") || "none";
+  const upper = edges.filter((e) => e.kind === "passes up to").sort((a, b) => a.cutoff - b.cutoff);
+  const lower = edges.filter((e) => e.kind === "passes from").sort((a, b) => b.cutoff - a.cutoff);
+  console.log(`  real matches lost above: ${show(upper.slice(0, 3))}`);
+  console.log(`  off-topic answered below: ${show(lower.slice(0, 3))}`);
+  if (!window) return;
+  const current = DEFAULT_MIN_SIMILARITY;
+  console.log(
+    `  Every check passes from ${window.low.toFixed(4)} to ${window.high.toFixed(4)}; ` +
+      `the middle is ${window.middle.toFixed(4)}. The current ${current} leaves ` +
+      `${(current - window.low).toFixed(4)} below and ${(window.high - current).toFixed(4)} above.`,
+  );
 }
 
 async function main(): Promise<number> {
@@ -216,10 +273,9 @@ async function main(): Promise<number> {
   const stamp = new Date().toISOString().replaceAll(":", "-");
   if (sweepRows) {
     const report = path.join(RESULTS_DIR, `retrieval-sweep-${stamp}.json`);
-    writeFileSync(
-      report,
-      `${JSON.stringify({ provenance: runProvenance, sweep: sweepRows }, null, 2)}\n`,
-    );
+    const { rows, edges } = sweepRows;
+    const content = { provenance: runProvenance, sweep: rows, edges };
+    writeFileSync(report, `${JSON.stringify(content, null, 2)}\n`);
     console.log(`\nReport: ${path.relative(REPO_ROOT, report)}`);
     return 0;
   }
