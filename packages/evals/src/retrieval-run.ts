@@ -58,21 +58,33 @@ async function runCase(search: Search, c: RetrievalCase, minSimilarity: number) 
     minSimilarity,
     ...(search.reranker && { reranker: search.reranker }),
   });
+  // Every chunk returned, with a symptom's other entries: each is checked for its patient.
+  const chunkIds = found.flatMap((passage) => [
+    passage.chunkId,
+    ...(passage.otherEntries ?? []).map((entry) => entry.chunkId),
+  ]);
   const owners = new Map(
-    found.length === 0
+    chunkIds.length === 0
       ? []
       : (
           search.db.$client
             .prepare(
               "select id, patient_id from record_chunks " +
-                `where id in (${found.map(() => "?").join(", ")})`,
+                `where id in (${chunkIds.map(() => "?").join(", ")})`,
             )
-            .all(...found.map((passage) => passage.chunkId)) as { id: number; patient_id: string }[]
+            .all(...chunkIds) as { id: number; patient_id: string }[]
         ).map((row) => [row.id, row.patient_id]),
   );
-  const passages = found.map((passage) => ({
+  const ownerOf = (chunkId: number) => owners.get(chunkId) ?? "unknown";
+  const passages = found.map(({ otherEntries, ...passage }) => ({
     ...passage,
-    patientId: owners.get(passage.chunkId) ?? "unknown",
+    patientId: ownerOf(passage.chunkId),
+    ...(otherEntries && {
+      otherEntries: otherEntries.map((entry) => ({
+        text: entry.text,
+        patientId: ownerOf(entry.chunkId),
+      })),
+    }),
   }));
   return gradeRetrieval(c, passages, patientId);
 }

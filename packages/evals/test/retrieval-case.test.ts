@@ -141,6 +141,31 @@ describe("gradeRetrieval", () => {
   });
 });
 
+describe("gradeRetrieval with a symptom's other entries", () => {
+  const withEntries = (texts: string[], patientId = "p1"): RetrievedPassage => ({
+    ...passage("symptom", "Insomnia, severity 1/10."),
+    otherEntries: texts.map((text) => ({ text: `Symptom (2026-08-14)\n${text}`, patientId })),
+  });
+
+  it("finds a relevant entry among them, at the symptom's rank", () => {
+    const result = gradeRetrieval(sleepCourse, [
+      passage("symptom", "Headache."),
+      withEntries(["Trouble falling asleep.", "Sleeping well."]),
+    ]);
+    expect(result).toMatchObject({ passed: true, rank: 2, recall: 1 });
+    expect(result.retrieved[1]).toBe("symptom (keyword) (+2 entries): Insomnia, severity 1/10.");
+  });
+
+  it("fails on another patient's entry, by owner or by text", () => {
+    expect(
+      gradeRetrieval(isolation, [withEntries(["Uses a walker outdoors."])], "p1").failures,
+    ).toEqual(['Passage 1 has another patient\'s text: "Uses a walker outdoors".']);
+    expect(gradeRetrieval(isolation, [withEntries(["Napping."], "p2")], "p1").failures).toEqual([
+      "Passage 1 belongs to another patient.",
+    ]);
+  });
+});
+
 describe("summarizeRetrieval", () => {
   it("reports hit rate, recall and MRR over relevant cases, and off-topic apart", () => {
     const missed: RetrievalCase = { ...sleepCase, id: "missed" };

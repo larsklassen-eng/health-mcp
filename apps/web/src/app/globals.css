@@ -517,6 +517,11 @@ pre.tool-call-output {
   padding-left: 10px;
   border-left: 3px solid var(--border);
 }
+.record-passage-entries {
+  margin: 4px 0 0;
+  padding-left: 26px;
+  font-size: 0.9em;
+}
 /* A chat message or symptom opened from a search passage. */
 li:target {
   outline: 2px solid #f0abfc;

@@ -1,4 +1,4 @@
-import { createDb, type DbConnection, migrateDb, patients } from "@health-mcp/db";
+import { createDb, type DbConnection, migrateDb, patients, symptoms } from "@health-mcp/db";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
@@ -6,7 +6,9 @@ import {
   type Reranker,
   indexSource,
   keywordQuery,
+  MAX_OTHER_ENTRIES,
   searchPatientChunks,
+  symptomSource,
   type SourceRef,
   type TextSource,
 } from "../src/index.js";
@@ -245,5 +247,68 @@ describe("searchPatientChunks with a reranker", () => {
       await searchPatientChunks(connection.db, embedder, patient, "weather forecast", { reranker }),
     ).toEqual([]);
     expect(calls).toEqual([]);
+  });
+});
+
+describe("searchPatientChunks with symptoms over time", () => {
+  /** Adds a symptom record and indexes it, as the api does. */
+  async function addSymptom(patientId: string, name: string, notes: string, day: number) {
+    const recordedAt = `2026-09-${String(day).padStart(2, "0")}T09:00:00.000Z`;
+    const row = connection.db
+      .insert(symptoms)
+      .values({ patientId, name, severity: 3, notes, recordedAt })
+      .returning()
+      .get();
+    const source = symptomSource({ ...row, notes });
+    const ref: SourceRef = { patientId, sourceType: "symptom", sourceId: row.id };
+    await indexSource(connection.db, embedder, ref, source);
+    return row.id;
+  }
+  const search = (patientId: string, query: string) =>
+    searchPatientChunks(connection.db, embedder, patientId, query, { minSimilarity: 0.1 });
+
+  it("returns a symptom once, its best entry with the others oldest first", async () => {
+    const patient = addPatient("FAKE-1");
+    const first = await addSymptom(patient, "Nausea", "After chemotherapy.", 3);
+    const best = await addSymptom(patient, "Nausea", "Nausea every morning.", 10);
+    const last = await addSymptom(patient, " nausea ", "Gone.", 20);
+    await addSymptom(patient, "Headache", "Nausea makes it worse.", 5);
+
+    const results = await search(patient, "nausea every morning");
+
+    expect(results.map((r) => r.sourceId)).toHaveLength(2);
+    expect(results[0]!.sourceId).toBe(best);
+    expect(results[0]!.otherEntries?.map((e) => e.sourceId)).toEqual([first, last]);
+    expect(results[0]!.otherEntries?.[0]).toMatchObject({
+      sourceDate: "2026-09-03",
+      text: "Symptom (2026-09-03)\nNausea, severity 3/10. After chemotherapy.",
+    });
+    expect(results[1]!.otherEntries).toBeUndefined();
+  });
+
+  it("brings entries the query does not match, but only the patient's own", async () => {
+    const ana = addPatient("FAKE-1");
+    const ben = addPatient("FAKE-2");
+    const unmatched = await addSymptom(ana, "Thirst", "Drinking over 5 liters.", 3);
+    await addSymptom(ana, "Thirst", "Normal thirst again.", 20);
+    await addSymptom(ben, "Thirst", "Normal thirst again too.", 21);
+
+    const results = await search(ana, "normal thirst");
+
+    expect(results).toHaveLength(1);
+    expect(results[0]!.otherEntries?.map((e) => e.sourceId)).toEqual([unmatched]);
+  });
+
+  it("keeps the newest other entries when there are many", async () => {
+    const patient = addPatient("FAKE-1");
+    const ids = [];
+    for (let day = 1; day <= MAX_OTHER_ENTRIES + 3; day++)
+      ids.push(await addSymptom(patient, "Fatigue", `Day ${day}.`, day));
+    const latest = await addSymptom(patient, "Fatigue", "Tired all afternoon.", 28);
+
+    const [result] = await search(patient, "tired all afternoon");
+
+    expect(result!.sourceId).toBe(latest);
+    expect(result!.otherEntries?.map((e) => e.sourceId)).toEqual(ids.slice(-MAX_OTHER_ENTRIES));
   });
 });

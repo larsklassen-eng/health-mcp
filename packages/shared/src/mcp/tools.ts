@@ -100,7 +100,8 @@ export const MCP_TOOLS = {
       "Search the current patient's free text by meaning and keywords: radiology reports, " +
       "clinician notes, symptom notes and the clinician's earlier chat messages. Use it when " +
       "the answer may only be written in text, e.g. whether something was mentioned before. " +
-      "Returns passages with their source and date; cite them. Passages can be loosely " +
+      "Returns passages with their source and date; cite them. A symptom comes with its " +
+      "other entries over time. Passages can be loosely " +
       "related, so check that each one answers the question. No results means nothing " +
       "relevant was found.",
     args: z.object({

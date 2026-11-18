@@ -49,6 +49,8 @@ export interface RetrievedPassage {
   similarity?: number;
   /** The patient whose index the passage is in (looked up by the runner). */
   patientId?: string;
+  /** A symptom's other entries, returned with it; they count as found at its rank. */
+  otherEntries?: { text: string; patientId?: string }[];
 }
 
 export interface RetrievalResult {
@@ -65,15 +67,22 @@ export interface RetrievalResult {
 
 const normalize = (text: string) => text.toLowerCase().replace(/\s+/g, " ");
 
-const describePassage = ({ sourceType, text, similarity }: RetrievedPassage) => {
+const describePassage = ({ sourceType, text, similarity, otherEntries }: RetrievedPassage) => {
   const body = text.split("\n").slice(1).join(" ");
   const score = similarity === undefined ? "keyword" : similarity.toFixed(2);
-  return `${sourceType} (${score}): ${body.length > 80 ? `${body.slice(0, 80)}…` : body}`;
+  const more = otherEntries?.length ? ` (+${otherEntries.length} entries)` : "";
+  return `${sourceType} (${score})${more}: ${body.length > 80 ? `${body.slice(0, 80)}…` : body}`;
 };
+
+/** The passage's text and its other entries' texts. */
+const textsOf = (passage: RetrievedPassage) => [
+  passage.text,
+  ...(passage.otherEntries ?? []).map((entry) => entry.text),
+];
 
 const matches = (passage: RetrievedPassage, expected: z.infer<typeof PassageSchema>) =>
   passage.sourceType === expected.source &&
-  normalize(passage.text).includes(normalize(expected.textIncludes));
+  textsOf(passage).some((text) => normalize(text).includes(normalize(expected.textIncludes)));
 
 /** Checks one search's results against a case. `patientId` is the patient searched. */
 export function gradeRetrieval(
@@ -108,10 +117,11 @@ export function gradeRetrieval(
 
   // Patient isolation, checked on every search: the strongest guarantee, so never skipped.
   for (const [i, passage] of top.entries()) {
-    if (patientId !== undefined && passage.patientId !== patientId)
+    const owners = [passage, ...(passage.otherEntries ?? [])].map((p) => p.patientId);
+    if (patientId !== undefined && owners.some((owner) => owner !== patientId))
       failures.push(`Passage ${i + 1} belongs to another patient.`);
     const leaked = otherPatientText.find((text) =>
-      normalize(passage.text).includes(normalize(text)),
+      textsOf(passage).some((passageText) => normalize(passageText).includes(normalize(text))),
     );
     if (leaked) failures.push(`Passage ${i + 1} has another patient's text: "${leaked}".`);
   }

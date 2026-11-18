@@ -79,6 +79,32 @@ describe("RecordSearchResults", () => {
     );
   });
 
+  it("lists a symptom's other entries under it", () => {
+    render(
+      <RecordSearchResults
+        patientId="p1"
+        output={{
+          passages: [
+            passage({
+              source: "symptom",
+              sourceId: "y2",
+              title: "Symptom (2026-09-21)",
+              text: "Excessive thirst, severity 0/10.",
+              otherEntries: [
+                { sourceId: "y1", date: "2026-09-03", text: "Excessive thirst, severity 6/10." },
+              ],
+            }),
+          ],
+        }}
+      />,
+    );
+
+    const entries = screen.getByRole("list", { name: "Other entries of this symptom" });
+    expect(within(entries).getByRole("listitem")).toHaveTextContent(
+      "2026-09-03: Excessive thirst, severity 6/10.",
+    );
+  });
+
   it("shows the note when nothing relevant was found", () => {
     render(
       <RecordSearchResults

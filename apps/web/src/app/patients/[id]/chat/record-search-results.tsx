@@ -43,7 +43,10 @@ interface Props {
   output: RecordSearchOutput;
 }
 
-/** The passages `search_patient_records` found, each with a link to its source. */
+/**
+ * The passages `search_patient_records` found, each with a link to its source;
+ * a symptom with its other entries, oldest first.
+ */
 export function RecordSearchResults({ patientId, output }: Props) {
   if (output.passages.length === 0)
     return <p className="muted tool-call-output">{output.note ?? "No passages were found."}</p>;
@@ -57,6 +60,15 @@ export function RecordSearchResults({ patientId, output }: Props) {
             <span className="muted">{matchLabel(passage)}</span>
           </div>
           <blockquote>{passage.text}</blockquote>
+          {passage.otherEntries && passage.otherEntries.length > 0 && (
+            <ul className="record-passage-entries muted" aria-label="Other entries of this symptom">
+              {passage.otherEntries.map((entry) => (
+                <li key={entry.sourceId}>
+                  {entry.date}: {entry.text}
+                </li>
+              ))}
+            </ul>
+          )}
         </li>
       ))}
     </ol>

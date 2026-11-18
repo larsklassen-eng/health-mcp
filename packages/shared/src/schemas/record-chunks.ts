@@ -25,6 +25,10 @@ export const RecordPassageSchema = z.object({
   /** Cosine similarity to the query (0–1), when found by meaning. */
   similarity: z.number().optional(),
   matchedBy: z.array(z.enum(["vector", "keyword"])),
+  /** For a symptom: its other entries (same name), oldest first, found by the search or not. */
+  otherEntries: z
+    .array(z.object({ sourceId: z.string(), date: z.string(), text: z.string() }))
+    .optional(),
 });
 
 export type RecordPassage = z.infer<typeof RecordPassageSchema>;

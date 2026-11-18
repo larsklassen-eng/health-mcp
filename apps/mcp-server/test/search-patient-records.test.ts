@@ -1,4 +1,5 @@
-import { HashingEmbedder, indexSource, type TextSource } from "@health-mcp/rag";
+import { symptoms } from "@health-mcp/db";
+import { HashingEmbedder, indexSource, symptomSource, type TextSource } from "@health-mcp/rag";
 import { RecordSearchOutputSchema } from "@health-mcp/shared";
 import type { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
@@ -96,6 +97,32 @@ describe("search_patient_records", () => {
 
     expect(reports.passages.map((p) => p.source)).toEqual(["imaging_report"]);
     expect(two.passages).toHaveLength(2);
+  });
+
+  it("returns a symptom's other entries with it, without their title line", async () => {
+    for (const [notes, recordedAt] of [
+      ["Drinking over 5 liters a day.", "2026-09-03T08:00:00.000Z"],
+      ["Normal thirst since stopping desmopressin.", "2026-09-21T08:00:00.000Z"],
+    ] as const) {
+      const row = server.db
+        .insert(symptoms)
+        .values({ patientId, name: "Excessive thirst", severity: 2, notes, recordedAt })
+        .returning()
+        .get();
+      await index({ ...symptomSource({ ...row, notes }) });
+    }
+
+    const { passages } = await search({ query: "normal thirst since stopping desmopressin" });
+
+    expect(passages).toHaveLength(1);
+    expect(passages[0]).toMatchObject({ date: "2026-09-21" });
+    expect(passages[0]!.otherEntries).toEqual([
+      {
+        sourceId: expect.any(String),
+        date: "2026-09-03",
+        text: "Excessive thirst, severity 2/10. Drinking over 5 liters a day.",
+      },
+    ]);
   });
 
   it("says so when nothing relevant is found", async () => {
