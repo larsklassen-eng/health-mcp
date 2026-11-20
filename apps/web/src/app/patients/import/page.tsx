@@ -1,6 +1,8 @@
 import { importPatientsAction } from "../actions";
 import { ImportPatientsForm } from "../import-patients-form";
 
+export const metadata = { title: "Import patients" };
+
 const EXAMPLE = `{
   "version": 1,
   "patients": [

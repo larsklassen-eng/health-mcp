@@ -10,7 +10,8 @@ import { SiteNav } from "./site-nav";
 import { UserMenu } from "./user-menu";
 
 export const metadata: Metadata = {
-  title: "health-mcp",
+  // Pages set their own title, e.g. "Sign in", shown as "Sign in · Health MCP".
+  title: { default: "Health MCP · Patient recovery", template: "%s · Health MCP" },
   description: "Health recovery assistant (synthetic data only)",
 };
 

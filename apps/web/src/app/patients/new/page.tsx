@@ -1,6 +1,8 @@
 import { createPatientAction } from "../actions";
 import { PatientForm } from "../patient-form";
 
+export const metadata = { title: "New patient" };
+
 export default function NewPatientPage() {
   return (
     <>

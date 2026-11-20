@@ -5,7 +5,7 @@ import { LOGIN_PATH } from "@/lib/session";
 
 import { PasswordForm } from "./password-form";
 
-export const metadata = { title: "Change password · health-mcp" };
+export const metadata = { title: "Change password" };
 export const dynamic = "force-dynamic";
 
 /** Changing one's password; required (by the proxy) after a temporary one. */

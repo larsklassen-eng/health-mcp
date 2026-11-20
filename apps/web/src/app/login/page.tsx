@@ -5,7 +5,7 @@ import { api } from "@/lib/api-client";
 
 import { LoginForm } from "./login-form";
 
-export const metadata = { title: "Sign in · health-mcp" };
+export const metadata = { title: "Sign in" };
 
 interface Props {
   searchParams: Promise<{ "signed-out"?: string }>;

@@ -7,6 +7,8 @@ import { formatDate, formatNumber } from "@/lib/format";
 import { ApiUnavailable } from "../patients/api-unavailable";
 import { StatusBadge } from "../patients/patients-table";
 
+export const metadata = { title: "Dashboard" };
+
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {

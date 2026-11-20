@@ -6,6 +6,8 @@ import { ApiUnavailable } from "./api-unavailable";
 
 import { PatientsTable } from "./patients-table";
 
+export const metadata = { title: "Patients" };
+
 // Always render with fresh data from the api (never prerendered at build time).
 export const dynamic = "force-dynamic";
 

@@ -7,6 +7,8 @@ import { ApiUnavailable } from "../../api-unavailable";
 
 import { ChatPanel } from "./chat-panel";
 
+export const metadata = { title: "Chat" };
+
 export const dynamic = "force-dynamic";
 
 export default async function PatientChatPage({ params }: { params: Promise<{ id: string }> }) {

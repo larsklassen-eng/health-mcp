@@ -5,7 +5,7 @@ import { api } from "@/lib/api-client";
 
 import { RegisterForm } from "./register-form";
 
-export const metadata = { title: "Create an account · health-mcp" };
+export const metadata = { title: "Create an account" };
 
 export default async function RegisterPage() {
   const session = await api.getSession().catch(() => undefined);

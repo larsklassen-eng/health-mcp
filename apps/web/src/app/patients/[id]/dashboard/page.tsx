@@ -27,6 +27,8 @@ import { ApiUnavailable } from "../../api-unavailable";
 import { StatusBadge } from "../../patients-table";
 import { Sparkline } from "./sparkline";
 
+export const metadata = { title: "Dashboard" };
+
 export const dynamic = "force-dynamic";
 
 export default async function PatientDashboardPage({

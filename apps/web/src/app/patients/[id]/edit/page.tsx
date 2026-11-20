@@ -9,6 +9,8 @@ import { ApiUnavailable } from "../../api-unavailable";
 import { PatientForm } from "../../patient-form";
 import { DeletePatientButton } from "./delete-patient-button";
 
+export const metadata = { title: "Edit" };
+
 export const dynamic = "force-dynamic";
 
 /** The form's values for a patient; missing optional fields are empty inputs. */
