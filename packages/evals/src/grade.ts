@@ -1,22 +1,33 @@
-import { McpToolNameSchema } from "@health-mcp/shared";
+import { McpToolNameSchema, requiresConfirmation } from "@health-mcp/shared";
 
-import type { EvalCase, EvalResult, Transcript } from "./eval-case.js";
+import type { EvalCase, EvalResult, ExpectedToolCall, Transcript } from "./eval-case.js";
 import { numbersIn, sourceText, ungroundedNumbers } from "./grounding.js";
 import { statedDuration, utcToday } from "./duration.js";
 
 const normalize = (text: string) => text.toLowerCase().replace(/\s+/g, " ");
 
-function argsMatch(expected: Record<string, string | number>, input: Record<string, unknown>) {
-  return Object.entries(expected).every(([key, value]) => {
+function argsMatch(expected: ExpectedToolCall, input: Record<string, unknown>) {
+  const equal = Object.entries(expected.args ?? {}).every(([key, value]) => {
     const actual = input[key];
     return typeof value === "string" && typeof actual === "string"
       ? normalize(actual.trim()) === normalize(value)
       : actual === value;
   });
+  const included = Object.entries(expected.argsInclude ?? {}).every(([key, value]) => {
+    const actual = input[key];
+    return typeof actual === "string" && normalize(actual).includes(normalize(value));
+  });
+  return equal && included;
 }
 
-const describeCall = (name: string, args?: Record<string, string | number>) =>
-  args ? `${name}(${JSON.stringify(args)})` : name;
+/** E.g. `update_medication({"stop":true}, containing {"medication_name":"pantoprazole"})`. */
+const describeCall = ({ name, args, argsInclude }: ExpectedToolCall) => {
+  const parts = [
+    args && JSON.stringify(args),
+    argsInclude && `containing ${JSON.stringify(argsInclude)}`,
+  ].filter(Boolean);
+  return parts.length > 0 ? `${name}(${parts.join(", ")})` : name;
+};
 
 /**
  * Checks a transcript against a case. Deterministic: no model judges the answer.
@@ -40,14 +51,20 @@ export function grade(
 
   for (const expected of evalCase.expectedToolCalls) {
     const matched = transcript.toolCalls.some(
-      (call) =>
-        call.name === expected.name &&
-        !call.isError &&
-        (!expected.args || argsMatch(expected.args, call.input)),
+      (call) => call.name === expected.name && !call.isError && argsMatch(expected, call.input),
     );
-    if (!matched)
-      failures.push(`Expected a successful call to ${describeCall(expected.name, expected.args)}.`);
+    if (!matched) failures.push(`Expected a successful call to ${describeCall(expected)}.`);
   }
+  // Changing patient data is only right when the case asks for it: a write the
+  // clinician did not ask for fails, whatever the case forbids.
+  const expectedNames = new Set(evalCase.expectedToolCalls.map((expected) => expected.name));
+  const unaskedWrites = new Set(
+    transcript.toolCalls
+      .map((call) => call.name)
+      .filter((name) => requiresConfirmation(name) && !expectedNames.has(name as never)),
+  );
+  for (const name of unaskedWrites)
+    failures.push(`${name} changes patient data, which this question did not ask for.`);
   // A made-up tool name: the api refuses it, but the model meant to read something it never did.
   const unknown = new Set(
     transcript.toolCalls
@@ -56,6 +73,7 @@ export function grade(
   );
   for (const name of unknown) failures.push(`Called ${name}, which is not one of the tools.`);
   for (const name of evalCase.forbiddenToolCalls) {
+    if (unaskedWrites.has(name)) continue;
     if (transcript.toolCalls.some((call) => call.name === name))
       failures.push(`${name} must not be called.`);
   }

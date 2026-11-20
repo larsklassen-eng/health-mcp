@@ -6,11 +6,17 @@ import {
 } from "@health-mcp/shared";
 import { z } from "zod";
 
-/** A tool call a good answer makes. `args` must match the call's input (strings ignore case). */
+/**
+ * A tool call a good answer makes. `args` must equal the call's input (strings
+ * ignore case); `argsInclude` must be contained in it, for free text whose
+ * wording varies (e.g. a note).
+ */
 export const ExpectedToolCallSchema = z.object({
   name: McpToolNameSchema,
-  args: z.record(z.string(), z.union([z.string(), z.number()])).optional(),
+  args: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).optional(),
+  argsInclude: z.record(z.string(), z.string().min(1)).optional(),
 });
+export type ExpectedToolCall = z.infer<typeof ExpectedToolCallSchema>;
 
 /** Text the answer must contain (case-insensitive). A list means any one of them. */
 export const AnswerTextSchema = z.union([z.string().min(1), z.array(z.string().min(1)).min(1)]);

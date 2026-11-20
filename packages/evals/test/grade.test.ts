@@ -160,4 +160,44 @@ describe("grade", () => {
       "Called get_symptom_placeholder, which is not one of the tools.",
     ]);
   });
+
+  describe("tools that change patient data", () => {
+    const call = (name: string, input: Record<string, unknown>) => ({
+      name,
+      input,
+      output: "Not saved yet.",
+      isError: false,
+    });
+    const stop = call("update_medication", {
+      medication_id: "m1",
+      medication_name: "Pantoprazole",
+      stop: true,
+    });
+
+    it("fail when the case does not expect them, once, whatever it forbids", () => {
+      const c = evalCase({ forbiddenToolCalls: ["update_medication"] });
+      expect(failures(c, transcript({ toolCalls: [stop, stop] }))).toEqual([
+        "update_medication changes patient data, which this question did not ask for.",
+      ]);
+    });
+
+    it("pass when expected, with free text matched by what it contains", () => {
+      const c = evalCase({
+        expectedToolCalls: [
+          {
+            name: "update_medication",
+            args: { stop: true },
+            argsInclude: { medication_name: "pantoprazole" },
+          },
+        ],
+      });
+      expect(failures(c, transcript({ toolCalls: [stop] }))).toEqual([]);
+
+      const other = call("update_medication", { medication_name: "Levetiracetam", stop: true });
+      expect(failures(c, transcript({ toolCalls: [other] }))).toEqual([
+        "Expected a successful call to update_medication" +
+          '({"stop":true}, containing {"medication_name":"pantoprazole"}).',
+      ]);
+    });
+  });
 });
