@@ -9,6 +9,9 @@ vi.mock("@/lib/api-client", async (importOriginal) => ({
   api: { decideToolCall },
 }));
 
+const { revalidatePath } = vi.hoisted(() => ({ revalidatePath: vi.fn() }));
+vi.mock("next/cache", () => ({ revalidatePath }));
+
 const { decideToolCallAction } = await import("@/app/patients/[id]/chat/actions");
 
 beforeEach(() => vi.clearAllMocks());
@@ -26,6 +29,22 @@ describe("decideToolCallAction", () => {
 
     expect(await decideToolCallAction("p1", "t1", "confirm")).toEqual({ toolCall });
     expect(decideToolCall).toHaveBeenCalledWith("p1", "t1", "confirm");
+    // The record changed, so the patient's pages are rendered again.
+    expect(revalidatePath).toHaveBeenCalledWith("/patients/p1", "layout");
+  });
+
+  it("leaves the pages alone when the entry is discarded", async () => {
+    decideToolCall.mockResolvedValueOnce({
+      id: "t1",
+      name: "log_symptom",
+      input: {},
+      isError: false,
+      confirmation: "rejected",
+    });
+
+    await decideToolCallAction("p1", "t1", "reject");
+
+    expect(revalidatePath).not.toHaveBeenCalled();
   });
 
   it("rejects invalid arguments without calling the api", async () => {

@@ -517,6 +517,12 @@ pre.tool-call-output {
   padding-left: 10px;
   border-left: 3px solid var(--border);
 }
+.record-changes {
+  padding-left: 20px;
+}
+.record-changes del {
+  color: var(--muted, #6b7280);
+}
 .record-passage-entries {
   margin: 4px 0 0;
   padding-left: 26px;

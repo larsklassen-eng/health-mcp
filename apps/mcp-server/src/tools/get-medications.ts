@@ -6,8 +6,8 @@ import { requirePatient } from "./patients.js";
 import type { ToolHandler } from "./tool.js";
 
 export interface MedicationsOutput {
-  /** Active before stopped, then the most recently started first. */
-  medications: MedicationInput[];
+  /** Active before stopped, then the most recently started first; with the id to change one. */
+  medications: (MedicationInput & { id: string })[];
 }
 
 export const getMedications =
@@ -29,5 +29,5 @@ export const getMedications =
       )
       .all();
 
-    return { medications: rows.map(toMedicationInput) };
+    return { medications: rows.map((row) => ({ id: row.id, ...toMedicationInput(row) })) };
   };

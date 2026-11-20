@@ -45,8 +45,8 @@ const seed = () => {
 };
 
 describe("get_medications", () => {
-  it("returns active medications by default, without ids, with null fields omitted", async () => {
-    insertMedication(server.db, patientId, {
+  it("returns active medications by default, with their ids, null fields omitted", async () => {
+    const { id } = insertMedication(server.db, patientId, {
       name: "Levetiracetam",
       dosage: "500 mg",
       route: "oral",
@@ -57,6 +57,7 @@ describe("get_medications", () => {
     expect(await output()).toEqual({
       medications: [
         {
+          id,
           name: "Levetiracetam",
           dosage: "500 mg",
           frequency: "twice daily",

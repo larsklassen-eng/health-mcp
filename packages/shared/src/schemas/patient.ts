@@ -5,6 +5,9 @@ import { IdSchema, IsoDateSchema, IsoDateTimeSchema } from "./common.js";
 export const SexSchema = z.enum(["female", "male", "other", "unknown"]);
 export const PatientStatusSchema = z.enum(["active", "inactive"]);
 
+/** Longest clinician notes, in characters. */
+export const PATIENT_NOTES_MAX = 5000;
+
 /** A clinical patient. All data in this project is synthetic or redacted. */
 export const PatientSchema = z.object({
   id: IdSchema,
@@ -17,7 +20,7 @@ export const PatientSchema = z.object({
   status: PatientStatusSchema,
   diagnosis: z.string().min(1).max(500),
   surgeryDate: IsoDateSchema.optional(),
-  notes: z.string().max(5000).optional(),
+  notes: z.string().max(PATIENT_NOTES_MAX).optional(),
   createdAt: IsoDateTimeSchema,
   updatedAt: IsoDateTimeSchema,
 });

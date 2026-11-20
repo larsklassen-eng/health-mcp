@@ -1,12 +1,13 @@
 import { z } from "zod";
 
-import { IdSchema, IsoDateTimeSchema } from "../schemas/common.js";
+import { IdSchema, IsoDateSchema, IsoDateTimeSchema } from "../schemas/common.js";
 import {
   MedicationStatusSchema,
   MilestoneStatusSchema,
   VitalTypeSchema,
 } from "../schemas/health-records.js";
 import { ModalitySchema } from "../schemas/imaging.js";
+import { PatientStatusSchema } from "../schemas/patient.js";
 import { ChunkSourceTypeSchema } from "../schemas/record-chunks.js";
 
 /*
@@ -57,7 +58,7 @@ export const MCP_TOOLS = {
     }),
   },
   get_medications: {
-    description: "List the current patient's medications.",
+    description: "List the current patient's medications, with the ids `update_medication` needs.",
     args: z.object({
       status: z
         .enum([...MedicationStatusSchema.options, "all"])
@@ -118,6 +119,89 @@ export const MCP_TOOLS = {
       limit: z.int().min(1).max(10).default(5).describe("Maximum number of passages."),
     }),
   },
+  update_patient_profile: {
+    description:
+      "Change the current patient's profile: diagnosis, surgery date or status, or add a " +
+      "dated line to the clinician notes (e.g. the extent of resection). Only use when the " +
+      "clinician asks to change or record it, and only with what they said. " +
+      "Nothing is saved until the clinician confirms it in the chat.",
+    args: z
+      .object({
+        diagnosis: z
+          .string()
+          .trim()
+          .min(1)
+          .max(500)
+          .optional()
+          .describe("The full new diagnosis, replacing the current one. Omit to keep it."),
+        surgery_date: IsoDateSchema.optional().describe(
+          "New surgery date, YYYY-MM-DD. Omit to keep it.",
+        ),
+        status: PatientStatusSchema.optional().describe("New status. Omit to keep it."),
+        add_note: z
+          .string()
+          .trim()
+          .min(1)
+          .max(1000)
+          .optional()
+          .describe(
+            "A line added to the end of the clinician notes, dated today; the notes " +
+              "already there are kept. E.g. 'Resection on 2026-03-10 was gross total.'",
+          ),
+      })
+      // Named fields: the MCP server checks this with `patient_id` added.
+      .refine(
+        ({ diagnosis, surgery_date, status, add_note }) =>
+          [diagnosis, surgery_date, status, add_note].some((value) => value !== undefined),
+        { message: "Give at least one change." },
+      ),
+  },
+  add_medication: {
+    description:
+      "Add a medication to the current patient's list. Only use when the clinician asks to " +
+      "add it. Nothing is saved until the clinician confirms it in the chat.",
+    args: z.object({
+      name: z.string().trim().min(1).max(200).describe("Drug name, e.g. 'Levetiracetam'."),
+      dosage: z.string().trim().min(1).max(100).describe("E.g. '500 mg'."),
+      frequency: z.string().trim().min(1).max(100).describe("E.g. 'twice daily'."),
+      route: z.string().trim().min(1).max(50).optional().describe("E.g. 'oral'."),
+      start_date: IsoDateSchema.optional().describe("YYYY-MM-DD. Omit for today."),
+    }),
+  },
+  update_medication: {
+    description:
+      "Change one of the current patient's medications: its dosage, frequency or route, or " +
+      "stop it. Call get_medications first for its id. Only use when the clinician asks to " +
+      "change it. Nothing is saved until the clinician confirms it in the chat.",
+    args: z
+      .object({
+        medication_id: IdSchema.describe("The medication's id, from get_medications."),
+        medication_name: z
+          .string()
+          .trim()
+          .min(1)
+          .max(200)
+          .describe("Its name as get_medications returned it; shown to the clinician."),
+        dosage: z.string().trim().min(1).max(100).optional().describe("New dosage."),
+        frequency: z.string().trim().min(1).max(100).optional().describe("New frequency."),
+        route: z.string().trim().min(1).max(50).optional().describe("New route."),
+        stop: z
+          .boolean()
+          .optional()
+          .describe("true to stop the medication (it stays in the list as stopped)."),
+        end_date: IsoDateSchema.optional().describe(
+          "When it was or will be stopped, YYYY-MM-DD. Omit for today when stopping.",
+        ),
+      })
+      .refine(
+        ({ dosage, frequency, route, stop }) =>
+          [dosage, frequency, route].some((value) => value !== undefined) || stop === true,
+        { message: "Give at least one change." },
+      )
+      .refine(({ stop, end_date }) => end_date === undefined || stop === true, {
+        message: "end_date is only for stopping a medication.",
+      }),
+  },
 } as const;
 
 export type McpToolName = keyof typeof MCP_TOOLS;
@@ -126,10 +210,30 @@ export type McpToolName = keyof typeof MCP_TOOLS;
  * Tools that change patient data. apps/api never runs them when the model
  * asks; it shows the call to the clinician, and only runs it once they confirm.
  */
-export const TOOLS_REQUIRING_CONFIRMATION: readonly McpToolName[] = ["log_symptom"];
+export const TOOLS_REQUIRING_CONFIRMATION: readonly McpToolName[] = [
+  "log_symptom",
+  "update_patient_profile",
+  "add_medication",
+  "update_medication",
+];
 
 export const requiresConfirmation = (name: string): boolean =>
   (TOOLS_REQUIRING_CONFIRMATION as readonly string[]).includes(name);
+
+/** What `update_patient_profile` and `update_medication` return: each field's old and new value. */
+export const RecordChangesOutputSchema = z.object({
+  changes: z.array(
+    z.object({
+      field: z.string(),
+      /** Absent when the field was empty, or for an added note. */
+      before: z.string().optional(),
+      after: z.string(),
+    }),
+  ),
+});
+
+export type RecordChangesOutput = z.infer<typeof RecordChangesOutputSchema>;
+export type RecordChange = RecordChangesOutput["changes"][number];
 
 export const McpToolNameSchema = z.enum(Object.keys(MCP_TOOLS) as [McpToolName, ...McpToolName[]]);
 
@@ -144,7 +248,8 @@ export type McpToolInput<T extends McpToolName> = McpToolArgs<T> &
 export function mcpToolInputSchema<T extends McpToolName>(name: T): z.ZodType<McpToolInput<T>> {
   // TypeScript cannot follow `extend` through the generic index, so the result
   // type is stated explicitly.
-  return MCP_TOOLS[name].args.extend(PatientIdArgSchema.shape) as unknown as z.ZodType<
+  // `safeExtend` keeps the args' refinements (e.g. "at least one change").
+  return MCP_TOOLS[name].args.safeExtend(PatientIdArgSchema.shape) as unknown as z.ZodType<
     McpToolInput<T>
   >;
 }

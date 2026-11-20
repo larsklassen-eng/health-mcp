@@ -8,9 +8,12 @@ import { getMedications } from "./tools/get-medications.js";
 import { getPatientProfile } from "./tools/get-patient-profile.js";
 import { getRecoveryMilestones } from "./tools/get-recovery-milestones.js";
 import { getVitalsTrend } from "./tools/get-vitals-trend.js";
+import { addMedication } from "./tools/add-medication.js";
 import { logSymptom } from "./tools/log-symptom.js";
 import { searchPatientRecords } from "./tools/search-patient-records.js";
 import { registerTool } from "./tools/tool.js";
+import { updateMedication } from "./tools/update-medication.js";
+import { updatePatientProfile } from "./tools/update-patient-profile.js";
 
 export const SERVER_INFO = { name: "health-mcp", version: "0.0.0" };
 
@@ -36,6 +39,10 @@ export function createMcpServer(
   registerTool(server, "get_recovery_milestones", getRecoveryMilestones(db));
   registerTool(server, "log_symptom", logSymptom(db, now));
   registerTool(server, "get_imaging_studies", getImagingStudies(db));
+  // Tools that change data: apps/api only calls them after the clinician confirms.
+  registerTool(server, "update_patient_profile", updatePatientProfile(db, now));
+  registerTool(server, "add_medication", addMedication(db, now));
+  registerTool(server, "update_medication", updateMedication(db, now));
   if (embedder)
     registerTool(server, "search_patient_records", searchPatientRecords(db, embedder, reranker));
   return server;

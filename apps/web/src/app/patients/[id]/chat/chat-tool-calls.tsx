@@ -1,4 +1,9 @@
-import { type McpToolName, RecordSearchOutputSchema, type ToolCall } from "@health-mcp/shared";
+import {
+  type McpToolName,
+  RecordChangesOutputSchema,
+  RecordSearchOutputSchema,
+  type ToolCall,
+} from "@health-mcp/shared";
 
 import { RecordSearchResults } from "./record-search-results";
 import { type DecideToolCall, ToolCallConfirmation } from "./tool-call-confirmation";
@@ -12,7 +17,13 @@ const TOOL_LABELS: Record<McpToolName, string> = {
   get_recovery_milestones: "Recovery milestones",
   get_imaging_studies: "Imaging studies",
   search_patient_records: "Record search",
+  update_patient_profile: "Update profile",
+  add_medication: "Add medication",
+  update_medication: "Change medication",
 };
+
+/** Arguments for the tools, not for people (the name next to an id is shown instead). */
+const HIDDEN_INPUTS = new Set(["medication_id"]);
 
 /** Results can be large (up to 100 lab results); the card shows the start. */
 export const MAX_OUTPUT_CHARS = 4000;
@@ -34,7 +45,7 @@ function formatValue(value: unknown): string {
 /** The arguments in plain words, e.g. "test name: Hemoglobin · since: Sep 1, 2026". */
 export function formatToolInput(input: Record<string, unknown>): string {
   return Object.entries(input)
-    .filter(([, value]) => value !== undefined)
+    .filter(([key, value]) => value !== undefined && !HIDDEN_INPUTS.has(key))
     .map(([key, value]) => `${key.replaceAll("_", " ")}: ${formatValue(value)}`)
     .join(" · ");
 }
@@ -63,12 +74,28 @@ function statusOf(call: ToolCall, running: ReadonlySet<string> | undefined): Sta
   return call.confirmation ?? "done";
 }
 
-/** The result of a call, with record searches shown as passages linked to their sources. */
+/**
+ * The result of a call, with record searches shown as passages linked to their
+ * sources, and a saved change as each field's old and new value.
+ */
 function ToolCallOutput({ call, patientId }: { call: ToolCall; patientId: string }) {
   if (call.name === "search_patient_records" && !call.isError) {
     const search = RecordSearchOutputSchema.safeParse(call.output);
     if (search.success) return <RecordSearchResults patientId={patientId} output={search.data} />;
   }
+  const changed = call.isError ? undefined : RecordChangesOutputSchema.safeParse(call.output).data;
+  if (changed)
+    return (
+      <ul className="tool-call-output record-changes" aria-label="Changes saved">
+        {changed.changes.map(({ field, before, after }) => (
+          <li key={field}>
+            <strong>{field}:</strong> {before !== undefined && <del>{before}</del>}
+            {before !== undefined && " → "}
+            {after}
+          </li>
+        ))}
+      </ul>
+    );
   return <pre className="tool-call-output">{formatOutput(call.output)}</pre>;
 }
 

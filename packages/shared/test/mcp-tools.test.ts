@@ -71,7 +71,33 @@ describe("MCP tool contracts", () => {
 
 describe("requiresConfirmation", () => {
   it("is true only for tools that change patient data", () => {
-    expect(toolNames.filter(requiresConfirmation)).toEqual(["log_symptom"]);
+    expect(toolNames.filter(requiresConfirmation)).toEqual([
+      "log_symptom",
+      "update_patient_profile",
+      "add_medication",
+      "update_medication",
+    ]);
     expect(requiresConfirmation("unknown_tool")).toBe(false);
+  });
+});
+
+describe("tools that change records", () => {
+  const input = (name: McpToolName, args: Record<string, unknown>) =>
+    mcpToolInputSchema(name).safeParse({ patient_id: "p1", ...args }).success;
+
+  it("need at least one change, also with patient_id added", () => {
+    expect(input("update_patient_profile", {})).toBe(false);
+    expect(input("update_patient_profile", { add_note: "  " })).toBe(false);
+    expect(input("update_patient_profile", { add_note: "Resection was gross total." })).toBe(true);
+    expect(input("update_medication", { medication_id: "m1", medication_name: "Dex" })).toBe(false);
+    expect(
+      input("update_medication", { medication_id: "m1", medication_name: "Dex", stop: true }),
+    ).toBe(true);
+  });
+
+  it("take an end date only when stopping a medication", () => {
+    const base = { medication_id: "m1", medication_name: "Dex", dosage: "2 mg" };
+    expect(input("update_medication", { ...base, end_date: "2026-11-20" })).toBe(false);
+    expect(input("update_medication", { ...base, stop: true, end_date: "2026-11-20" })).toBe(true);
   });
 });

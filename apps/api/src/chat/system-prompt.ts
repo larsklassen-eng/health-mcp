@@ -10,7 +10,9 @@ const ROLE = paragraph(
 );
 
 const TOOLS = paragraph(
-  "The tools available in this conversation, if any, read this patient's records;",
+  "The tools available in this conversation, if any, read this patient's records,",
+  "and a few record what the clinician asks for (a symptom, a profile change, a medication)",
+  "once the clinician confirms it in the chat;",
   "they always act on this patient, so you never choose which patient.",
   "Use them when a question needs data beyond the profile.",
   "When neither the profile nor a tool provides what a question needs,",

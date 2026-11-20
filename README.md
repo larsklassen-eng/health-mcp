@@ -332,11 +332,14 @@ Serves the patient-scoped health tools over [MCP](https://modelcontextprotocol.i
 | `get_patient_profile` | Done: demographics, diagnosis and surgery date |
 | `get_lab_results` | Done: newest first, as `{ results, hasMore }`. Optional `test_names` (one or more, case-insensitive, so related tests come in one call; names the patient has no results for are listed in `unknownTests`, with the patient's test names in `availableTests`), `since` (any UTC offset) and `limit` (default 20, max 100) |
 | `get_vitals_trend` | Done: one `vital_type` over the last `days` (default 30, max 365), oldest first, with a `summary` (count, min, max, average, first, latest, change). Above 120 readings it returns one `daily` entry per UTC day instead of every reading. When the window is empty, `lastRecordedAt` says when the vital was last recorded |
-| `get_medications` | Done: `status` is `active` (default), `stopped` or `all`. Active before stopped, then the most recently started first, as `{ medications }` |
+| `get_medications` | Done: `status` is `active` (default), `stopped` or `all`. Active before stopped, then the most recently started first, as `{ medications }`, each with the `id` `update_medication` needs |
 | `get_recovery_milestones` | Done: optional `status` (`pending`, `achieved`, `missed`). By target date, earliest first, undated last, as `{ milestones, counts }`; `counts` has every status, whatever the filter |
 | `get_imaging_studies` | Done: newest first, with impression, report (first 4000 characters; `reportTruncated` when cut) and series; optional `modality` (`MR`, `CT`, `CR`…) and `limit` (default 5, max 20). Reports and details only, never the images |
 | `search_patient_records` | RAG (see [docs/rag.md](docs/rag.md)): hybrid search (meaning + keywords, re-ordered by the reranker) over the patient's indexed free text: reports, notes, symptom notes and the clinician's chat messages. `query`, optional `sources` and `limit` (default 5, max 10); returns passages with source, date, title and similarity, or a note when nothing relevant is found. Offered only when `RAG_EMBEDDER` is not `off` |
 | `log_symptom` | Done: saves `name`, `severity` (0–10) and optional `notes`, recorded at the time it runs, and returns `{ symptom }`. apps/api only calls it after the clinician confirms (see [Confirming changes](#confirming-changes)) |
+| `update_patient_profile` | Done: changes `diagnosis`, `surgery_date` or `status`, and/or adds `add_note`, a line dated today at the end of the clinician notes (the notes already there are kept; the notes may not grow past 5000 characters). At least one change; returns `{ changes }`, each field's old and new value. After confirmation only |
+| `add_medication` | Done: `name`, `dosage`, `frequency`, optional `route` and `start_date` (default today); saved as active, returned as `{ medication }` with its id. After confirmation only |
+| `update_medication` | Done: `medication_id` and `medication_name` (must be that medication's name, so the clinician confirms what they see), then new `dosage`, `frequency` or `route`, or `stop` (with an optional `end_date`, default today). Another patient's medication is not found. Returns `{ changes }`. After confirmation only |
 
 Tool descriptions and input schemas come from `MCP_TOOLS` in `packages/shared`; each tool's input is the model's arguments plus `patient_id`, validated before the tool runs. Results are JSON text. An unknown patient or invalid input is returned as a tool error (`isError`) that the model can read; unexpected failures return a generic message and are logged.
 
@@ -433,13 +436,14 @@ data: {"type":"message_end","messageId":"…","stopReason":"stop","usage":{"mode
 
 #### Confirming changes
 
-Tools that change patient data (`TOOLS_REQUIRING_CONFIRMATION` in `packages/shared`, currently `log_symptom`) never run because the model asked:
+Tools that change patient data (`TOOLS_REQUIRING_CONFIRMATION` in `packages/shared`: `log_symptom`, `update_patient_profile`, `add_medication` and `update_medication`) never run because the model asked:
 
 1. When the model calls one, the api does not call the MCP server. It saves the call with `confirmation: "pending"`, streams it to the web app, and tells the model that nothing is saved until the clinician confirms.
 2. The chat shows the entry with Save and Discard buttons.
 3. Save sends `POST /patients/:id/chat/tool-calls/:toolCallId/decision` with `confirm`. The api validates the saved input again, runs the tool on the MCP server, and marks the call `confirmed` with the result. Discard marks it `rejected` without running anything.
 4. Each entry can be decided once: a second decision gets 409, and two Saves at the same time save only once. If the MCP server fails, the entry stays pending so it can be tried again.
 5. In later turns, the model sees what was decided (e.g. "The clinician confirmed and saved: …").
+6. A saved change shows each field's old and new value in the chat, and the patient's pages are rendered again so the profile and dashboard show it. Changed notes are re-indexed for search.
 
 To try it with a real key (uses OpenRouter credits), set `OPENROUTER_API_KEY` in `.env`, run `yarn dev`, create a patient, then:
 

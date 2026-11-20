@@ -174,6 +174,55 @@ describe("ChatToolCalls", () => {
       expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
     });
 
+    it("shows a medication by name, not by id, before it is saved", () => {
+      render(
+        <ChatToolCalls
+          patientId="p1"
+          calls={[
+            {
+              ...pending,
+              name: "update_medication",
+              input: { medication_id: "m-123", medication_name: "Dexamethasone", stop: true },
+            },
+          ]}
+          onDecide={vi.fn()}
+        />,
+      );
+
+      expect(screen.getByRole("listitem")).toHaveTextContent("Change medication");
+      const group = screen.getByRole("group", { name: "Confirm entry" });
+      expect(group).toHaveTextContent("medication name: Dexamethasone · stop: true");
+      expect(group).not.toHaveTextContent("m-123");
+    });
+
+    it("shows a saved change as each field's old and new value", () => {
+      render(
+        <ChatToolCalls
+          patientId="p1"
+          calls={[
+            {
+              ...pending,
+              name: "update_patient_profile",
+              input: { surgery_date: "2026-03-11", add_note: "Resection was gross total." },
+              confirmation: "confirmed",
+              output: {
+                changes: [
+                  { field: "surgery date", before: "2026-03-10", after: "2026-03-11" },
+                  { field: "notes (added)", after: "2026-11-20: Resection was gross total." },
+                ],
+              },
+            },
+          ]}
+        />,
+      );
+
+      const changes = screen.getByRole("list", { name: "Changes saved" });
+      const [date, note] = within(changes).getAllByRole("listitem");
+      expect(date).toHaveTextContent("surgery date: 2026-03-10 → 2026-03-11");
+      expect(date!.querySelector("del")).toHaveTextContent("2026-03-10");
+      expect(note).toHaveTextContent("notes (added): 2026-11-20: Resection was gross total.");
+    });
+
     it("shows saved and discarded entries without buttons", () => {
       render(
         <ChatToolCalls

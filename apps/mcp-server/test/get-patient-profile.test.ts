@@ -32,6 +32,9 @@ describe("tools/list", () => {
       "get_recovery_milestones",
       "log_symptom",
       "get_imaging_studies",
+      "update_patient_profile",
+      "add_medication",
+      "update_medication",
       "search_patient_records",
     ]);
     expect(tools.every((tool) => tool.inputSchema.required?.includes("patient_id"))).toBe(true);
