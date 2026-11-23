@@ -10,6 +10,15 @@ export interface McpToolResult {
   isError: boolean;
 }
 
+export interface McpCallOptions {
+  signal?: AbortSignal;
+  /**
+   * For tools that change data: only work out the changes (`RecordChangesOutput`),
+   * saving nothing. Set by the api, never by the model.
+   */
+  dryRun?: boolean;
+}
+
 /**
  * Injection token and base class for calling apps/mcp-server. Implementations
  * add `patient_id` to every call themselves; it is never taken from the model.
@@ -26,6 +35,6 @@ export abstract class McpClient {
     patientId: string,
     name: T,
     args: McpToolArgs<T>,
-    signal?: AbortSignal,
+    options?: McpCallOptions,
   ): Promise<McpToolResult>;
 }

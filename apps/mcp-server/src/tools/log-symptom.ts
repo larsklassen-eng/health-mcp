@@ -1,6 +1,7 @@
 import { type HealthDb, symptoms, toSymptomInput } from "@health-mcp/db";
 import type { SymptomInput } from "@health-mcp/shared";
 
+import { change, type ChangesOutput } from "./changes.js";
 import { requirePatient } from "./patients.js";
 import type { ToolHandler } from "./tool.js";
 
@@ -10,13 +11,22 @@ export interface LogSymptomOutput {
 }
 
 /**
- * Saves a symptom, recorded now. This server runs it whenever it is called;
- * apps/api only calls it after the clinician has confirmed it in the chat.
+ * Saves a symptom, recorded now. With `dry_run`, returns the entry as changes
+ * without saving (apps/api's preview); otherwise this server saves whenever
+ * it is called, and apps/api only calls it after the clinician has confirmed it.
  */
 export const logSymptom =
   (db: HealthDb, now: () => Date = () => new Date()): ToolHandler<"log_symptom"> =>
-  ({ patient_id, name, severity, notes }): LogSymptomOutput => {
+  ({ patient_id, dry_run, name, severity, notes }): LogSymptomOutput | ChangesOutput => {
     requirePatient(db, patient_id);
+    if (dry_run)
+      return {
+        changes: [
+          change("symptom", undefined, name.trim()),
+          change("severity", undefined, `${severity}/10`),
+          ...(notes?.trim() ? [change("notes", undefined, notes.trim())] : []),
+        ],
+      };
     const row = db
       .insert(symptoms)
       .values({

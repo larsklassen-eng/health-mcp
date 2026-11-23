@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { IdSchema, IsoDateTimeSchema } from "./common.js";
+import { RecordChangeSchema } from "./record-changes.js";
 
 export const ChatRoleSchema = z.enum(["user", "assistant"]);
 
@@ -19,6 +20,11 @@ export const ToolCallSchema = z.object({
   output: z.unknown().optional(),
   isError: z.boolean().default(false),
   confirmation: ToolCallConfirmationSchema.optional(),
+  /**
+   * For a tool that changes data: what it will change, worked out without
+   * saving when the model proposed it, so the clinician sees old and new values.
+   */
+  preview: z.array(RecordChangeSchema).optional(),
 });
 
 /** A stored message in one patient's chat history. */
@@ -81,6 +87,8 @@ export const ChatStreamEventSchema = z.discriminatedUnion("type", [
     isError: z.boolean(),
     /** `pending` when the tool did not run and waits for the clinician to confirm it. */
     confirmation: z.literal("pending").optional(),
+    /** With `pending`: what the change will do (see `ToolCall.preview`). */
+    preview: z.array(RecordChangeSchema).optional(),
   }),
   z.object({
     type: z.literal("message_end"),

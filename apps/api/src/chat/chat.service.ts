@@ -111,16 +111,11 @@ export class ChatService {
             };
             break;
           case "tool_call_result": {
-            const { output, isError, confirmation } = event;
+            const { output, isError, confirmation, preview } = event;
+            const decided = { ...(confirmation && { confirmation }), ...(preview && { preview }) };
             const call = toolCalls.find((c) => c.id === event.id);
-            if (call) Object.assign(call, { output, isError }, confirmation && { confirmation });
-            yield {
-              type: "tool_call_result",
-              toolCallId: event.id,
-              output,
-              isError,
-              ...(confirmation && { confirmation }),
-            };
+            if (call) Object.assign(call, { output, isError }, decided);
+            yield { type: "tool_call_result", toolCallId: event.id, output, isError, ...decided };
             break;
           }
           case "finish":

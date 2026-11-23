@@ -7,6 +7,8 @@ import {
   type McpToolName,
   type ChatUsage,
   McpToolNameSchema,
+  type RecordChange,
+  RecordChangesOutputSchema,
   requiresConfirmation,
 } from "@health-mcp/shared";
 import { Injectable, Logger } from "@nestjs/common";
@@ -41,6 +43,8 @@ export type AgentEvent =
       isError: boolean;
       /** The tool did not run: it changes data, so the clinician must confirm it first. */
       confirmation?: "pending";
+      /** With `pending`: what the change will do, worked out without saving. */
+      preview?: RecordChange[];
     }
   | { type: "finish"; reason: string; usage: ChatUsage };
 
@@ -75,9 +79,20 @@ const toolError = (message: string): McpToolResult => ({ output: message, isErro
 
 /** What the model is told instead of running a tool that needs the clinician's confirmation. */
 export const AWAITING_CONFIRMATION =
-  "Not saved yet. The clinician sees this entry in the chat and saves or discards it there. " +
-  "Briefly tell them what will be saved and ask them to confirm. " +
-  "Do not call the tool again for the same entry.";
+  "Not saved yet. The clinician sees this entry in the chat, with each old and new value, " +
+  "and saves or discards it with the Save and Discard buttons there; replying in the chat " +
+  "does not save it. Briefly tell them what will be saved and ask them to click Save to " +
+  "confirm. Do not call the tool again for the same entry.";
+
+/** What a change will do, for the model: the confirmation note and each field. */
+const pendingMessage = (preview: RecordChange[]) =>
+  [
+    AWAITING_CONFIRMATION,
+    "The change, as the clinician sees it:",
+    ...preview.map(({ field, before, after }) =>
+      before === undefined ? `- ${field}: ${after}` : `- ${field}: ${before} → ${after}`,
+    ),
+  ].join("\n");
 
 /** Tool result as the model sees it. */
 const toolMessageContent = ({ output, isError }: McpToolResult) => {
@@ -172,12 +187,12 @@ export class AgentService {
         // `patient_id` is never part of it.
         yield { type: "tool_call_start", id, name: call.name, input: prepared.input };
 
-        let result: McpToolResult & { confirmation?: "pending" };
+        let result: McpToolResult & { confirmation?: "pending"; preview?: RecordChange[] };
         if ("error" in prepared) result = toolError(prepared.error);
         // Tools that change data never run on the model's request alone;
         // see ToolCallDecisionService.
         else if (requiresConfirmation(prepared.tool))
-          result = { output: AWAITING_CONFIRMATION, isError: false, confirmation: "pending" };
+          result = await this.propose(patientId, prepared.tool, prepared.input, signal);
         else result = await this.callTool(patientId, prepared.tool, prepared.input, signal);
         yield { type: "tool_call_result", id, ...result };
         conversation.push({
@@ -221,23 +236,46 @@ export class AgentService {
     return { tool, input: args.data };
   }
 
+  /**
+   * A change for the clinician to confirm: the MCP server works out what it
+   * would change without saving. A change it would refuse (e.g. a medication
+   * name that is not the one with that id) goes back to the model as an error,
+   * so the clinician is never asked to confirm it.
+   */
+  private async propose(
+    patientId: string,
+    tool: McpToolName,
+    args: Record<string, unknown>,
+    signal: AbortSignal | undefined,
+  ): Promise<McpToolResult & { confirmation?: "pending"; preview?: RecordChange[] }> {
+    const dryRun = await this.callTool(patientId, tool, args, signal, true);
+    if (dryRun.isError) return dryRun;
+    const parsed = RecordChangesOutputSchema.safeParse(dryRun.output);
+    if (!parsed.success) {
+      this.logger.error(`Dry run of ${tool} returned no changes`);
+      return toolError("The change could not be prepared. Nothing was saved.");
+    }
+    const preview = parsed.data.changes;
+    return { output: pendingMessage(preview), isError: false, confirmation: "pending", preview };
+  }
+
   private async callTool(
     patientId: string,
     tool: McpToolName,
     args: Record<string, unknown>,
     signal: AbortSignal | undefined,
+    dryRun = false,
   ): Promise<McpToolResult> {
     const started = performance.now();
     try {
       // `args` was validated against this tool's schema in `prepare`.
-      const result = await this.mcp.callTool(
-        patientId,
-        tool,
-        args as McpToolArgs<typeof tool>,
-        signal,
-      );
+      const result = await this.mcp.callTool(patientId, tool, args as McpToolArgs<typeof tool>, {
+        ...(signal && { signal }),
+        ...(dryRun && { dryRun }),
+      });
       this.logger.log(
-        `Tool ${tool} ${result.isError ? "returned an error" : "succeeded"} ` +
+        `Tool ${tool}${dryRun ? " (dry run)" : ""} ` +
+          `${result.isError ? "returned an error" : "succeeded"} ` +
           `in ${Math.round(performance.now() - started)} ms`,
       );
       return result;

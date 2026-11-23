@@ -139,8 +139,10 @@ describe("search index updates", () => {
   it("indexes a symptom once the clinician confirms it", async () => {
     await start();
     const patient = await createPatient();
-    // The fake MCP server saves the symptom like the real one does.
-    mcp.offer("log_symptom", (args) => {
+    // The fake MCP server previews and saves the symptom like the real one does.
+    mcp.offer("log_symptom", (args, _patientId, { dryRun }) => {
+      if (dryRun)
+        return { output: { changes: [{ field: "symptom", after: "Nausea" }] }, isError: false };
       db()
         .insert(symptoms)
         .values({

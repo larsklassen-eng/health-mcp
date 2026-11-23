@@ -2,6 +2,8 @@ import {
   MCP_TOOLS,
   type McpToolArgs,
   McpToolNameSchema,
+  type RecordChange,
+  RecordChangesOutputSchema,
   type ToolCall,
   type ToolCallDecisionRequest,
 } from "@health-mcp/shared";
@@ -19,9 +21,29 @@ import { IndexingService } from "../rag/indexing.service.js";
 import { ChatHistoryService } from "./chat-history.service.js";
 
 /**
+ * The first field whose old value is no longer what the clinician was shown,
+ * e.g. "dosage is now 8 mg, not 4 mg"; undefined when the preview still holds.
+ * New values are not compared: a note's date may move on by a day.
+ */
+export function stalePreview(
+  shown: readonly RecordChange[],
+  now: readonly RecordChange[],
+): string | undefined {
+  const value = (change: RecordChange) => change.before ?? "empty";
+  for (const was of shown) {
+    const is = now.find((change) => change.field === was.field);
+    if (!is) return `${was.field} no longer changes`;
+    if (value(is) !== value(was)) return `${was.field} is now ${value(is)}, not ${value(was)}`;
+  }
+  const added = now.find((change) => !shown.some((was) => was.field === change.field));
+  return added && `${added.field} would now change too`;
+}
+
+/**
  * Carries out the clinician's decision on a tool call that changes data (e.g.
  * `log_symptom`). The model only proposes such a call; it runs here, once,
- * after the clinician confirms it.
+ * after the clinician confirms it, and only if the record still matches what
+ * the clinician was shown.
  */
 @Injectable()
 export class ToolCallDecisionService {
@@ -49,6 +71,15 @@ export class ToolCallDecisionService {
 
     this.inProgress.add(call.id);
     try {
+      // Entries proposed before previews existed have none to check.
+      if (call.preview) {
+        const changed = stalePreview(call.preview, await this.preview(patientId, call));
+        if (changed)
+          throw new ConflictException(
+            `The record changed since this was proposed (${changed}). Nothing was saved; ` +
+              "discard it and ask again.",
+          );
+      }
       const output = await this.run(patientId, call);
       const saved = this.save(
         { ...call, output, isError: false, confirmation: "confirmed" },
@@ -62,23 +93,31 @@ export class ToolCallDecisionService {
     }
   }
 
-  private async run(patientId: string, call: ToolCall): Promise<unknown> {
+  /** What the call would change now, saving nothing. */
+  private async preview(patientId: string, call: ToolCall): Promise<RecordChange[]> {
+    const output = await this.run(patientId, call, true);
+    const parsed = RecordChangesOutputSchema.safeParse(output);
+    if (!parsed.success) throw new BadGatewayException("Nothing was saved: no preview came back.");
+    return parsed.data.changes;
+  }
+
+  private async run(patientId: string, call: ToolCall, dryRun = false): Promise<unknown> {
     const name = McpToolNameSchema.parse(call.name);
     // The input was validated when the model proposed it; check again before writing.
     const args = MCP_TOOLS[name].args.parse(call.input) as McpToolArgs<typeof name>;
 
     let result;
     try {
-      result = await this.mcp.callTool(patientId, name, args);
+      result = await this.mcp.callTool(patientId, name, args, dryRun ? { dryRun } : {});
     } catch (error) {
       this.logger.error(`Confirmed ${name} could not be called`, error);
       throw new ServiceUnavailableException("The MCP server is not reachable. Nothing was saved.");
     }
     if (result.isError) {
-      this.logger.warn(`Confirmed ${name} returned an error`);
+      this.logger.warn(`Confirmed ${name} returned an error${dryRun ? " (dry run)" : ""}`);
       throw new BadGatewayException(`Nothing was saved: ${String(result.output)}`);
     }
-    this.logger.log(`Confirmed ${name} for patient ${patientId}`);
+    if (!dryRun) this.logger.log(`Confirmed ${name} for patient ${patientId}`);
     return result.output;
   }
 

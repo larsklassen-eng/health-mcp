@@ -1,26 +1,40 @@
 import type { McpToolArgs, McpToolName } from "@health-mcp/shared";
 
-import { McpClient, type McpToolResult } from "../../src/mcp/mcp-client.js";
+import { type McpCallOptions, McpClient, type McpToolResult } from "../../src/mcp/mcp-client.js";
 
 type Handler = (
   args: Record<string, unknown>,
   patientId: string,
-  signal?: AbortSignal,
+  options: McpCallOptions,
 ) => McpToolResult | Promise<McpToolResult>;
+
+/** What the default handler returns for a dry run: one change naming the tool. */
+export const fakePreview = (name: string) => [{ field: "tool", after: name }];
 
 /**
  * {@link McpClient} for tests. Offer tools with `offer()`; every call is
- * recorded in `calls` with the `patientId` the api supplied.
+ * recorded in `calls` with the `patientId` the api supplied, and `dryRun` when set.
  */
 export class FakeMcpClient extends McpClient {
-  readonly calls: { patientId: string; name: string; args: Record<string, unknown> }[] = [];
+  readonly calls: {
+    patientId: string;
+    name: string;
+    args: Record<string, unknown>;
+    dryRun?: true;
+  }[] = [];
   private readonly handlers = new Map<string, Handler>();
   private listError: Error | undefined;
 
-  /** Offers `name`; by default it returns `{ ok: true, tool: name }`. */
+  /**
+   * Offers `name`; by default it returns `{ ok: true, tool: name }`, or on a
+   * dry run `{ changes: fakePreview(name) }`.
+   */
   offer(
     name: string,
-    handler: Handler = () => ({ output: { ok: true, tool: name }, isError: false }),
+    handler: Handler = (_args, _patientId, { dryRun }) => ({
+      output: dryRun ? { changes: fakePreview(name) } : { ok: true, tool: name },
+      isError: false,
+    }),
   ): this {
     this.handlers.set(name, handler);
     return this;
@@ -41,12 +55,12 @@ export class FakeMcpClient extends McpClient {
     patientId: string,
     name: T,
     args: McpToolArgs<T>,
-    signal?: AbortSignal,
+    options: McpCallOptions = {},
   ): Promise<McpToolResult> {
     const record = { ...(args as Record<string, unknown>) };
-    this.calls.push({ patientId, name, args: record });
+    this.calls.push({ patientId, name, args: record, ...(options.dryRun && { dryRun: true }) });
     const handler = this.handlers.get(name);
     if (!handler) throw new Error(`FakeMcpClient: tool ${name} is not offered`);
-    return handler(record, patientId, signal);
+    return handler(record, patientId, options);
   }
 }

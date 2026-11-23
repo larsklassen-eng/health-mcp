@@ -26,6 +26,16 @@ export const PatientIdArgSchema = z.object({
   ),
 });
 
+/** For tools that change data: set by the API, never by the model. */
+export const DryRunArgSchema = z.object({
+  dry_run: z
+    .boolean()
+    .optional()
+    .describe(
+      "true: return the changes the call would make (`RecordChangesOutput`) without saving.",
+    ),
+});
+
 export const MCP_TOOLS = {
   get_patient_profile: {
     description: "Get the current patient's demographics, diagnosis and surgery date.",
@@ -220,36 +230,26 @@ export const TOOLS_REQUIRING_CONFIRMATION: readonly McpToolName[] = [
 export const requiresConfirmation = (name: string): boolean =>
   (TOOLS_REQUIRING_CONFIRMATION as readonly string[]).includes(name);
 
-/** What `update_patient_profile` and `update_medication` return: each field's old and new value. */
-export const RecordChangesOutputSchema = z.object({
-  changes: z.array(
-    z.object({
-      field: z.string(),
-      /** Absent when the field was empty, or for an added note. */
-      before: z.string().optional(),
-      after: z.string(),
-    }),
-  ),
-});
-
-export type RecordChangesOutput = z.infer<typeof RecordChangesOutputSchema>;
-export type RecordChange = RecordChangesOutput["changes"][number];
-
 export const McpToolNameSchema = z.enum(Object.keys(MCP_TOOLS) as [McpToolName, ...McpToolName[]]);
 
 /** Arguments the LLM supplies for a tool (no `patient_id`). */
 export type McpToolArgs<T extends McpToolName> = z.infer<(typeof MCP_TOOLS)[T]["args"]>;
 
-/** Full input validated by apps/mcp-server: the LLM's arguments plus `patient_id`. */
+/**
+ * Full input validated by apps/mcp-server: the LLM's arguments plus
+ * `patient_id`, and `dry_run` for tools that change data.
+ */
 export type McpToolInput<T extends McpToolName> = McpToolArgs<T> &
-  z.infer<typeof PatientIdArgSchema>;
+  z.infer<typeof PatientIdArgSchema> &
+  z.infer<typeof DryRunArgSchema>;
 
 /** Schema for the full input of a tool, as validated by apps/mcp-server. */
 export function mcpToolInputSchema<T extends McpToolName>(name: T): z.ZodType<McpToolInput<T>> {
   // TypeScript cannot follow `extend` through the generic index, so the result
   // type is stated explicitly.
   // `safeExtend` keeps the args' refinements (e.g. "at least one change").
-  return MCP_TOOLS[name].args.safeExtend(PatientIdArgSchema.shape) as unknown as z.ZodType<
-    McpToolInput<T>
-  >;
+  const shape = requiresConfirmation(name)
+    ? { ...PatientIdArgSchema.shape, ...DryRunArgSchema.shape }
+    : PatientIdArgSchema.shape;
+  return MCP_TOOLS[name].args.safeExtend(shape) as unknown as z.ZodType<McpToolInput<T>>;
 }

@@ -27,10 +27,22 @@ let patient: Patient;
 const SAVED = {
   symptom: { name: "Headache", severity: 4, recordedAt: "2026-10-19T09:30:00.000Z" },
 };
+/** What a dry run of the headache entry returns, as the MCP server's log_symptom does. */
+const PREVIEW = [
+  { field: "symptom", after: "Headache" },
+  { field: "severity", after: "4/10" },
+];
+const dryRunOr = (saved: () => unknown) => (_args: unknown, _id: string, options: object) =>
+  "dryRun" in options
+    ? { output: { changes: PREVIEW }, isError: false }
+    : { output: saved(), isError: false };
 
 beforeEach(async () => {
   llm = new FakeLlmClient();
-  mcp = new FakeMcpClient().offer("log_symptom", () => ({ output: SAVED, isError: false }));
+  mcp = new FakeMcpClient().offer(
+    "log_symptom",
+    dryRunOr(() => SAVED),
+  );
   testApp = await startTestApp(AppModule, [
     { provide: LlmClient, useValue: llm },
     { provide: McpClient, useValue: mcp },
@@ -64,6 +76,9 @@ async function savedToolCall(id = "t1") {
 const decide = (decision: string, toolCallId = "t1") =>
   testApp.request("POST", API_ROUTES.toolCallDecision(patient.id, toolCallId), { decision });
 
+/** Calls that saved something (not dry runs). */
+const saves = () => mcp.calls.filter((call) => !call.dryRun);
+
 /** The model asks to log a headache, then answers. */
 async function proposeHeadache() {
   llm
@@ -77,24 +92,51 @@ async function proposeHeadache() {
 }
 
 describe("tools that need the clinician's confirmation", () => {
-  it("does not run log_symptom when the model calls it, and marks it pending", async () => {
+  it("only previews log_symptom when the model calls it, and marks it pending", async () => {
     const events = await proposeHeadache();
 
-    expect(mcp.calls).toEqual([]);
+    expect(mcp.calls).toEqual([
+      {
+        patientId: patient.id,
+        name: "log_symptom",
+        args: { name: "Headache", severity: 4 },
+        dryRun: true,
+      },
+    ]);
+    const message =
+      `${AWAITING_CONFIRMATION}\nThe change, as the clinician sees it:\n` +
+      "- symptom: Headache\n- severity: 4/10";
     expect(events.find((e) => e.type === "tool_call_result")).toEqual({
       type: "tool_call_result",
       toolCallId: "t1",
-      output: AWAITING_CONFIRMATION,
+      output: message,
       isError: false,
       confirmation: "pending",
+      preview: PREVIEW,
     });
     const toolMessage = llm.requests[1]!.messages.find((m) => m.role === "tool");
-    expect(toolMessage?.content).toBe(AWAITING_CONFIRMATION);
+    expect(toolMessage?.content).toBe(message);
     expect(await savedToolCall()).toMatchObject({
       name: "log_symptom",
       input: { name: "Headache", severity: 4 },
       confirmation: "pending",
+      preview: PREVIEW,
     });
+  });
+
+  it("returns a change the MCP server would refuse to the model, with no card", async () => {
+    mcp.offer("log_symptom", () => ({ output: "Patient p9 not found.", isError: true }));
+
+    const events = await proposeHeadache();
+
+    expect(events.find((e) => e.type === "tool_call_result")).toEqual({
+      type: "tool_call_result",
+      toolCallId: "t1",
+      output: "Patient p9 not found.",
+      isError: true,
+    });
+    expect((await savedToolCall())?.confirmation).toBeUndefined();
+    expect(saves()).toEqual([]);
   });
 
   it("runs the tool once the clinician confirms, and saves the result", async () => {
@@ -110,9 +152,12 @@ describe("tools that need the clinician's confirmation", () => {
       output: SAVED,
       isError: false,
       confirmation: "confirmed",
+      preview: PREVIEW,
     };
     expect(ToolCallSchema.parse(body)).toEqual(expected);
-    expect(mcp.calls).toEqual([
+    // Previewed when proposed, previewed again to check it still holds, then saved.
+    expect(mcp.calls.map((call) => call.dryRun ?? false)).toEqual([true, true, false]);
+    expect(saves()).toEqual([
       { patientId: patient.id, name: "log_symptom", args: { name: "Headache", severity: 4 } },
     ]);
     expect(await savedToolCall()).toEqual(expected);
@@ -125,7 +170,7 @@ describe("tools that need the clinician's confirmation", () => {
 
     expect(status).toBe(200);
     expect(body).toMatchObject({ id: "t1", confirmation: "rejected" });
-    expect(mcp.calls).toEqual([]);
+    expect(saves()).toEqual([]);
     expect((await savedToolCall())?.confirmation).toBe("rejected");
   });
 
@@ -138,17 +183,37 @@ describe("tools that need the clinician's confirmation", () => {
 
     expect(again.status).toBe(409);
     expect(reject.status).toBe(409);
-    expect(mcp.calls).toHaveLength(1);
+    expect(saves()).toHaveLength(1);
+  });
+
+  it("saves nothing when the record changed since the preview", async () => {
+    await proposeHeadache();
+    mcp.offer("log_symptom", (_args, _id, options) => ({
+      output: options.dryRun
+        ? { changes: [{ field: "symptom", before: "Migraine", after: "Headache" }, PREVIEW[1]] }
+        : SAVED,
+      isError: false,
+    }));
+
+    const { status, body } = await decide("confirm");
+
+    expect(status).toBe(409);
+    expect(ApiErrorSchema.parse(body).message).toBe(
+      "The record changed since this was proposed (symptom is now Migraine, not empty). " +
+        "Nothing was saved; discard it and ask again.",
+    );
+    expect(saves()).toEqual([]);
+    expect((await savedToolCall())?.confirmation).toBe("pending");
   });
 
   it("saves only once when confirm is sent twice at the same time", async () => {
     let finish!: () => void;
-    mcp.offer(
-      "log_symptom",
-      () =>
-        new Promise((resolve) => {
-          finish = () => resolve({ output: SAVED, isError: false });
-        }),
+    mcp.offer("log_symptom", (_args, _id, options) =>
+      options.dryRun
+        ? { output: { changes: PREVIEW }, isError: false }
+        : new Promise((resolve) => {
+            finish = () => resolve({ output: SAVED, isError: false });
+          }),
     );
     await proposeHeadache();
 
@@ -159,7 +224,7 @@ describe("tools that need the clinician's confirmation", () => {
 
     expect(second.status).toBe(409);
     expect((await first).status).toBe(200);
-    expect(mcp.calls).toHaveLength(1);
+    expect(saves()).toHaveLength(1);
   });
 
   it("keeps the entry pending when the MCP server fails, so it can be retried", async () => {

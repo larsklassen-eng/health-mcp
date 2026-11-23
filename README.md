@@ -438,12 +438,12 @@ data: {"type":"message_end","messageId":"…","stopReason":"stop","usage":{"mode
 
 Tools that change patient data (`TOOLS_REQUIRING_CONFIRMATION` in `packages/shared`: `log_symptom`, `update_patient_profile`, `add_medication` and `update_medication`) never run because the model asked:
 
-1. When the model calls one, the api does not call the MCP server. It saves the call with `confirmation: "pending"`, streams it to the web app, and tells the model that nothing is saved until the clinician confirms.
-2. The chat shows the entry with Save and Discard buttons.
-3. Save sends `POST /patients/:id/chat/tool-calls/:toolCallId/decision` with `confirm`. The api validates the saved input again, runs the tool on the MCP server, and marks the call `confirmed` with the result. Discard marks it `rejected` without running anything.
-4. Each entry can be decided once: a second decision gets 409, and two Saves at the same time save only once. If the MCP server fails, the entry stays pending so it can be tried again.
-5. In later turns, the model sees what was decided (e.g. "The clinician confirmed and saved: …").
-6. A saved change shows each field's old and new value in the chat, and the patient's pages are rendered again so the profile and dashboard show it. Changed notes are re-indexed for search.
+1. When the model calls one, the api asks the MCP server for a **dry run** (`dry_run`, set by the api and never by the model): the tool works out each field's old and new value (`RecordChangesOutput`) and saves nothing. A change the tool would refuse (a medication name that is not the one with that id, a medication already stopped, nothing to change) goes back to the model as a tool error, and no card is shown.
+2. Otherwise the api saves the call with `confirmation: "pending"` and the dry run as its `preview`, streams both to the web app, and tells the model that nothing is saved until the clinician clicks Save, listing the change as the clinician sees it.
+3. The chat shows the entry with each old and new value (old values struck through), and Save and Discard buttons.
+4. Save sends `POST /patients/:id/chat/tool-calls/:toolCallId/decision` with `confirm`. The api validates the saved input again and runs a second dry run: if an old value is no longer what the clinician was shown (someone edited the record meanwhile), it saves nothing and answers 409. Otherwise it runs the tool and marks the call `confirmed` with the result. Discard marks it `rejected` without running anything.
+5. Each entry can be decided once: a second decision gets 409, and two Saves at the same time save only once. If the MCP server fails, the entry stays pending so it can be tried again. In later turns, the model sees what was decided (e.g. "The clinician confirmed and saved: …").
+6. A saved change keeps showing each field's old and new value in the chat, and the patient's pages are rendered again so the profile and dashboard show it. Changed notes are re-indexed for search.
 
 To try it with a real key (uses OpenRouter credits), set `OPENROUTER_API_KEY` in `.env`, run `yarn dev`, create a patient, then:
 

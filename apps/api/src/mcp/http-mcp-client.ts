@@ -1,10 +1,10 @@
-import type { McpToolArgs, McpToolName } from "@health-mcp/shared";
+import { type McpToolArgs, type McpToolName, requiresConfirmation } from "@health-mcp/shared";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 
-import { McpClient, type McpToolResult } from "./mcp-client.js";
+import { type McpCallOptions, McpClient, type McpToolResult } from "./mcp-client.js";
 
 export interface HttpMcpClientOptions {
   url: string;
@@ -63,13 +63,21 @@ export class HttpMcpClient extends McpClient {
     patientId: string,
     name: T,
     args: McpToolArgs<T>,
-    signal?: AbortSignal,
+    { signal, dryRun }: McpCallOptions = {},
   ): Promise<McpToolResult> {
     const client = await this.connect();
-    // `patient_id` goes last so nothing in `args` can override it.
+    // `patient_id` and `dry_run` go last so nothing in `args` can override them.
     const result = (await this.request(() =>
       client.callTool(
-        { name, arguments: { ...args, patient_id: patientId } },
+        {
+          name,
+          arguments: {
+            ...args,
+            // Only tools that change data take it; set either way, so a model's value never stays.
+            ...(requiresConfirmation(name) && { dry_run: dryRun === true }),
+            patient_id: patientId,
+          },
+        },
         undefined,
         this.requestOptions(signal),
       ),

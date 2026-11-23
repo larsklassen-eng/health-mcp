@@ -418,7 +418,7 @@ describe("chat with tools", () => {
 
   it("stops the tool call and saves nothing when the client disconnects during it", async () => {
     let toolSignal: AbortSignal | undefined;
-    mcp.offer("get_patient_profile", (_args, _patientId, signal) => {
+    mcp.offer("get_patient_profile", (_args, _patientId, { signal }) => {
       toolSignal = signal;
       return new Promise((_resolve, reject) =>
         signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError"))),

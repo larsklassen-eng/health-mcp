@@ -33,6 +33,11 @@ function createTestServer() {
       { inputSchema: z.looseObject({ patient_id: z.string() }) },
       echo("get_lab_results"),
     );
+    server.registerTool(
+      "update_medication",
+      { inputSchema: z.looseObject({ patient_id: z.string() }) },
+      echo("update_medication"),
+    );
     server.registerTool("get_medications", { inputSchema: z.looseObject({}) }, async () => ({
       content: [{ type: "text" as const, text: "Patient not found." }],
       isError: true,
@@ -82,6 +87,7 @@ describe("HttpMcpClient", () => {
     expect(await connect().listToolNames()).toEqual([
       "get_patient_profile",
       "get_lab_results",
+      "update_medication",
       "get_medications",
     ]);
   });
@@ -109,6 +115,16 @@ describe("HttpMcpClient", () => {
     await connect().callTool("p1", "get_patient_profile", { patient_id: "someone-else" } as never);
 
     expect(received[0]?.args).toEqual({ patient_id: "p1" });
+  });
+
+  it("sends dry_run to tools that change data, and never takes it from the arguments", async () => {
+    const args = { medication_id: "m1", medication_name: "Dex", stop: true, dry_run: true };
+    await connect().callTool("p1", "update_medication", args as never);
+    await connect().callTool("p1", "update_medication", args as never, { dryRun: true });
+    await connect().callTool("p1", "get_lab_results", { limit: 1 }, { dryRun: true });
+
+    const sent = received.map((r) => (r.args as { dry_run?: boolean }).dry_run);
+    expect(sent).toEqual([false, true, undefined]);
   });
 
   it("returns tool errors as results, with non-JSON text kept as text", async () => {
@@ -160,7 +176,7 @@ describe("HttpMcpClient", () => {
     controller.abort();
 
     const error = await connect()
-      .callTool("p1", "get_patient_profile", {}, controller.signal)
+      .callTool("p1", "get_patient_profile", {}, { signal: controller.signal })
       .catch((e: unknown) => e);
 
     expect(error).not.toBeInstanceOf(McpUnavailableError);

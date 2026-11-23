@@ -174,6 +174,63 @@ describe("ChatToolCalls", () => {
       expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
     });
 
+    it("shows each old and new value before saving, when the change was previewed", async () => {
+      const onDecide = vi.fn().mockResolvedValue(undefined);
+      render(
+        <ChatToolCalls
+          patientId="p1"
+          calls={[
+            {
+              ...pending,
+              name: "update_medication",
+              input: { medication_id: "m-1", medication_name: "Amlodipine", dosage: "10 mg" },
+              preview: [
+                { field: "medication", after: "Amlodipine" },
+                { field: "dosage", before: "5 mg", after: "10 mg" },
+              ],
+            },
+          ]}
+          onDecide={onDecide}
+        />,
+      );
+
+      const group = screen.getByRole("group", { name: "Confirm entry" });
+      const [medication, dosage] = within(
+        within(group).getByRole("list", { name: "Changes to save" }),
+      ).getAllByRole("listitem");
+      expect(medication).toHaveTextContent("medication: Amlodipine");
+      expect(dosage).toHaveTextContent("dosage: 5 mg → 10 mg");
+      expect(dosage!.querySelector("del")).toHaveTextContent("5 mg");
+      expect(group).not.toHaveTextContent("medication name:");
+
+      await userEvent.setup().click(within(group).getByRole("button", { name: "Save" }));
+      expect(onDecide).toHaveBeenCalledWith("t9", "confirm");
+    });
+
+    it("shows a saved new entry as the preview that was confirmed", () => {
+      const preview = [
+        { field: "symptom", after: "Headache" },
+        { field: "severity", after: "4/10" },
+      ];
+      render(
+        <ChatToolCalls
+          patientId="p1"
+          calls={[
+            {
+              ...pending,
+              confirmation: "confirmed",
+              output: { symptom: { name: "Headache" } },
+              preview,
+            },
+          ]}
+        />,
+      );
+
+      const saved = screen.getByRole("list", { name: "Changes saved" });
+      expect(saved).toHaveTextContent("symptom: Headache");
+      expect(saved).toHaveTextContent("severity: 4/10");
+    });
+
     it("shows a medication by name, not by id, before it is saved", () => {
       render(
         <ChatToolCalls

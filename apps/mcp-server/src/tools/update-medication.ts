@@ -10,8 +10,9 @@ const sameName = (a: string, b: string) => a.trim().toLowerCase() === b.trim().t
 /**
  * Changes one of the patient's medications, or stops it. The name the model
  * gives must be the medication's, so the clinician confirms what is changed.
- * This server runs it whenever it is called; apps/api only calls it after the
- * clinician has confirmed it.
+ * With `dry_run`, returns the changes without saving (apps/api's preview);
+ * otherwise this server saves whenever it is called, and apps/api only calls
+ * it after the clinician has confirmed it.
  */
 export const updateMedication =
   (db: HealthDb, now: () => Date = () => new Date()): ToolHandler<"update_medication"> =>
@@ -56,6 +57,6 @@ export const updateMedication =
 
     if (changes.length === 0)
       throw new ToolError(`Nothing to change: ${medication.name} already has these values.`);
-    db.update(medications).set(values).where(where).run();
+    if (!input.dry_run) db.update(medications).set(values).where(where).run();
     return { changes: [change("medication", undefined, medication.name), ...changes] };
   };

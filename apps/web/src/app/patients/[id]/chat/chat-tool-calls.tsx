@@ -5,6 +5,7 @@ import {
   type ToolCall,
 } from "@health-mcp/shared";
 
+import { RecordChanges } from "./record-changes";
 import { RecordSearchResults } from "./record-search-results";
 import { type DecideToolCall, ToolCallConfirmation } from "./tool-call-confirmation";
 
@@ -76,26 +77,19 @@ function statusOf(call: ToolCall, running: ReadonlySet<string> | undefined): Sta
 
 /**
  * The result of a call, with record searches shown as passages linked to their
- * sources, and a saved change as each field's old and new value.
+ * sources, and a saved change as each field's old and new value (from the
+ * result, or else from the preview the clinician confirmed).
  */
 function ToolCallOutput({ call, patientId }: { call: ToolCall; patientId: string }) {
   if (call.name === "search_patient_records" && !call.isError) {
     const search = RecordSearchOutputSchema.safeParse(call.output);
     if (search.success) return <RecordSearchResults patientId={patientId} output={search.data} />;
   }
-  const changed = call.isError ? undefined : RecordChangesOutputSchema.safeParse(call.output).data;
-  if (changed)
-    return (
-      <ul className="tool-call-output record-changes" aria-label="Changes saved">
-        {changed.changes.map(({ field, before, after }) => (
-          <li key={field}>
-            <strong>{field}:</strong> {before !== undefined && <del>{before}</del>}
-            {before !== undefined && " → "}
-            {after}
-          </li>
-        ))}
-      </ul>
-    );
+  const changes = call.isError
+    ? undefined
+    : (RecordChangesOutputSchema.safeParse(call.output).data?.changes ??
+      (call.confirmation === "confirmed" ? call.preview : undefined));
+  if (changes) return <RecordChanges changes={changes} label="Changes saved" />;
   return <pre className="tool-call-output">{formatOutput(call.output)}</pre>;
 }
 
@@ -140,6 +134,7 @@ export function ChatToolCalls({ patientId, calls, running, onDecide, decisionsDi
               <ToolCallConfirmation
                 toolCallId={call.id}
                 summary={input}
+                {...(call.preview && { preview: call.preview })}
                 onDecide={onDecide}
                 disabled={decisionsDisabled ?? false}
               />

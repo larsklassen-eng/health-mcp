@@ -10,4 +10,5 @@ export * from "./schemas/imaging.js";
 export * from "./schemas/patient.js";
 export * from "./schemas/patient-account.js";
 export * from "./schemas/patient-import.js";
+export * from "./schemas/record-changes.js";
 export * from "./schemas/record-chunks.js";

@@ -69,10 +69,16 @@ export function ChatPanel({ patientId, initialMessages }: Props) {
           setDraftCalls(calls);
           setRunning((ids) => new Set(ids).add(event.toolCallId));
         } else if (event.type === "tool_call_result") {
-          const { toolCallId, output, isError, confirmation } = event;
+          const { toolCallId, output, isError, confirmation, preview } = event;
           calls = calls.map((call) =>
             call.id === toolCallId
-              ? { ...call, output, isError, ...(confirmation && { confirmation }) }
+              ? {
+                  ...call,
+                  output,
+                  isError,
+                  ...(confirmation && { confirmation }),
+                  ...(preview && { preview }),
+                }
               : call,
           );
           setDraftCalls(calls);

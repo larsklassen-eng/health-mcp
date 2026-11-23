@@ -8,12 +8,13 @@ import { ToolError, type ToolHandler } from "./tool.js";
 
 /**
  * Changes the patient's profile. A note is added to the end of the clinician
- * notes with today's date, never replacing them. This server runs it whenever
- * it is called; apps/api only calls it after the clinician has confirmed it.
+ * notes with today's date, never replacing them. With `dry_run`, returns the
+ * changes without saving (apps/api's preview); otherwise this server saves
+ * whenever it is called, and apps/api only calls it after the clinician confirms.
  */
 export const updatePatientProfile =
   (db: HealthDb, now: () => Date = () => new Date()): ToolHandler<"update_patient_profile"> =>
-  ({ patient_id, diagnosis, surgery_date, status, add_note }): ChangesOutput => {
+  ({ patient_id, dry_run, diagnosis, surgery_date, status, add_note }): ChangesOutput => {
     const patient = requirePatient(db, patient_id);
     const changes: FieldChange[] = [];
     const values: Partial<typeof patients.$inferInsert> = {};
@@ -44,6 +45,6 @@ export const updatePatientProfile =
 
     if (changes.length === 0)
       throw new ToolError("Nothing to change: the profile already has these values.");
-    db.update(patients).set(values).where(eq(patients.id, patient_id)).run();
+    if (!dry_run) db.update(patients).set(values).where(eq(patients.id, patient_id)).run();
     return { changes };
   };

@@ -1,4 +1,4 @@
-import { medications, patients } from "@health-mcp/db";
+import { medications, patients, symptoms } from "@health-mcp/db";
 import type { RecordChangesOutput } from "@health-mcp/shared";
 import type { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
@@ -193,5 +193,68 @@ describe("update_medication", () => {
     });
     expect(result.isError).toBe(true);
     expect(medication(dexamethasone).status).toBe("active");
+  });
+});
+
+describe("dry runs", () => {
+  it("return the changes and save nothing, for every tool that changes data", async () => {
+    const dex = insertMedication(server.db, patientId, { name: "Dexamethasone" }).id;
+    const count = (table: typeof medications) => server.db.select().from(table).all().length;
+    const before = { patient: patient(), medication: medication(dex), meds: count(medications) };
+
+    expect(
+      await changes("update_patient_profile", {
+        dry_run: true,
+        diagnosis: "Glioblastoma, IDH-wildtype",
+        add_note: "Gross total.",
+      }),
+    ).toEqual([
+      { field: "diagnosis", before: "Glioblastoma", after: "Glioblastoma, IDH-wildtype" },
+      { field: "notes (added)", after: "2026-11-20: Gross total." },
+    ]);
+    expect(
+      await changes("update_medication", {
+        dry_run: true,
+        medication_id: dex,
+        medication_name: "Dexamethasone",
+        stop: true,
+      }),
+    ).toEqual([
+      { field: "medication", after: "Dexamethasone" },
+      { field: "status", before: "active", after: "stopped" },
+      { field: "end date", after: "2026-11-20" },
+    ]);
+    expect(
+      await changes("add_medication", {
+        dry_run: true,
+        name: "Ondansetron",
+        dosage: "8 mg",
+        frequency: "as needed",
+      }),
+    ).toEqual([
+      { field: "medication", after: "Ondansetron" },
+      { field: "dosage", after: "8 mg" },
+      { field: "frequency", after: "as needed" },
+      { field: "start date", after: "2026-11-20" },
+    ]);
+    expect(
+      await changes("log_symptom", { dry_run: true, name: " Headache ", severity: 4, notes: " " }),
+    ).toEqual([
+      { field: "symptom", after: "Headache" },
+      { field: "severity", after: "4/10" },
+    ]);
+
+    expect(patient()).toEqual(before.patient);
+    expect(medication(dex)).toEqual(before.medication);
+    expect(count(medications)).toBe(before.meds);
+    expect(server.db.select().from(symptoms).all()).toEqual([]);
+  });
+
+  it("refuse what the real call would refuse", async () => {
+    const result = await call("update_patient_profile", {
+      dry_run: true,
+      diagnosis: "Glioblastoma",
+    });
+    expect(text(result)).toMatch(/Nothing to change/);
   });
 });
